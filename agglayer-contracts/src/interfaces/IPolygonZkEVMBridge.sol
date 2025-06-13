@@ -4,7 +4,12 @@ pragma solidity ^0.8.20;
 
 import "./IBasePolygonZkEVMGlobalExitRoot.sol";
 
-interface IPolygonZkEVMBridgeV2 {
+interface IPolygonZkEVMBridge {
+    /**
+     * @dev Thrown when sender is not the PolygonZkEVM address
+     */
+    error OnlyPolygonZkEVM();
+
     /**
      * @dev Thrown when the destination network is invalid
      */
@@ -65,39 +70,6 @@ interface IPolygonZkEVMBridgeV2 {
      */
     error NotValidSignature();
 
-    /**
-     * @dev Thrown when sender is not the rollup manager
-     */
-    error OnlyRollupManager();
-
-    /**
-     * @dev Thrown when the permit data contains an invalid signature
-     */
-    error NativeTokenIsEther();
-
-    /**
-     * @dev Thrown when the permit data contains an invalid signature
-     */
-    error NoValueInMessagesOnGasTokenNetworks();
-
-    /**
-     * @dev Thrown when the permit data contains an invalid signature
-     */
-    error GasTokenNetworkMustBeZeroOnEther();
-
-    /**
-     * @dev Thrown when the wrapped token deployment fails
-     */
-    error FailedTokenWrappedDeployment();
-
-    function wrappedTokenToTokenInfo(address destinationAddress) external view returns (uint32, address);
-
-    function updateGlobalExitRoot() external;
-
-    function activateEmergencyState() external;
-
-    function deactivateEmergencyState() external;
-
     function bridgeAsset(
         uint32 destinationNetwork,
         address destinationAddress,
@@ -114,18 +86,9 @@ interface IPolygonZkEVMBridgeV2 {
         bytes calldata metadata
     ) external payable;
 
-    function bridgeMessageWETH(
-        uint32 destinationNetwork,
-        address destinationAddress,
-        uint256 amountWETH,
-        bool forceUpdateGlobalExitRoot,
-        bytes calldata metadata
-    ) external;
-
     function claimAsset(
-        bytes32[32] calldata smtProofLocalExitRoot,
-        bytes32[32] calldata smtProofRollupExitRoot,
-        uint256 globalIndex,
+        bytes32[32] calldata smtProof,
+        uint32 index,
         bytes32 mainnetExitRoot,
         bytes32 rollupExitRoot,
         uint32 originNetwork,
@@ -137,9 +100,8 @@ interface IPolygonZkEVMBridgeV2 {
     ) external;
 
     function claimMessage(
-        bytes32[32] calldata smtProofLocalExitRoot,
-        bytes32[32] calldata smtProofRollupExitRoot,
-        uint256 globalIndex,
+        bytes32[32] calldata smtProof,
+        uint32 index,
         bytes32 mainnetExitRoot,
         bytes32 rollupExitRoot,
         uint32 originNetwork,
@@ -150,6 +112,16 @@ interface IPolygonZkEVMBridgeV2 {
         bytes calldata metadata
     ) external;
 
+    function updateGlobalExitRoot() external;
+
+    function activateEmergencyState() external;
+
+    function deactivateEmergencyState() external;
+
+    function getTokenMetadata(address token) external view returns (bytes memory);
+
+    function wrappedTokenToTokenInfo(address destinationAddress) external view returns (uint32, address);
+
     function initialize(
         uint32 _networkID,
         address _gasTokenAddress,
@@ -158,6 +130,4 @@ interface IPolygonZkEVMBridgeV2 {
         address _polygonRollupManager,
         bytes memory _gasTokenMetadata
     ) external;
-
-    function getTokenMetadata(address token) external view returns (bytes memory);
 }

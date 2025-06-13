@@ -1,4 +1,3 @@
-
 // SPDX-License-Identifier: AGPL-3.0
 
 pragma solidity ^0.8.20;
@@ -36,7 +35,5 @@ interface IBasePolygonZkEVMGlobalExitRoot {
 
     function updateExitRoot(bytes32 newRollupExitRoot) external;
 
-    function globalExitRootMap(
-        bytes32 globalExitRootNum
-    ) external returns (uint256);
+    function globalExitRootMap(bytes32 globalExitRootNum) external returns (uint256);
 }

@@ -4,7 +4,7 @@ pragma solidity ^0.8.20;
 
 import "./IVerifierRollup.sol";
 import "./IPolygonRollupBase.sol";
-import {ITransparentUpgradeableProxy} from "@openzeppelin/contracts5/proxy/transparent/TransparentUpgradeableProxy.sol";
+import {ITransparentUpgradeableProxy} from "@openzeppelin/contracts/proxy/transparent/TransparentUpgradeableProxy.sol";
 
 interface IPolygonRollupManager {
     /**
@@ -344,26 +344,14 @@ interface IPolygonRollupManager {
         bytes32 programVKey
     ) external;
 
-    function updateRollupByRollupAdmin(
-        ITransparentUpgradeableProxy rollupContract,
-        uint32 newRollupTypeID
-    ) external;
+    function updateRollupByRollupAdmin(ITransparentUpgradeableProxy rollupContract, uint32 newRollupTypeID) external;
 
-    function updateRollup(
-        ITransparentUpgradeableProxy rollupContract,
-        uint32 newRollupTypeID,
-        bytes memory upgradeData
-    ) external;
+    function updateRollup(ITransparentUpgradeableProxy rollupContract, uint32 newRollupTypeID, bytes memory upgradeData)
+        external;
 
-    function rollbackBatches(
-        IPolygonRollupBase rollupContract,
-        uint64 targetBatch
-    ) external;
+    function rollbackBatches(IPolygonRollupBase rollupContract, uint64 targetBatch) external;
 
-    function onSequenceBatches(
-        uint64 newSequencedBatches,
-        bytes32 newAccInputHash
-    ) external returns (uint64);
+    function onSequenceBatches(uint64 newSequencedBatches, bytes32 newAccInputHash) external returns (uint64);
 
     function verifyBatchesTrustedAggregator(
         uint32 rollupID,
@@ -392,9 +380,7 @@ interface IPolygonRollupManager {
 
     function getRollupExitRoot() external view returns (bytes32);
 
-    function getLastVerifiedBatch(
-        uint32 rollupID
-    ) external view returns (uint64);
+    function getLastVerifiedBatch(uint32 rollupID) external view returns (uint64);
 
     function calculateRewardPerBatch() external view returns (uint256);
 
@@ -418,13 +404,7 @@ interface IPolygonRollupManager {
         bytes32 newStateRoot
     ) external view returns (bytes memory);
 
-    function getRollupBatchNumToStateRoot(
-        uint32 rollupID,
-        uint64 batchNum
-    ) external view returns (bytes32);
+    function getRollupBatchNumToStateRoot(uint32 rollupID, uint64 batchNum) external view returns (bytes32);
 
-    function lastDeactivatedEmergencyStateTimestamp()
-        external
-        view
-        returns (uint64);
+    function lastDeactivatedEmergencyStateTimestamp() external view returns (uint64);
 }

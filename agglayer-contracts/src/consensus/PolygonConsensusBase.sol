@@ -1,15 +1,15 @@
 // SPDX-License-Identifier: AGPL-3.0
 pragma solidity ^0.8.20;
 
-import "@openzeppelin/contracts-upgradeable/token/ERC20/utils/SafeERC20Upgradeable.sol";
+import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "../interfaces/IPolygonZkEVMGlobalExitRootV2.sol";
-import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
+// import "@openzeppelin/contracts/proxy/utils/Initializable.sol";
 import "../interfaces/IPolygonZkEVMErrors.sol";
 import "../interfaces/IPolygonZkEVMEtrogErrors.sol";
 import "../interfaces/IPolygonConsensusBase.sol";
 import "../interfaces/IPolygonRollupBase.sol";
 import "../interfaces/IPolygonZkEVMBridgeV2.sol";
-import "@openzeppelin/contracts-upgradeable/token/ERC20/extensions/IERC20MetadataUpgradeable.sol";
+import "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
 import "../../lib/PolygonConstantsBase.sol";
 import "../PolygonRollupManager.sol";
 
@@ -21,19 +21,15 @@ import "../PolygonRollupManager.sol";
  * The aggregators will be able to verify the sequenced state with zkProofs and therefore make available the withdrawals from L2 network.
  * To enter and exit of the L2 network will be used a PolygonZkEVMBridge smart contract that will be deployed in both networks.
  */
-abstract contract PolygonConsensusBase is
-    Initializable,
-    IPolygonConsensusBase,
-    IPolygonZkEVMEtrogErrors
-{
+abstract contract PolygonConsensusBase is Initializable, IPolygonConsensusBase, IPolygonZkEVMEtrogErrors {
     // POL token address
-    IERC20Upgradeable public immutable pol;
+    IERC20 public immutable pol;
 
     // Global Exit Root interface
     IPolygonZkEVMGlobalExitRootV2 public immutable globalExitRootManager;
 
     // PolygonZkEVM Bridge Address
-    IPolygonZkEVMBridgeV2 public immutable bridgeAddress;
+    IPolygonZkEVMBridge public immutable bridgeAddress;
 
     // Rollup manager
     PolygonRollupManager public immutable rollupManager;
@@ -117,8 +113,8 @@ abstract contract PolygonConsensusBase is
      */
     constructor(
         IPolygonZkEVMGlobalExitRootV2 _globalExitRootManager,
-        IERC20Upgradeable _pol,
-        IPolygonZkEVMBridgeV2 _bridgeAddress,
+        IERC20 _pol,
+        IPolygonZkEVMBridge _bridgeAddress,
         PolygonRollupManager _rollupManager
     ) {
         globalExitRootManager = _globalExitRootManager;
@@ -178,9 +174,7 @@ abstract contract PolygonConsensusBase is
      * @notice Allow the admin to set a new trusted sequencer
      * @param newTrustedSequencer Address of the new trusted sequencer
      */
-    function setTrustedSequencer(
-        address newTrustedSequencer
-    ) external onlyAdmin {
+    function setTrustedSequencer(address newTrustedSequencer) external onlyAdmin {
         trustedSequencer = newTrustedSequencer;
 
         emit SetTrustedSequencer(newTrustedSequencer);
@@ -190,9 +184,7 @@ abstract contract PolygonConsensusBase is
      * @notice Allow the admin to set the trusted sequencer URL
      * @param newTrustedSequencerURL URL of trusted sequencer
      */
-    function setTrustedSequencerURL(
-        string memory newTrustedSequencerURL
-    ) external onlyAdmin {
+    function setTrustedSequencerURL(string memory newTrustedSequencerURL) external onlyAdmin {
         trustedSequencerURL = newTrustedSequencerURL;
 
         emit SetTrustedSequencerURL(newTrustedSequencerURL);

@@ -26,15 +26,17 @@ update_env_file() {
     local var_name="$2"
     local var_value="$3"
     
+    echo_ts "Updating $var_name=$var_value in $env_file"
+    
     # Check if variable already exists
     if grep -q "^$var_name=" "$env_file"; then
         # Update existing variable
         if [[ "$SED_IS_MAC" == "true" ]]; then
             # MacOS requires a different sed syntax
-            sed -i '' "s/^$var_name=.*/$var_name=$var_value/" "$env_file"
+            sed -i '' "s|^$var_name=.*|$var_name=$var_value|" "$env_file"
         else
             # Linux
-            sed -i "s/^$var_name=.*/$var_name=$var_value/" "$env_file"
+            sed -i "s|^$var_name=.*|$var_name=$var_value|" "$env_file"
         fi
     else
         # Append new variable
@@ -44,6 +46,16 @@ update_env_file() {
 
 # Handle env file argument
 ENV_FILE="${1:-.env}"
+
+# Make ENV_FILE an absolute path if it's not already
+if [[ ! "$ENV_FILE" = /* ]]; then
+    # Get the script directory and navigate to the project root
+    SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+    PROJECT_ROOT="$(dirname "$SCRIPT_DIR")"
+    ENV_FILE="$PROJECT_ROOT/$ENV_FILE"
+fi
+
+echo_ts "Using environment file: $ENV_FILE"
 
 # Source environment variables
 if [ -f "$ENV_FILE" ]; then
@@ -97,28 +109,31 @@ cd "$PROJECT_ROOT/agglayer-contracts" || { echo_ts "Error: agglayer-contracts di
 output=$(forge script script/deployL1.s.sol:DeployContractsL1 --rpc-url "$rpc_url" --broadcast --private-key "$private_key" 2>&1)
 echo "$output" > deploy_output_$suffix.log
 
+echo_ts "L1 deployment output:"
+echo "$output"
+
 # Parse and update env file for L1
 while read -r line; do
-    if [[ $line =~ FflonkVerifier: ]]; then
-        addr=$(echo $line | awk '{print $2}')
+    if [[ $line =~ FflonkVerifier:[[:space:]]+([0-9a-fA-Fx]+) ]]; then
+        addr="${BASH_REMATCH[1]}"
         update_env_file "$ENV_FILE" "FFLONK_VERIFIER_$suffix" "$addr"
-    elif [[ $line =~ PolygonZkEVM: ]]; then
-        addr=$(echo $line | awk '{print $2}')
+    elif [[ $line =~ PolygonZkEVM:[[:space:]]+([0-9a-fA-Fx]+) ]]; then
+        addr="${BASH_REMATCH[1]}"
         update_env_file "$ENV_FILE" "POLYGON_ZKEVM_$suffix" "$addr"
-    elif [[ $line =~ PolygonZkEVMBridgeV2: ]]; then
-        addr=$(echo $line | awk '{print $2}')
+    elif [[ $line =~ PolygonZkEVMBridgeV2:[[:space:]]+([0-9a-fA-Fx]+) ]]; then
+        addr="${BASH_REMATCH[1]}"
         update_env_file "$ENV_FILE" "POLYGON_ZKEVM_BRIDGE_$suffix" "$addr"
-    elif [[ $line =~ PolygonZkEVMTimelock: ]]; then
-        addr=$(echo $line | awk '{print $2}')
+    elif [[ $line =~ PolygonZkEVMTimelock:[[:space:]]+([0-9a-fA-Fx]+) ]]; then
+        addr="${BASH_REMATCH[1]}"
         update_env_file "$ENV_FILE" "POLYGON_ZKEVM_TIMELOCK_$suffix" "$addr"
-    elif [[ $line =~ PolygonZkEVMGlobalExitRootV2: ]]; then
-        addr=$(echo $line | awk '{print $2}')
+    elif [[ $line =~ PolygonZkEVMGlobalExitRootV2:[[:space:]]+([0-9a-fA-Fx]+) ]]; then
+        addr="${BASH_REMATCH[1]}"
         update_env_file "$ENV_FILE" "POLYGON_ZKEVM_GLOBAL_EXIT_ROOT_$suffix" "$addr"
-    elif [[ $line =~ PolygonRollupManager: ]]; then
-        addr=$(echo $line | awk '{print $2}')
+    elif [[ $line =~ PolygonRollupManager:[[:space:]]+([0-9a-fA-Fx]+) ]]; then
+        addr="${BASH_REMATCH[1]}"
         update_env_file "$ENV_FILE" "POLYGON_ROLLUP_MANAGER_$suffix" "$addr"
     fi
-done < <(echo "$output" | grep -E "FflonkVerifier:|PolygonZkEVM:|PolygonZkEVMBridgeV2:|PolygonZkEVMTimelock:|PolygonZkEVMGlobalExitRootV2:|PolygonRollupManager:")
+done < <(echo "$output")
 
 # Deploy L2 contracts
 echo_ts "Deploying L2 contracts..."
@@ -130,16 +145,19 @@ suffix="L2"
 output=$(forge script script/deployL2.s.sol:DeployContractsL1 --rpc-url "$rpc_url" --broadcast --private-key "$private_key" 2>&1)
 echo "$output" > deploy_output_$suffix.log
 
+echo_ts "L2 deployment output:"
+echo "$output"
+
 # Parse and update env file for L2
 while read -r line; do
-    if [[ $line =~ PolygonZkEVMBridgeV2: ]]; then
-        addr=$(echo $line | awk '{print $2}')
+    if [[ $line =~ PolygonZkEVMBridgeV2:[[:space:]]+([0-9a-fA-Fx]+) ]]; then
+        addr="${BASH_REMATCH[1]}"
         update_env_file "$ENV_FILE" "POLYGON_ZKEVM_BRIDGE_$suffix" "$addr"
-    elif [[ $line =~ PolygonZkEVMTimelock: ]]; then
-        addr=$(echo $line | awk '{print $2}')
+    elif [[ $line =~ PolygonZkEVMTimelock:[[:space:]]+([0-9a-fA-Fx]+) ]]; then
+        addr="${BASH_REMATCH[1]}"
         update_env_file "$ENV_FILE" "POLYGON_ZKEVM_TIMELOCK_$suffix" "$addr"
     fi
-done < <(echo "$output" | grep -E "PolygonZkEVMBridgeV2:|PolygonZkEVMTimelock:")
+done < <(echo "$output")
 
 # Return to the original directory
 cd "$SCRIPT_DIR"

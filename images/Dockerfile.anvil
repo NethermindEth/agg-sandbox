@@ -1,6 +1,10 @@
- # syntax=docker/dockerfile:1.4
-FROM ghcr.io/foundry-rs/foundry
+# syntax=docker/dockerfile:1.4
+FROM ghcr.io/foundry-rs/foundry:latest
 
-WORKDIR /anvil
+WORKDIR /app
 
-ENTRYPOINT anvil --fork-url $URL --host 0.0.0.0
+# Expose port 8545
+EXPOSE 8545
+
+# Start Anvil without forking
+ENTRYPOINT ["anvil", "--host", "0.0.0.0"]

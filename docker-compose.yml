@@ -3,8 +3,6 @@ services:
     build:
       context: ./images
       dockerfile: Dockerfile.anvil
-    environment:
-      - URL=${MAINNET_FORK_URL:-https://eth-mainnet.public.blastapi.io}
     ports:
       - "8545:8545"
     networks:
@@ -14,8 +12,6 @@ services:
     build:
       context: ./images
       dockerfile: Dockerfile.anvil
-    environment:
-      - URL=${POLYGON_FORK_URL:-https://polygon-zkevm-mainnet.public.blastapi.io}
     ports:
       - "8546:8545"
     networks:

@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.20;
+pragma solidity ^0.8.22;
 
 import {PolygonZkEVMBridgeV2} from "../src/PolygonZkEVMBridgeV2.sol";
 import {PolygonZkEVMTimelock} from "../src/PolygonZkEVMTimelock.sol";

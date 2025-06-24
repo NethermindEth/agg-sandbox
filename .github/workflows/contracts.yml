@@ -1,0 +1,52 @@
+name: Contracts
+
+on:
+  push:
+    branches: [main, develop]
+    paths:
+      - 'agglayer-contracts/**'
+      - '.github/workflows/contracts.yml'
+  pull_request:
+    branches: [main, develop]
+    paths:
+      - 'agglayer-contracts/**'
+      - '.github/workflows/contracts.yml'
+
+env:
+  FOUNDRY_PROFILE: ci
+
+jobs:
+  check:
+    strategy:
+      fail-fast: true
+
+    name: Foundry project
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Install Foundry
+        uses: foundry-rs/foundry-toolchain@v1
+        with:
+          version: nightly
+
+      - name: Cache Foundry compilation
+        uses: actions/cache@v4
+        with:
+          path: |
+            agglayer-contracts/cache
+            agglayer-contracts/out
+          key: ${{ runner.os }}-foundry-${{ hashFiles('agglayer-contracts/foundry.toml') }}-${{ hashFiles('agglayer-contracts/**/*.sol') }}
+          restore-keys: |
+            ${{ runner.os }}-foundry-${{ hashFiles('agglayer-contracts/foundry.toml') }}-
+            ${{ runner.os }}-foundry-
+
+      - name: Run Forge build
+        working-directory: ./agglayer-contracts
+        run: |
+          forge --version
+          forge install --no-commit || true
+          forge build --sizes
+        id: build

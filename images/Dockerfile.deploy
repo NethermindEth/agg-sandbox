@@ -68,7 +68,12 @@ cd /app/agglayer-contracts\n\
 FOUNDRY_AUTO_DETECT_SOLC=true forge build\n\
 cd /app\n\
 ./scripts/deploy-contracts.sh /app/.env\n\
-echo "Contract deployment completed!"' > /app/wait-and-deploy.sh
+echo "Contract deployment completed!"\n\
+echo "Saving deployment results..."\n\
+mkdir -p /app/output\n\
+cp /app/.env /app/output/deployed-contracts.env\n\
+echo "✅ Contract addresses saved to host .env.deployed file"\n\
+echo "🎉 Deployment process finished successfully!"' > /app/wait-and-deploy.sh
 
 RUN chmod +x /app/wait-and-deploy.sh
 

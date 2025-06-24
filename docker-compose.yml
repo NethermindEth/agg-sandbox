@@ -43,6 +43,8 @@ services:
     environment:
       - RPC_URL_1=http://anvil-mainnet:8545
       - RPC_URL_2=http://anvil-polygon:8545
+    volumes:
+      - ./.env:/app/output/deployed-contracts.env
 
 networks:
   anvil-network:

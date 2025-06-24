@@ -16,7 +16,13 @@ git clone https://github.com/NethermindEth/agg-sandbox.git
 cd agg-sandbox
 ```
 
-2. Make sure the deployment scripts are executable:
+2. Initialize git submodules:
+   
+```bash
+git submodule update --init --recursive
+```
+
+3. Make sure the deployment scripts are executable:
 
 ```bash
 chmod +x scripts/agg-sandbox.sh scripts/deploy-contracts.sh 

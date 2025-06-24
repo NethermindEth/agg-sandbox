@@ -206,19 +206,18 @@ fn stop_sandbox(volumes: bool) -> Result<()> {
         .output()
         .context("Failed to execute docker-compose down")?;
 
-    // Print stdout and stderr to ensure Docker output is shown
-    if !output.stdout.is_empty() {
-        print!("{}", String::from_utf8_lossy(&output.stdout));
-    }
-    if !output.stderr.is_empty() {
-        eprint!("{}", String::from_utf8_lossy(&output.stderr));
-    }
-
-    if output.status.success() {
-        println!("{}", "✅ Sandbox stopped successfully".green());
-    } else {
+    // Only show output if there's an error (suppress verbose success logs)
+    if !output.status.success() {
+        if !output.stdout.is_empty() {
+            print!("{}", String::from_utf8_lossy(&output.stdout));
+        }
+        if !output.stderr.is_empty() {
+            eprint!("{}", String::from_utf8_lossy(&output.stderr));
+        }
         eprintln!("{}", "❌ Failed to stop sandbox".red());
         std::process::exit(1);
+    } else {
+        println!("{}", "✅ Sandbox stopped successfully".green());
     }
 
     Ok(())

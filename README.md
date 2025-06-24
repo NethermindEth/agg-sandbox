@@ -144,6 +144,9 @@ agg-sandbox logs [--follow] [service-name]
 # Restart all services
 agg-sandbox restart
 
+# Show configuration and accounts
+agg-sandbox info
+
 # Get help
 agg-sandbox --help
 ```
@@ -151,7 +154,7 @@ agg-sandbox --help
 ### Examples
 
 ```bash
-# Start in background and build images
+# Start in background and build images (shows account info and config)
 agg-sandbox start --detach --build
 
 # Follow logs for a specific service
@@ -159,6 +162,9 @@ agg-sandbox logs --follow anvil-mainnet
 
 # Stop and remove all volumes
 agg-sandbox stop --volumes
+
+# Show account info and chain configuration
+agg-sandbox info
 ```
 
 See `cli/README.md` for detailed CLI documentation.

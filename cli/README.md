@@ -77,6 +77,11 @@ agg-sandbox logs --follow anvil-mainnet
 agg-sandbox restart
 ```
 
+#### Show configuration and accounts
+```bash
+agg-sandbox info
+```
+
 ### Help
 ```bash
 agg-sandbox --help

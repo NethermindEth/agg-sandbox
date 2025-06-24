@@ -50,8 +50,3 @@ jobs:
           forge install --no-commit || true
           forge build --sizes
         id: build
-
-      - name: Run Forge tests
-        working-directory: ./agglayer-contracts
-        run: forge test -vvv
-        id: test

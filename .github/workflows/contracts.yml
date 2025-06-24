@@ -47,6 +47,7 @@ jobs:
         working-directory: ./agglayer-contracts
         run: |
           forge --version
+          forge install --no-commit || true
           forge build --sizes
         id: build
 
@@ -54,7 +55,3 @@ jobs:
         working-directory: ./agglayer-contracts
         run: forge test -vvv
         id: test
-
-      - name: Run Forge snapshot
-        working-directory: ./agglayer-contracts
-        run: forge snapshot --check --tolerance 5

@@ -89,11 +89,23 @@ fn start_sandbox(detach: bool, build: bool) -> Result<()> {
         cmd.arg("--build");
     }
 
-    let status = cmd
-        .status()
+    // Capture output to ensure consistent behavior across platforms
+    let output = cmd
+        .output()
         .context("Failed to execute docker-compose up")?;
 
-    if status.success() {
+    // In detached mode, only show output if there's an error
+    // In non-detached mode, always show output
+    if !detach || !output.status.success() {
+        if !output.stdout.is_empty() {
+            print!("{}", String::from_utf8_lossy(&output.stdout));
+        }
+        if !output.stderr.is_empty() {
+            eprint!("{}", String::from_utf8_lossy(&output.stderr));
+        }
+    }
+
+    if output.status.success() {
         if detach {
             println!("{}", "✅ Sandbox started in detached mode".green());
             print_sandbox_info();
@@ -189,11 +201,20 @@ fn stop_sandbox(volumes: bool) -> Result<()> {
         cmd.arg("-v");
     }
 
-    let status = cmd
-        .status()
+    // Capture output to ensure consistent behavior across platforms
+    let output = cmd
+        .output()
         .context("Failed to execute docker-compose down")?;
 
-    if status.success() {
+    // Print stdout and stderr to ensure Docker output is shown
+    if !output.stdout.is_empty() {
+        print!("{}", String::from_utf8_lossy(&output.stdout));
+    }
+    if !output.stderr.is_empty() {
+        eprint!("{}", String::from_utf8_lossy(&output.stderr));
+    }
+
+    if output.status.success() {
         println!("{}", "✅ Sandbox stopped successfully".green());
     } else {
         eprintln!("{}", "❌ Failed to stop sandbox".red());
@@ -206,12 +227,20 @@ fn stop_sandbox(volumes: bool) -> Result<()> {
 fn show_status() -> Result<()> {
     println!("{}", "📊 Sandbox service status:".blue().bold());
 
-    let status = Command::new("docker-compose")
+    let output = Command::new("docker-compose")
         .arg("ps")
-        .status()
+        .output()
         .context("Failed to execute docker-compose ps")?;
 
-    if !status.success() {
+    // Print stdout and stderr to ensure Docker output is shown
+    if !output.stdout.is_empty() {
+        print!("{}", String::from_utf8_lossy(&output.stdout));
+    }
+    if !output.stderr.is_empty() {
+        eprint!("{}", String::from_utf8_lossy(&output.stderr));
+    }
+
+    if !output.status.success() {
         eprintln!("{}", "❌ Failed to get service status".red());
         std::process::exit(1);
     }
@@ -238,13 +267,34 @@ fn show_logs(follow: bool, service: Option<String>) -> Result<()> {
         cmd.arg(svc);
     }
 
-    let status = cmd
-        .status()
-        .context("Failed to execute docker-compose logs")?;
+    // For logs command, especially with --follow, we need to inherit stdio for real-time output
+    if follow {
+        let status = cmd
+            .status()
+            .context("Failed to execute docker-compose logs")?;
 
-    if !status.success() {
-        eprintln!("{}", "❌ Failed to show logs".red());
-        std::process::exit(1);
+        if !status.success() {
+            eprintln!("{}", "❌ Failed to show logs".red());
+            std::process::exit(1);
+        }
+    } else {
+        // For non-follow logs, capture output for consistent behavior
+        let output = cmd
+            .output()
+            .context("Failed to execute docker-compose logs")?;
+
+        // Print stdout and stderr to ensure Docker output is shown
+        if !output.stdout.is_empty() {
+            print!("{}", String::from_utf8_lossy(&output.stdout));
+        }
+        if !output.stderr.is_empty() {
+            eprint!("{}", String::from_utf8_lossy(&output.stderr));
+        }
+
+        if !output.status.success() {
+            eprintln!("{}", "❌ Failed to show logs".red());
+            std::process::exit(1);
+        }
     }
 
     Ok(())

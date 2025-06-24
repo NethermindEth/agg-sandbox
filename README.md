@@ -23,7 +23,36 @@ git submodule update --init --recursive
 
 ## Quick Start
 
-To deploy all contracts to local Anvil instances, simply run:
+### Option 1: Using the CLI (Recommended)
+
+Build and install the CLI tool:
+
+```bash
+./install-cli.sh
+```
+
+Then use the CLI to manage your sandbox:
+
+```bash
+# Start the sandbox (interactive mode)
+agg-sandbox start
+
+# Start in detached mode with build
+agg-sandbox start --detach --build
+
+# Check status
+agg-sandbox status
+
+# View logs
+agg-sandbox logs --follow
+
+# Stop the sandbox
+agg-sandbox stop
+```
+
+### Option 2: Direct Docker Compose
+
+To deploy all contracts to local Anvil instances directly:
 
 ```bash
 docker-compose up --build
@@ -93,8 +122,50 @@ If you want to run the deployment script manually outside of Docker:
 
 Note: You'll need to have Foundry installed locally and Anvil instances running.
 
+## CLI Usage
+
+The `agg-sandbox` CLI provides a convenient interface for managing your sandbox environment:
+
+### Available Commands
+
+```bash
+# Start services
+agg-sandbox start [--detach] [--build]
+
+# Stop services  
+agg-sandbox stop [--volumes]
+
+# Check service status
+agg-sandbox status
+
+# View and follow logs
+agg-sandbox logs [--follow] [service-name]
+
+# Restart all services
+agg-sandbox restart
+
+# Get help
+agg-sandbox --help
+```
+
+### Examples
+
+```bash
+# Start in background and build images
+agg-sandbox start --detach --build
+
+# Follow logs for a specific service
+agg-sandbox logs --follow anvil-mainnet
+
+# Stop and remove all volumes
+agg-sandbox stop --volumes
+```
+
+See `cli/README.md` for detailed CLI documentation.
+
 ## Troubleshooting
 
 - **Solidity version errors**: The Docker setup automatically downloads the required Solidity compiler versions
 - **Port conflicts**: Make sure ports 8545 and 8546 are not in use by other applications
 - **Build failures**: Try running `docker-compose down` and then `docker-compose up --build` to rebuild from scratch
+- **CLI not found**: Make sure you've run `./install-cli.sh` and that `~/.local/bin` is in your PATH

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0
 
-pragma solidity 0.8.20;
+pragma solidity ^0.8.22;
 
 import "../lib/DepositContractV2.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
@@ -847,7 +847,11 @@ contract PolygonZkEVMBridgeV2 is
             // the following transferFrom should be fail. This prevents DoS attacks from using a signature
             // before the smartcontract call
             /* solhint-disable avoid-low-level-calls */
-            address(token).call(abi.encodeWithSelector(_PERMIT_SIGNATURE, owner, spender, value, deadline, v, r, s));
+            (bool success,) =
+                address(token).call(abi.encodeWithSelector(_PERMIT_SIGNATURE, owner, spender, value, deadline, v, r, s));
+            if (!success) {
+                revert NotValidSignature();
+            }
         } else {
             if (sig != _PERMIT_SIGNATURE_DAI) {
                 revert NotValidSignature();
@@ -876,9 +880,12 @@ contract PolygonZkEVMBridgeV2 is
             // the following transferFrom should be fail. This prevents DoS attacks from using a signature
             // before the smartcontract call
             /* solhint-disable avoid-low-level-calls */
-            address(token).call(
+            (bool success,) = address(token).call(
                 abi.encodeWithSelector(_PERMIT_SIGNATURE_DAI, holder, spender, nonce, expiry, allowed, v, r, s)
             );
+            if (!success) {
+                revert NotValidSignature();
+            }
         }
     }
 

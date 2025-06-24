@@ -1,11 +1,10 @@
-# Polygon ZkEVM Contract Deployment
+# Agg-Sandox
 
-This repository contains scripts to deploy Polygon ZkEVM contracts to local Anvil instances running in Docker.
+This repository contains a Docker-based setup to deploy Polygon ZkEVM contracts to local Anvil instances.
 
 ## Prerequisites
 
 - Docker and Docker Compose
-- Foundry (Forge, Anvil, Cast)
 
 ## Setup
 
@@ -16,38 +15,34 @@ git clone https://github.com/NethermindEth/agg-sandbox.git
 cd agg-sandbox
 ```
 
-2. Make sure the deployment scripts are executable:
-
+2. Initialize git submodules:
+   
 ```bash
-chmod +x scripts/agg-sandbox.sh scripts/deploy-contracts.sh 
+git submodule update --init --recursive
 ```
 
-## Deployment
+## Quick Start
 
-To deploy all contracts to local Anvil instances:
-
-```bash
-./scripts/agg-sandbox.sh
-```
-
-This script will:
-
-1. Start Docker containers with Anvil instances (L1 and L2)
-2. Deploy L1 contracts to the first Anvil instance
-3. Deploy L2 contracts to the second Anvil instance
-4. Save all contract addresses to the `.env` file
-
-## Manual Deployment
-
-If you want to run the deployment script manually:
+To deploy all contracts to local Anvil instances, simply run:
 
 ```bash
-./scripts/deploy-contracts.sh .env
+docker-compose up --build
 ```
+
+This single command will:
+
+1. **Build all Docker images** with the Foundry toolchain and dependencies
+2. **Start two Anvil instances**:
+   - `anvil-mainnet` on port 8545 (simulates L1/Ethereum mainnet)
+   - `anvil-polygon` on port 8546 (simulates L2/Polygon ZkEVM)
+3. **Wait for both Anvil instances** to be healthy and ready
+4. **Deploy L1 contracts** to the first Anvil instance
+5. **Deploy L2 contracts** to the second Anvil instance
+6. **Update your `.env` file** with all deployed contract addresses
 
 ## Contract Addresses
 
-After deployment, the following contract addresses will be saved to the `.env` file:
+After deployment, the following contract addresses will be automatically saved to your `.env` file:
 
 ### L1 Contracts
 
@@ -65,21 +60,41 @@ After deployment, the following contract addresses will be saved to the `.env` f
 
 ## Docker Services
 
-The `docker-compose.yml` file defines two services:
+The `docker-compose.yml` file defines three services:
 
-1. `anvil-mainnet`: Simulates L1 (Ethereum mainnet)
+1. **`anvil-mainnet`**: Simulates L1 (Ethereum mainnet)
    - Port: 8545
-   - URL: <http://localhost:8545>
+   - URL: http://localhost:8545
 
-2. `anvil-polygon`: Simulates L2 (Polygon ZkEVM)
+2. **`anvil-polygon`**: Simulates L2 (Polygon ZkEVM)
    - Port: 8546
-   - URL: <http://localhost:8546>
+   - URL: http://localhost:8546
 
-## Environment Variables
+3. **`contract-deployer`**: Deploys contracts to both Anvil instances
+   - Automatically waits for Anvil instances to be ready
+   - Updates your `.env` file with deployed contract addresses
+   - Exits after successful deployment
 
-You can customize the deployment by setting the following environment variables in the `.env` file:
+## Environment Configuration
 
-- `RPC_URL_1`: RPC URL for L1 (default: <http://anvil-mainnet:8545> in Docker, <http://localhost:8545> outside Docker)
-- `RPC_URL_2`: RPC URL for L2 (default: <http://anvil-polygon:8545> in Docker, <http://localhost:8546> outside Docker)
-- `PRIVATE_KEY_1`: Private key for L1 deployment (default: Anvil's first account private key)
-- `PRIVATE_KEY_2`: Private key for L2 deployment (default: same as PRIVATE_KEY_1)
+The deployment uses your `env.example` file as the base configuration and automatically updates the RPC URLs for the Docker environment:
+
+- `RPC_URL_1`: Set to `http://anvil-mainnet:8545` (L1)
+- `RPC_URL_2`: Set to `http://anvil-polygon:8545` (L2)
+- `PRIVATE_KEY_1` & `PRIVATE_KEY_2`: Uses the default Anvil account private keys from `env.example`
+
+## Manual Deployment (Alternative)
+
+If you want to run the deployment script manually outside of Docker:
+
+```bash
+./scripts/deploy-contracts.sh .env
+```
+
+Note: You'll need to have Foundry installed locally and Anvil instances running.
+
+## Troubleshooting
+
+- **Solidity version errors**: The Docker setup automatically downloads the required Solidity compiler versions
+- **Port conflicts**: Make sure ports 8545 and 8546 are not in use by other applications
+- **Build failures**: Try running `docker-compose down` and then `docker-compose up --build` to rebuild from scratch

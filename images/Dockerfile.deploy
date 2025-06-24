@@ -1,0 +1,81 @@
+# syntax=docker/dockerfile:1.4
+FROM ubuntu:22.04
+
+# Set environment variables
+ENV DEBIAN_FRONTEND=noninteractive
+ENV PATH="/root/.foundry/bin:$PATH"
+
+# Install system dependencies
+RUN apt-get update && apt-get install -y \
+    curl \
+    git \
+    build-essential \
+    ca-certificates \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install Foundry
+RUN curl -L https://foundry.paradigm.xyz | bash
+RUN /bin/bash -c "source /root/.bashrc && foundryup"
+
+# Set working directory
+WORKDIR /app
+
+# Copy the entire project (including .gitmodules)
+COPY . /app/
+
+# Make the script executable
+RUN chmod +x /app/scripts/deploy-contracts.sh
+
+# Initialize git repository and submodules
+RUN cd /app && \
+    git init && \
+    git config user.email "deploy@example.com" && \
+    git config user.name "Deployer" && \
+    git add . && \
+    git commit -m "Initial commit" && \
+    cd agglayer-contracts && \
+    git submodule update --init --recursive
+
+# Copy env.example to .env (environment variables will override these at runtime)
+RUN cp /app/env.example /app/.env
+
+# Pre-build contracts to ensure Solidity versions are downloaded
+RUN cd /app/agglayer-contracts && \
+    FOUNDRY_AUTO_DETECT_SOLC=true forge build || echo "Build may fail but Solidity versions should be downloaded"
+
+# Create a wait script to ensure Anvil instances are ready
+RUN echo '#!/bin/bash\n\
+echo "Waiting for Anvil instances to be ready..."\n\
+until curl -s http://anvil-mainnet:8545 > /dev/null; do\n\
+    echo "Waiting for anvil-mainnet..."\n\
+    sleep 2\n\
+done\n\
+until curl -s http://anvil-polygon:8545 > /dev/null; do\n\
+    echo "Waiting for anvil-polygon..."\n\
+    sleep 2\n\
+done\n\
+echo "Both Anvil instances are ready!"\n\
+sleep 5\n\
+echo "Updating .env file with environment variables..."\n\
+if [ ! -z "$RPC_URL_1" ]; then\n\
+    sed -i "s|^RPC_URL_1=.*|RPC_URL_1=$RPC_URL_1|" /app/.env\n\
+fi\n\
+if [ ! -z "$RPC_URL_2" ]; then\n\
+    sed -i "s|^RPC_URL_2=.*|RPC_URL_2=$RPC_URL_2|" /app/.env\n\
+fi\n\
+echo "Starting contract deployment..."\n\
+cd /app/agglayer-contracts\n\
+FOUNDRY_AUTO_DETECT_SOLC=true forge build\n\
+cd /app\n\
+./scripts/deploy-contracts.sh /app/.env\n\
+echo "Contract deployment completed!"\n\
+echo "Saving deployment results..."\n\
+mkdir -p /app/output\n\
+cp /app/.env /app/output/deployed-contracts.env\n\
+echo "✅ Contract addresses saved to host .env.deployed file"\n\
+echo "🎉 Deployment process finished successfully!"' > /app/wait-and-deploy.sh
+
+RUN chmod +x /app/wait-and-deploy.sh
+
+# Set the entrypoint to the wait and deploy script
+ENTRYPOINT ["/app/wait-and-deploy.sh"] 

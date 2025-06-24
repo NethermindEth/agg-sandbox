@@ -7,6 +7,12 @@ services:
       - "8545:8545"
     networks:
       - anvil-network
+    healthcheck:
+      test: ["CMD-SHELL", "timeout 1 bash -c '</dev/tcp/localhost/8545'"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+      start_period: 10s
 
   anvil-polygon:
     build:
@@ -16,6 +22,29 @@ services:
       - "8546:8545"
     networks:
       - anvil-network
+    healthcheck:
+      test: ["CMD-SHELL", "timeout 1 bash -c '</dev/tcp/localhost/8545'"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+      start_period: 10s
+
+  contract-deployer:
+    build:
+      context: .
+      dockerfile: images/Dockerfile.deploy
+    depends_on:
+      anvil-mainnet:
+        condition: service_healthy
+      anvil-polygon:
+        condition: service_healthy
+    networks:
+      - anvil-network
+    environment:
+      - RPC_URL_1=http://anvil-mainnet:8545
+      - RPC_URL_2=http://anvil-polygon:8545
+    volumes:
+      - ./.env:/app/output/deployed-contracts.env
 
 networks:
   anvil-network:

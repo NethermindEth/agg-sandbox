@@ -28,15 +28,24 @@ update_env_file() {
     
     echo_ts "Updating $var_name=$var_value in $env_file"
     
-    # Check if variable already exists
+    # Check if variable already exists (commented or uncommented)
     if grep -q "^$var_name=" "$env_file"; then
-        # Update existing variable
+        # Update existing uncommented variable
         if [[ "$SED_IS_MAC" == "true" ]]; then
             # MacOS requires a different sed syntax
             sed -i '' "s|^$var_name=.*|$var_name=$var_value|" "$env_file"
         else
             # Linux
             sed -i "s|^$var_name=.*|$var_name=$var_value|" "$env_file"
+        fi
+    elif grep -q "^# $var_name=" "$env_file"; then
+        # Update existing commented variable
+        if [[ "$SED_IS_MAC" == "true" ]]; then
+            # MacOS requires a different sed syntax
+            sed -i '' "s|^# $var_name=.*|$var_name=$var_value|" "$env_file"
+        else
+            # Linux
+            sed -i "s|^# $var_name=.*|$var_name=$var_value|" "$env_file"
         fi
     else
         # Append new variable

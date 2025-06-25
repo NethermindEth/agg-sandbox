@@ -6,6 +6,7 @@ A development sandbox environment for the AggLayer with support for local blockc
 
 - **Local Mode**: Run completely local blockchain nodes for development
 - **Fork Mode**: Fork existing blockchains to test against real network state
+- **Multi-L2 Mode**: Run with a second L2 chain for multi-chain testing (supports both local and fork modes)
 - Easy CLI management of the sandbox environment
 - Pre-configured accounts and private keys
 - Docker-based deployment for consistent environments
@@ -49,15 +50,29 @@ Fork existing blockchains for testing against real network state:
    agg-sandbox start-fork --detach
    ```
 
+#### Multi-L2 Mode
+Run with a second L2 chain for multi-chain testing:
+
+1. **Local Multi-L2**: Run with local blockchain simulation on three chains:
+   ```bash
+   agg-sandbox start-multi-l2 --detach
+   ```
+
+2. **Fork Multi-L2**: Fork existing blockchains with a second L2 chain:
+   ```bash
+   # Configure all fork URLs in .env including FORK_URL_AGGLAYER_2
+   agg-sandbox start-multi-l2 --fork --detach
+   ```
+
 #### Other Commands
 ```bash
-# Check status
+# Check status (works for all modes)
 agg-sandbox status
 
-# View logs
+# View logs (works for all modes)
 agg-sandbox logs --follow
 
-# Stop the sandbox
+# Stop the sandbox (automatically detects and stops all configurations)
 agg-sandbox stop
 
 # Show configuration info
@@ -92,6 +107,17 @@ Pre-configured test accounts with known private keys:
 - **L1 (Ethereum Fork)**: `http://127.0.0.1:8545` (Uses real Ethereum state)
 - **L2 (Polygon zkEVM Fork)**: `http://127.0.0.1:8546` (Uses real Polygon state)
 
+### Multi-L2 Mode
+#### Local Multi-L2
+- **L1 (Ethereum Simulation)**: `http://127.0.0.1:8545` (Chain ID: 1)
+- **L2-1 (Polygon zkEVM Simulation)**: `http://127.0.0.1:8546` (Chain ID: 1101)
+- **L2-2 (Second AggLayer Chain Simulation)**: `http://127.0.0.1:8547` (Chain ID: 1102)
+
+#### Fork Multi-L2
+- **L1 (Ethereum Fork)**: `http://127.0.0.1:8545` (Uses real Ethereum state)
+- **L2-1 (Polygon zkEVM Fork)**: `http://127.0.0.1:8546` (Uses real Polygon state)
+- **L2-2 (Second AggLayer Chain Fork)**: `http://127.0.0.1:8547` (Uses real second chain state)
+
 ## Development
 
 ### CLI Development
@@ -107,10 +133,18 @@ Smart contracts are in the `agglayer-contracts/` directory using Foundry.
 
 ## Architecture
 
+### Standard Mode
 The sandbox consists of:
 - Two Anvil nodes (L1 and L2) running in Docker containers
 - A contract deployer service that automatically deploys required contracts
 - A CLI tool for managing the environment
+
+### Multi-L2 Mode
+The multi-L2 sandbox consists of:
+- Three Anvil nodes (L1 and two L2 chains) running in Docker containers
+- A contract deployer service that automatically deploys required contracts to all chains
+- A CLI tool for managing the environment
+- Uses Docker Compose override files for flexible configuration
 
 ## Troubleshooting
 

@@ -8,6 +8,7 @@ services:
     networks:
       - anvil-network
     environment:
+      - ENABLE_FORK_MODE=${ENABLE_FORK_MODE:-false}
       - FORK_URL_MAINNET=${FORK_URL_MAINNET:-}
       - CHAIN_ID_MAINNET=${CHAIN_ID_MAINNET:-1}
     healthcheck:
@@ -26,6 +27,7 @@ services:
     networks:
       - anvil-network
     environment:
+      - ENABLE_FORK_MODE=${ENABLE_FORK_MODE:-false}
       - FORK_URL_AGGLAYER_1=${FORK_URL_AGGLAYER_1:-}
       - CHAIN_ID_AGGLAYER_1=${CHAIN_ID_AGGLAYER_1:-1101}
     healthcheck:

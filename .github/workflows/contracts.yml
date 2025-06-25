@@ -2,15 +2,15 @@ name: Contracts
 
 on:
   push:
-    branches: [main, v0.2]
+    branches: [main]
     paths:
-      - 'agglayer-contracts/**'
-      - '.github/workflows/contracts.yml'
+      - "agglayer-contracts/**"
+      - ".github/workflows/contracts.yml"
   pull_request:
-    branches: [main, v0.2]
+    branches: [main]
     paths:
-      - 'agglayer-contracts/**'
-      - '.github/workflows/contracts.yml'
+      - "agglayer-contracts/**"
+      - ".github/workflows/contracts.yml"
 
 env:
   FOUNDRY_PROFILE: ci

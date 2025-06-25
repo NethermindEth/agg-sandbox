@@ -2,15 +2,15 @@ name: CLI
 
 on:
   push:
-    branches: [main, v0.2]
+    branches: [main]
     paths:
-      - 'cli/**'
-      - '.github/workflows/cli.yml'
+      - "cli/**"
+      - ".github/workflows/cli.yml"
   pull_request:
-    branches: [main, v0.2]
+    branches: [main]
     paths:
-      - 'cli/**'
-      - '.github/workflows/cli.yml'
+      - "cli/**"
+      - ".github/workflows/cli.yml"
 
 env:
   CARGO_TERM_COLOR: always
@@ -21,7 +21,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      
+
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
         with:
@@ -55,7 +55,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      
+
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
 
@@ -82,7 +82,7 @@ jobs:
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
-      
+
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
 
@@ -106,4 +106,4 @@ jobs:
         with:
           name: agg-sandbox-${{ matrix.os }}
           path: |
-            cli/target/release/agg-sandbox${{ matrix.os == 'windows-latest' && '.exe' || '' }} 
+            cli/target/release/agg-sandbox${{ matrix.os == 'windows-latest' && '.exe' || '' }}

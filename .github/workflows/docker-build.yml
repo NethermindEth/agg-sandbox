@@ -1,0 +1,28 @@
+name: Docker Build
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'images/**'
+      - '.github/workflows/docker-build.yml'
+      - 'docker-compose.yml'
+      - 'docker-compose.multi-l2.yml'
+  pull_request:
+    branches: [main]
+
+jobs:
+  build-docker-images:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3 
+
+      - name: Build Docker image (anvil)
+        run: docker build -f images/Dockerfile.anvil images
+
+      - name: Build Docker image (deploy)
+        run: docker build -f images/Dockerfile.deploy .

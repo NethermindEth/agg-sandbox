@@ -8,9 +8,6 @@ on:
       - ".github/workflows/cli.yml"
   pull_request:
     branches: [main]
-    paths:
-      - "cli/**"
-      - ".github/workflows/cli.yml"
 
 env:
   CARGO_TERM_COLOR: always

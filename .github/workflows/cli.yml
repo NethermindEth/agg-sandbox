@@ -17,7 +17,7 @@ env:
 
 jobs:
   check:
-    name: Check
+    name: CLI / Check
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -51,7 +51,7 @@ jobs:
         run: cargo check --all-targets --all-features
 
   test:
-    name: Test
+    name: CLI / Test
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -75,7 +75,7 @@ jobs:
         run: cargo test --all-features
 
   build:
-    name: Build
+    name: CLI / Build
     strategy:
       matrix:
         os: [ubuntu-latest, macos-latest, windows-latest]

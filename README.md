@@ -28,11 +28,19 @@ A development sandbox environment for the AggLayer with support for local blockc
 
 ### Usage
 
+The CLI provides a single `start` command with different flags for various modes:
+
 #### Local Mode (Default)
 Start with completely local blockchain simulation:
 ```bash
 agg-sandbox start --detach
 ```
+
+#### Available Flags
+- `--detach` (`-d`): Run in detached mode
+- `--build` (`-b`): Build images before starting  
+- `--fork` (`-f`): Enable fork mode (uses real blockchain data)
+- `--multi-l2` (`-m`): Enable multi-L2 mode (runs with a second L2 chain)
 
 #### Fork Mode
 Fork existing blockchains for testing against real network state:
@@ -47,7 +55,7 @@ Fork existing blockchains for testing against real network state:
 
 2. Start in fork mode:
    ```bash
-   agg-sandbox start-fork --detach
+   agg-sandbox start --fork --detach
    ```
 
 #### Multi-L2 Mode
@@ -55,14 +63,29 @@ Run with a second L2 chain for multi-chain testing:
 
 1. **Local Multi-L2**: Run with local blockchain simulation on three chains:
    ```bash
-   agg-sandbox start-multi-l2 --detach
+   agg-sandbox start --multi-l2 --detach
    ```
 
 2. **Fork Multi-L2**: Fork existing blockchains with a second L2 chain:
    ```bash
    # Configure all fork URLs in .env including FORK_URL_AGGLAYER_2
-   agg-sandbox start-multi-l2 --fork --detach
+   agg-sandbox start --multi-l2 --fork --detach
    ```
+
+#### Quick Reference
+```bash
+# Local mode (2 chains: L1 + L2)
+agg-sandbox start --detach
+
+# Fork mode (2 chains: forked from real networks)  
+agg-sandbox start --fork --detach
+
+# Multi-L2 local mode (3 chains: L1 + L2 + L2)
+agg-sandbox start --multi-l2 --detach
+
+# Multi-L2 fork mode (3 chains: all forked from real networks)
+agg-sandbox start --multi-l2 --fork --detach
+```
 
 #### Other Commands
 ```bash

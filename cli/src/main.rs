@@ -15,7 +15,7 @@ struct Cli {
 
 #[derive(Subcommand)]
 enum Commands {
-    /// Start the sandbox environment (docker-compose up)
+    /// Start the sandbox environment
     Start {
         /// Run in detached mode
         #[arg(short, long)]
@@ -23,27 +23,12 @@ enum Commands {
         /// Build images before starting
         #[arg(short, long)]
         build: bool,
-    },
-    /// Start the sandbox environment in fork mode using FORK_URL environment variables
-    StartFork {
-        /// Run in detached mode
-        #[arg(short, long)]
-        detach: bool,
-        /// Build images before starting
-        #[arg(short, long)]
-        build: bool,
-    },
-    /// Start the sandbox environment with a second L2 chain
-    StartMultiL2 {
-        /// Run in detached mode
-        #[arg(short, long)]
-        detach: bool,
-        /// Build images before starting
-        #[arg(short, long)]
-        build: bool,
-        /// Enable fork mode (requires FORK_URL environment variables)
+        /// Enable fork mode (uses real blockchain data from FORK_URL environment variables)
         #[arg(short, long)]
         fork: bool,
+        /// Enable multi-L2 mode (runs with a second L2 chain)
+        #[arg(short, long)]
+        multi_l2: bool,
     },
     /// Stop the sandbox environment (docker-compose down)
     Stop {
@@ -89,13 +74,12 @@ fn main() -> Result<()> {
     }
 
     match cli.command {
-        Commands::Start { detach, build } => start_sandbox(detach, build),
-        Commands::StartFork { detach, build } => start_sandbox_fork(detach, build),
-        Commands::StartMultiL2 {
+        Commands::Start {
             detach,
             build,
             fork,
-        } => start_multi_l2(detach, build, fork),
+            multi_l2,
+        } => start_sandbox(detach, build, fork, multi_l2),
         Commands::Stop { volumes } => stop_sandbox(volumes),
         Commands::Status => show_status(),
         Commands::Logs { follow, service } => show_logs(follow, service),
@@ -104,163 +88,29 @@ fn main() -> Result<()> {
     }
 }
 
-fn start_sandbox(detach: bool, build: bool) -> Result<()> {
-    println!(
-        "{}",
-        "🚀 Starting AggLayer sandbox environment...".green().bold()
-    );
+fn start_sandbox(detach: bool, build: bool, fork: bool, multi_l2: bool) -> Result<()> {
+    // Determine mode for messaging
+    let mode_str = match (fork, multi_l2) {
+        (true, true) => "multi-L2 fork mode",
+        (true, false) => "fork mode",
+        (false, true) => "multi-L2 mode",
+        (false, false) => "local mode",
+    };
 
-    let mut cmd = Command::new("docker-compose");
-    cmd.arg("up");
-
-    if detach {
-        cmd.arg("-d");
-    }
-
-    if build {
-        cmd.arg("--build");
-    }
-
-    // Explicitly disable fork mode for local mode
-    cmd.env("ENABLE_FORK_MODE", "false");
-
-    // Capture output to ensure consistent behavior across platforms
-    let output = cmd
-        .output()
-        .context("Failed to execute docker-compose up")?;
-
-    // In detached mode, only show output if there's an error
-    // In non-detached mode, always show output
-    if !detach || !output.status.success() {
-        if !output.stdout.is_empty() {
-            print!("{}", String::from_utf8_lossy(&output.stdout));
-        }
-        if !output.stderr.is_empty() {
-            eprint!("{}", String::from_utf8_lossy(&output.stderr));
-        }
-    }
-
-    if output.status.success() {
-        if detach {
-            println!("{}", "✅ Sandbox started in detached mode".green());
-            print_sandbox_info();
-        } else {
-            println!("{}", "✅ Sandbox stopped".green());
-        }
-    } else {
-        eprintln!("{}", "❌ Failed to start sandbox".red());
-        std::process::exit(1);
-    }
-
-    Ok(())
-}
-
-fn start_sandbox_fork(detach: bool, build: bool) -> Result<()> {
-    println!(
-        "{}",
-        "🚀 Starting AggLayer sandbox environment in FORK mode..."
-            .green()
-            .bold()
-    );
-
-    // Check if fork URLs are set
-    let fork_mainnet = std::env::var("FORK_URL_MAINNET").unwrap_or_default();
-    let fork_agglayer_1 = std::env::var("FORK_URL_AGGLAYER_1").unwrap_or_default();
-
-    if fork_mainnet.is_empty() {
-        eprintln!(
-            "{}",
-            "❌ FORK_URL_MAINNET environment variable is not set".red()
-        );
-        eprintln!("{}", "Please set the fork URLs in your .env file".yellow());
-        std::process::exit(1);
-    }
-
-    if fork_agglayer_1.is_empty() {
-        eprintln!(
-            "{}",
-            "❌ FORK_URL_AGGLAYER_1 environment variable is not set".red()
-        );
-        eprintln!("{}", "Please set the fork URLs in your .env file".yellow());
-        std::process::exit(1);
-    }
-
-    println!("{}", "Fork URLs detected:".cyan());
-    println!("  Mainnet: {}", fork_mainnet.yellow());
-    println!("  AggLayer 1: {}", fork_agglayer_1.yellow());
-
-    let mut cmd = Command::new("docker-compose");
-    cmd.arg("up");
-
-    if detach {
-        cmd.arg("-d");
-    }
-
-    if build {
-        cmd.arg("--build");
-    }
-
-    // Set environment variables for the docker-compose command so they're available in containers
-    cmd.env("ENABLE_FORK_MODE", "true");
-    cmd.env("FORK_URL_MAINNET", &fork_mainnet);
-    cmd.env("FORK_URL_AGGLAYER_1", &fork_agglayer_1);
-    cmd.env(
-        "CHAIN_ID_MAINNET",
-        std::env::var("CHAIN_ID_MAINNET").unwrap_or_else(|_| "1".to_string()),
-    );
-    cmd.env(
-        "CHAIN_ID_AGGLAYER_1",
-        std::env::var("CHAIN_ID_AGGLAYER_1").unwrap_or_else(|_| "1101".to_string()),
-    );
-
-    // Capture output to ensure consistent behavior across platforms
-    let output = cmd
-        .output()
-        .context("Failed to execute docker-compose up with fork mode")?;
-
-    // In detached mode, only show output if there's an error
-    // In non-detached mode, always show output
-    if !detach || !output.status.success() {
-        if !output.stdout.is_empty() {
-            print!("{}", String::from_utf8_lossy(&output.stdout));
-        }
-        if !output.stderr.is_empty() {
-            eprint!("{}", String::from_utf8_lossy(&output.stderr));
-        }
-    }
-
-    if output.status.success() {
-        if detach {
-            println!("{}", "✅ Sandbox started in fork mode (detached)".green());
-            print_sandbox_fork_info();
-        } else {
-            println!("{}", "✅ Sandbox stopped".green());
-        }
-    } else {
-        eprintln!("{}", "❌ Failed to start sandbox in fork mode".red());
-        std::process::exit(1);
-    }
-
-    Ok(())
-}
-
-fn start_multi_l2(detach: bool, build: bool, fork: bool) -> Result<()> {
-    let mode_str = if fork { "fork mode" } else { "regular mode" };
     println!(
         "{}",
         format!(
-            "🚀 Starting AggLayer sandbox environment with a second L2 chain in {}...",
+            "🚀 Starting AggLayer sandbox environment in {}...",
             mode_str
         )
         .green()
         .bold()
     );
 
+    // Fork mode validation
     if fork {
-        // Check if fork URLs are set for fork mode
         let fork_mainnet = std::env::var("FORK_URL_MAINNET").unwrap_or_default();
         let fork_agglayer_1 = std::env::var("FORK_URL_AGGLAYER_1").unwrap_or_default();
-        let fork_agglayer_2 = std::env::var("FORK_URL_AGGLAYER_2").unwrap_or_default();
 
         if fork_mainnet.is_empty() {
             eprintln!(
@@ -280,27 +130,39 @@ fn start_multi_l2(detach: bool, build: bool, fork: bool) -> Result<()> {
             std::process::exit(1);
         }
 
-        if fork_agglayer_2.is_empty() {
-            eprintln!(
-                "{}",
-                "❌ FORK_URL_AGGLAYER_2 environment variable is not set".red()
-            );
-            eprintln!(
-                "{}",
-                "Please set the fork URLs in your .env file for the second L2 chain".yellow()
-            );
-            std::process::exit(1);
+        // Additional validation for multi-L2 fork mode
+        if multi_l2 {
+            let fork_agglayer_2 = std::env::var("FORK_URL_AGGLAYER_2").unwrap_or_default();
+            if fork_agglayer_2.is_empty() {
+                eprintln!(
+                    "{}",
+                    "❌ FORK_URL_AGGLAYER_2 environment variable is not set".red()
+                );
+                eprintln!(
+                    "{}",
+                    "Please set the fork URLs in your .env file for the second L2 chain".yellow()
+                );
+                std::process::exit(1);
+            }
+            println!("{}", "Fork URLs detected:".cyan());
+            println!("  Mainnet: {}", fork_mainnet.yellow());
+            println!("  AggLayer 1: {}", fork_agglayer_1.yellow());
+            println!("  AggLayer 2: {}", fork_agglayer_2.yellow());
+        } else {
+            println!("{}", "Fork URLs detected:".cyan());
+            println!("  Mainnet: {}", fork_mainnet.yellow());
+            println!("  AggLayer 1: {}", fork_agglayer_1.yellow());
         }
-
-        println!("{}", "Fork URLs detected:".cyan());
-        println!("  Mainnet: {}", fork_mainnet.yellow());
-        println!("  AggLayer 1: {}", fork_agglayer_1.yellow());
-        println!("  AggLayer 2: {}", fork_agglayer_2.yellow());
     }
 
     let mut cmd = Command::new("docker-compose");
-    cmd.arg("-f").arg("docker-compose.yml");
-    cmd.arg("-f").arg("docker-compose.multi-l2.yml");
+
+    // Add compose files based on mode
+    if multi_l2 {
+        cmd.arg("-f").arg("docker-compose.yml");
+        cmd.arg("-f").arg("docker-compose.multi-l2.yml");
+    }
+
     cmd.arg("up");
 
     if detach {
@@ -311,8 +173,8 @@ fn start_multi_l2(detach: bool, build: bool, fork: bool) -> Result<()> {
         cmd.arg("--build");
     }
 
+    // Set environment variables based on mode
     if fork {
-        // Set environment variables for fork mode
         cmd.env("ENABLE_FORK_MODE", "true");
         cmd.env(
             "FORK_URL_MAINNET",
@@ -322,12 +184,13 @@ fn start_multi_l2(detach: bool, build: bool, fork: bool) -> Result<()> {
             "FORK_URL_AGGLAYER_1",
             std::env::var("FORK_URL_AGGLAYER_1").unwrap_or_default(),
         );
-        cmd.env(
-            "FORK_URL_AGGLAYER_2",
-            std::env::var("FORK_URL_AGGLAYER_2").unwrap_or_default(),
-        );
+        if multi_l2 {
+            cmd.env(
+                "FORK_URL_AGGLAYER_2",
+                std::env::var("FORK_URL_AGGLAYER_2").unwrap_or_default(),
+            );
+        }
     } else {
-        // Explicitly disable fork mode for local mode
         cmd.env("ENABLE_FORK_MODE", "false");
     }
 
@@ -340,15 +203,17 @@ fn start_multi_l2(detach: bool, build: bool, fork: bool) -> Result<()> {
         "CHAIN_ID_AGGLAYER_1",
         std::env::var("CHAIN_ID_AGGLAYER_1").unwrap_or_else(|_| "1101".to_string()),
     );
-    cmd.env(
-        "CHAIN_ID_AGGLAYER_2",
-        std::env::var("CHAIN_ID_AGGLAYER_2").unwrap_or_else(|_| "1102".to_string()),
-    );
+    if multi_l2 {
+        cmd.env(
+            "CHAIN_ID_AGGLAYER_2",
+            std::env::var("CHAIN_ID_AGGLAYER_2").unwrap_or_else(|_| "1102".to_string()),
+        );
+    }
 
     // Capture output to ensure consistent behavior across platforms
     let output = cmd
         .output()
-        .context("Failed to execute docker-compose up with multi-L2 configuration")?;
+        .context("Failed to execute docker-compose up")?;
 
     // In detached mode, only show output if there's an error
     // In non-detached mode, always show output
@@ -363,18 +228,25 @@ fn start_multi_l2(detach: bool, build: bool, fork: bool) -> Result<()> {
 
     if output.status.success() {
         if detach {
-            let success_msg = if fork {
-                "✅ Multi-L2 sandbox started in fork mode (detached)"
-            } else {
-                "✅ Multi-L2 sandbox started (detached)"
+            let success_msg = match (fork, multi_l2) {
+                (true, true) => "✅ Multi-L2 sandbox started in fork mode (detached)",
+                (true, false) => "✅ Sandbox started in fork mode (detached)",
+                (false, true) => "✅ Multi-L2 sandbox started (detached)",
+                (false, false) => "✅ Sandbox started in detached mode",
             };
             println!("{}", success_msg.green());
-            print_multi_l2_info(fork);
+
+            // Print appropriate info
+            match (fork, multi_l2) {
+                (_, true) => print_multi_l2_info(fork),
+                (true, false) => print_sandbox_fork_info(),
+                (false, false) => print_sandbox_info(),
+            }
         } else {
-            println!("{}", "✅ Multi-L2 sandbox stopped".green());
+            println!("{}", "✅ Sandbox stopped".green());
         }
     } else {
-        eprintln!("{}", "❌ Failed to start multi-L2 sandbox".red());
+        eprintln!("{}", "❌ Failed to start sandbox".red());
         std::process::exit(1);
     }
 
@@ -445,11 +317,11 @@ fn print_sandbox_info() {
     println!("• View logs: {}", "agg-sandbox logs --follow".yellow());
     println!(
         "• Start in fork mode: {}",
-        "agg-sandbox start-fork --detach".yellow()
+        "agg-sandbox start --fork --detach".yellow()
     );
     println!(
         "• Start with second L2: {}",
-        "agg-sandbox start-multi-l2 --detach".yellow()
+        "agg-sandbox start --multi-l2 --detach".yellow()
     );
     println!("• Stop sandbox: {}", "agg-sandbox stop".yellow());
     println!();
@@ -519,7 +391,7 @@ fn print_sandbox_fork_info() {
     println!("• View logs: {}", "agg-sandbox logs --follow".yellow());
     println!(
         "• Start multi-L2 with fork: {}",
-        "agg-sandbox start-multi-l2 --fork --detach".yellow()
+        "agg-sandbox start --multi-l2 --fork --detach".yellow()
     );
     println!("• Stop sandbox: {}", "agg-sandbox stop".yellow());
     println!();
@@ -781,8 +653,8 @@ fn restart_sandbox() -> Result<()> {
     // First stop
     stop_sandbox(false)?;
 
-    // Then start
-    start_sandbox(true, false)?;
+    // Then start in basic local mode
+    start_sandbox(true, false, false, false)?;
 
     println!("{}", "✅ Sandbox restarted successfully".green());
 

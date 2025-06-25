@@ -3,8 +3,11 @@ FROM ghcr.io/foundry-rs/foundry:latest
 
 WORKDIR /app
 
+# Copy the entrypoint script with executable permissions
+COPY --chmod=755 entrypoint.sh /usr/local/bin/entrypoint.sh
+
 # Expose port 8545
 EXPOSE 8545
 
-# Start Anvil without forking
-ENTRYPOINT ["anvil", "--host", "0.0.0.0"]
+# Use the entrypoint script
+ENTRYPOINT ["/usr/local/bin/entrypoint.sh"]

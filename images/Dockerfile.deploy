@@ -56,7 +56,16 @@ until curl -s http://anvil-polygon:8545 > /dev/null; do\n\
 done\n\
 echo "Both Anvil instances are ready!"\n\
 sleep 5\n\
-echo "Updating .env file with environment variables..."\n\
+echo "Backup original .env file from host..."\n\
+# The mounted .env from host should be at /app/output/deployed-contracts.env\n\
+if [ -f "/app/output/deployed-contracts.env" ]; then\n\
+    cp /app/output/deployed-contracts.env /app/.env.backup\n\
+    cp /app/output/deployed-contracts.env /app/.env\n\
+    echo "Using existing .env from host"\n\
+else\n\
+    echo "No existing .env from host, using template"\n\
+fi\n\
+echo "Updating .env file with runtime environment variables..."\n\
 if [ ! -z "$RPC_URL_1" ]; then\n\
     sed -i "s|^RPC_URL_1=.*|RPC_URL_1=$RPC_URL_1|" /app/.env\n\
 fi\n\
@@ -69,10 +78,25 @@ FOUNDRY_AUTO_DETECT_SOLC=true forge build\n\
 cd /app\n\
 ./scripts/deploy-contracts.sh /app/.env\n\
 echo "Contract deployment completed!"\n\
-echo "Saving deployment results..."\n\
+echo "Preserving original environment variables..."\n\
+# Create a temporary file with only the new contract addresses\n\
 mkdir -p /app/output\n\
-cp /app/.env /app/output/deployed-contracts.env\n\
-echo "✅ Contract addresses saved to host .env.deployed file"\n\
+if [ -f "/app/.env.backup" ]; then\n\
+    # Start with the original backup (preserves ALL original variables including FORK_URLs)\n\
+    cp /app/.env.backup /app/output/deployed-contracts.env\n\
+    # Remove any existing contract addresses from the backup to avoid duplicates\n\
+    sed -i "/^FFLONK_VERIFIER_/d" /app/output/deployed-contracts.env\n\
+    sed -i "/^POLYGON_ZKEVM_/d" /app/output/deployed-contracts.env\n\
+    sed -i "/^POLYGON_ROLLUP_MANAGER_/d" /app/output/deployed-contracts.env\n\
+    # Now append the new contract addresses\n\
+    grep "^FFLONK_VERIFIER_" /app/.env >> /app/output/deployed-contracts.env || true\n\
+    grep "^POLYGON_ZKEVM_" /app/.env >> /app/output/deployed-contracts.env || true\n\
+    grep "^POLYGON_ROLLUP_MANAGER_" /app/.env >> /app/output/deployed-contracts.env || true\n\
+    echo "✅ Contract addresses merged with existing .env preserving ALL original variables"\n\
+else\n\
+    cp /app/.env /app/output/deployed-contracts.env\n\
+    echo "✅ Contract addresses saved to new .env file"\n\
+fi\n\
 echo "🎉 Deployment process finished successfully!"' > /app/wait-and-deploy.sh
 
 RUN chmod +x /app/wait-and-deploy.sh

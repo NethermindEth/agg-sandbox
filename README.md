@@ -1,177 +1,186 @@
-# Agg-Sandox
+# AggLayer Sandbox
 
-This repository contains a Docker-based setup to deploy Polygon ZkEVM contracts to local Anvil instances.
+A development sandbox environment for the AggLayer with support for local blockchain simulation and fork mode.
 
-## Prerequisites
+## Features
 
-- Docker and Docker Compose
-
-## Setup
-
-1. Clone this repository:
-
-```bash
-git clone https://github.com/NethermindEth/agg-sandbox.git
-cd agg-sandbox
-```
-
-2. Initialize git submodules:
-   
-```bash
-git submodule update --init --recursive
-```
+- **Local Mode**: Run completely local blockchain nodes for development
+- **Fork Mode**: Fork existing blockchains to test against real network state
+- **Multi-L2 Mode**: Run with a second L2 chain for multi-chain testing (supports both local and fork modes)
+- Easy CLI management of the sandbox environment
+- Pre-configured accounts and private keys
+- Docker-based deployment for consistent environments
 
 ## Quick Start
 
-### Option 1: Using the CLI (Recommended)
+### Prerequisites
 
-Build and install the CLI tool:
+- Docker and Docker Compose
+- Rust (for CLI compilation)
 
+### Installation
+
+1. Clone the repository
+2. Install the CLI tool:
+   ```bash
+   ./install-cli.sh
+   ```
+
+### Usage
+
+The CLI provides a single `start` command with different flags for various modes:
+
+#### Local Mode (Default)
+Start with completely local blockchain simulation:
 ```bash
-./install-cli.sh
+agg-sandbox start --detach
 ```
 
-Then use the CLI to manage your sandbox:
+#### Available Flags
+- `--detach` (`-d`): Run in detached mode
+- `--build` (`-b`): Build images before starting  
+- `--fork` (`-f`): Enable fork mode (uses real blockchain data)
+- `--multi-l2` (`-m`): Enable multi-L2 mode (runs with a second L2 chain)
 
+#### Fork Mode
+Fork existing blockchains for testing against real network state:
+
+1. First, configure your fork URLs in `.env`:
+   ```bash
+   cp env.example .env
+   # Edit .env and set your fork URLs:
+   # FORK_URL_MAINNET=
+   # FORK_URL_AGGLAYER_1=
+   ```
+
+2. Start in fork mode:
+   ```bash
+   agg-sandbox start --fork --detach
+   ```
+
+#### Multi-L2 Mode
+Run with a second L2 chain for multi-chain testing:
+
+1. **Local Multi-L2**: Run with local blockchain simulation on three chains:
+   ```bash
+   agg-sandbox start --multi-l2 --detach
+   ```
+
+2. **Fork Multi-L2**: Fork existing blockchains with a second L2 chain:
+   ```bash
+   # Configure all fork URLs in .env including FORK_URL_AGGLAYER_2
+   agg-sandbox start --multi-l2 --fork --detach
+   ```
+
+#### Quick Reference
 ```bash
-# Start the sandbox (interactive mode)
-agg-sandbox start
+# Local mode (2 chains: L1 + L2)
+agg-sandbox start --detach
 
-# Start in detached mode with build
-agg-sandbox start --detach --build
+# Fork mode (2 chains: forked from real networks)  
+agg-sandbox start --fork --detach
 
-# Check status
+# Multi-L2 local mode (3 chains: L1 + L2 + L2)
+agg-sandbox start --multi-l2 --detach
+
+# Multi-L2 fork mode (3 chains: all forked from real networks)
+agg-sandbox start --multi-l2 --fork --detach
+```
+
+#### Other Commands
+```bash
+# Check status (works for all modes)
 agg-sandbox status
 
-# View logs
+# View logs (works for all modes)
 agg-sandbox logs --follow
 
-# Stop the sandbox
+# Stop the sandbox (automatically detects and stops all configurations)
 agg-sandbox stop
-```
 
-### Option 2: Direct Docker Compose
-
-To deploy all contracts to local Anvil instances directly:
-
-```bash
-docker-compose up --build
-```
-
-This single command will:
-
-1. **Build all Docker images** with the Foundry toolchain and dependencies
-2. **Start two Anvil instances**:
-   - `anvil-mainnet` on port 8545 (simulates L1/Ethereum mainnet)
-   - `anvil-polygon` on port 8546 (simulates L2/Polygon ZkEVM)
-3. **Wait for both Anvil instances** to be healthy and ready
-4. **Deploy L1 contracts** to the first Anvil instance
-5. **Deploy L2 contracts** to the second Anvil instance
-6. **Update your `.env` file** with all deployed contract addresses
-
-## Contract Addresses
-
-After deployment, the following contract addresses will be automatically saved to your `.env` file:
-
-### L1 Contracts
-
-- `FFLONK_VERIFIER_L1`: The FflonkVerifier contract
-- `POLYGON_ZKEVM_L1`: The PolygonZkEVM contract
-- `POLYGON_ZKEVM_BRIDGE_L1`: The PolygonZkEVMBridgeV2 contract
-- `POLYGON_ZKEVM_TIMELOCK_L1`: The PolygonZkEVMTimelock contract
-- `POLYGON_ZKEVM_GLOBAL_EXIT_ROOT_L1`: The PolygonZkEVMGlobalExitRootV2 contract
-- `POLYGON_ROLLUP_MANAGER_L1`: The PolygonRollupManager contract
-
-### L2 Contracts
-
-- `POLYGON_ZKEVM_BRIDGE_L2`: The PolygonZkEVMBridgeV2 contract
-- `POLYGON_ZKEVM_TIMELOCK_L2`: The PolygonZkEVMTimelock contract
-
-## Docker Services
-
-The `docker-compose.yml` file defines three services:
-
-1. **`anvil-mainnet`**: Simulates L1 (Ethereum mainnet)
-   - Port: 8545
-   - URL: http://localhost:8545
-
-2. **`anvil-polygon`**: Simulates L2 (Polygon ZkEVM)
-   - Port: 8546
-   - URL: http://localhost:8546
-
-3. **`contract-deployer`**: Deploys contracts to both Anvil instances
-   - Automatically waits for Anvil instances to be ready
-   - Updates your `.env` file with deployed contract addresses
-   - Exits after successful deployment
-
-## Environment Configuration
-
-The deployment uses your `env.example` file as the base configuration and automatically updates the RPC URLs for the Docker environment:
-
-- `RPC_URL_1`: Set to `http://anvil-mainnet:8545` (L1)
-- `RPC_URL_2`: Set to `http://anvil-polygon:8545` (L2)
-- `PRIVATE_KEY_1` & `PRIVATE_KEY_2`: Uses the default Anvil account private keys from `env.example`
-
-## Manual Deployment (Alternative)
-
-If you want to run the deployment script manually outside of Docker:
-
-```bash
-./scripts/deploy-contracts.sh .env
-```
-
-Note: You'll need to have Foundry installed locally and Anvil instances running.
-
-## CLI Usage
-
-The `agg-sandbox` CLI provides a convenient interface for managing your sandbox environment:
-
-### Available Commands
-
-```bash
-# Start services
-agg-sandbox start [--detach] [--build]
-
-# Stop services  
-agg-sandbox stop [--volumes]
-
-# Check service status
-agg-sandbox status
-
-# View and follow logs
-agg-sandbox logs [--follow] [service-name]
-
-# Restart all services
-agg-sandbox restart
-
-# Show configuration and accounts
-agg-sandbox info
-
-# Get help
-agg-sandbox --help
-```
-
-### Examples
-
-```bash
-# Start in background and build images (shows account info and config)
-agg-sandbox start --detach --build
-
-# Follow logs for a specific service
-agg-sandbox logs --follow anvil-mainnet
-
-# Stop and remove all volumes
-agg-sandbox stop --volumes
-
-# Show account info and chain configuration
+# Show configuration info
 agg-sandbox info
 ```
 
-See `cli/README.md` for detailed CLI documentation.
+## Configuration
+
+The sandbox uses environment variables defined in the `.env` file:
+
+### Local Mode Variables
+- `RPC_URL_1`, `RPC_URL_2`: Internal RPC URLs for services
+- `CHAIN_ID_MAINNET`, `CHAIN_ID_AGGLAYER_1`: Chain IDs for the networks
+
+### Fork Mode Variables
+- `FORK_URL_MAINNET`: Ethereum mainnet fork URL (e.g., Alchemy, Infura)
+- `FORK_URL_AGGLAYER_1`: Polygon zkEVM fork URL
+- `FORK_URL_AGGLAYER_2`: Additional chain fork URL (optional)
+
+### Account Configuration
+Pre-configured test accounts with known private keys:
+- `ACCOUNT_ADDRESS_1`, `PRIVATE_KEY_1`: Primary test account
+- `ACCOUNT_ADDRESS_2`, `PRIVATE_KEY_2`: Secondary test account
+
+## Network Configuration
+
+### Local Mode
+- **L1 (Ethereum Simulation)**: `http://127.0.0.1:8545` (Chain ID: 1)
+- **L2 (Polygon zkEVM Simulation)**: `http://127.0.0.1:8546` (Chain ID: 1101)
+
+### Fork Mode
+- **L1 (Ethereum Fork)**: `http://127.0.0.1:8545` (Uses real Ethereum state)
+- **L2 (Polygon zkEVM Fork)**: `http://127.0.0.1:8546` (Uses real Polygon state)
+
+### Multi-L2 Mode
+#### Local Multi-L2
+- **L1 (Ethereum Simulation)**: `http://127.0.0.1:8545` (Chain ID: 1)
+- **L2-1 (Polygon zkEVM Simulation)**: `http://127.0.0.1:8546` (Chain ID: 1101)
+- **L2-2 (Second AggLayer Chain Simulation)**: `http://127.0.0.1:8547` (Chain ID: 1102)
+
+#### Fork Multi-L2
+- **L1 (Ethereum Fork)**: `http://127.0.0.1:8545` (Uses real Ethereum state)
+- **L2-1 (Polygon zkEVM Fork)**: `http://127.0.0.1:8546` (Uses real Polygon state)
+- **L2-2 (Second AggLayer Chain Fork)**: `http://127.0.0.1:8547` (Uses real second chain state)
+
+## Development
+
+### CLI Development
+The CLI is written in Rust and located in the `cli/` directory:
+
+```bash
+cd cli
+cargo build --release
+```
+
+### Contract Development
+Smart contracts are in the `agglayer-contracts/` directory using Foundry.
+
+## Architecture
+
+### Standard Mode
+The sandbox consists of:
+- Two Anvil nodes (L1 and L2) running in Docker containers
+- A contract deployer service that automatically deploys required contracts
+- A CLI tool for managing the environment
+
+### Multi-L2 Mode
+The multi-L2 sandbox consists of:
+- Three Anvil nodes (L1 and two L2 chains) running in Docker containers
+- A contract deployer service that automatically deploys required contracts to all chains
+- A CLI tool for managing the environment
+- Uses Docker Compose override files for flexible configuration
 
 ## Troubleshooting
 
-- **Solidity version errors**: The Docker setup automatically downloads the required Solidity compiler versions
-- **Port conflicts**: Make sure ports 8545 and 8546 are not in use by other applications
-- **Build failures**: Try running `docker-compose down` and then `docker-compose up --build` to rebuild from scratch
-- **CLI not found**: Make sure you've run `./install-cli.sh` and that `~/.local/bin` is in your PATH
+### Fork Mode Issues
+- Ensure your fork URLs are accessible and support the required RPC methods
+- Check that your API keys (if required) are properly configured
+- Some RPC providers have rate limits that may affect performance
+
+### Docker Issues
+- Ensure Docker daemon is running
+- Try rebuilding images: `agg-sandbox start --build`
+- Check logs: `agg-sandbox logs`
+
+## License
+
+[Add your license information here]

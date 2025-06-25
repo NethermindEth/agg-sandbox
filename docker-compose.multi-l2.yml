@@ -1,0 +1,32 @@
+services:
+  anvil-agglayer:
+    build:
+      context: ./images
+      dockerfile: Dockerfile.anvil
+    ports:
+      - "8547:8545"
+    networks:
+      - anvil-network
+    environment:
+      - ENABLE_FORK_MODE=${ENABLE_FORK_MODE:-false}
+      - FORK_URL_AGGLAYER_2=${FORK_URL_AGGLAYER_3:-}
+      - CHAIN_ID_AGGLAYER_2=${CHAIN_ID_AGGLAYER_3:-1102}
+    healthcheck:
+      test: ["CMD-SHELL", "timeout 1 bash -c '</dev/tcp/localhost/8545'"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+      start_period: 10s
+
+  contract-deployer:
+    depends_on:
+      anvil-mainnet:
+        condition: service_healthy
+      anvil-polygon:
+        condition: service_healthy
+      anvil-agglayer:
+        condition: service_healthy
+    environment:
+      - RPC_URL_1=http://anvil-mainnet:8545
+      - RPC_URL_2=http://anvil-polygon:8545
+      - RPC_URL_3=http://anvil-agglayer:8545 

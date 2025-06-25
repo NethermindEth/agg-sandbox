@@ -2,12 +2,12 @@ name: Contracts
 
 on:
   push:
-    branches: [main, develop]
+    branches: [main, v0.2]
     paths:
       - 'agglayer-contracts/**'
       - '.github/workflows/contracts.yml'
   pull_request:
-    branches: [main, develop]
+    branches: [main, v0.2]
     paths:
       - 'agglayer-contracts/**'
       - '.github/workflows/contracts.yml'

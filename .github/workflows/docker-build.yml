@@ -10,11 +10,6 @@ on:
       - 'docker-compose.multi-l2.yml'
   pull_request:
     branches: [main]
-    paths:
-      - 'images/**'
-      - '.github/workflows/docker-build.yml'
-      - 'docker-compose.yml'
-      - 'docker-compose.multi-l2.yml'
 
 jobs:
   build-docker-images:

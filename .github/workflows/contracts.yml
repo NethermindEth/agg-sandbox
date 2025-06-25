@@ -8,9 +8,6 @@ on:
       - ".github/workflows/contracts.yml"
   pull_request:
     branches: [main]
-    paths:
-      - "agglayer-contracts/**"
-      - ".github/workflows/contracts.yml"
 
 env:
   FOUNDRY_PROFILE: ci

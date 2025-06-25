@@ -7,6 +7,9 @@ services:
       - "8545:8545"
     networks:
       - anvil-network
+    environment:
+      - FORK_URL_MAINNET=${FORK_URL_MAINNET:-}
+      - CHAIN_ID_MAINNET=${CHAIN_ID_MAINNET:-1}
     healthcheck:
       test: ["CMD-SHELL", "timeout 1 bash -c '</dev/tcp/localhost/8545'"]
       interval: 5s
@@ -22,6 +25,9 @@ services:
       - "8546:8545"
     networks:
       - anvil-network
+    environment:
+      - FORK_URL_AGGLAYER_1=${FORK_URL_AGGLAYER_1:-}
+      - CHAIN_ID_AGGLAYER_1=${CHAIN_ID_AGGLAYER_1:-1101}
     healthcheck:
       test: ["CMD-SHELL", "timeout 1 bash -c '</dev/tcp/localhost/8545'"]
       interval: 5s

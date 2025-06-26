@@ -158,7 +158,7 @@ fn start_sandbox(detach: bool, build: bool, fork: bool, multi_l2: bool) -> Resul
     }
 
     let mut cmd = Command::new("docker-compose");
-    
+
     // Add compose files based on mode
     if multi_l2 {
         cmd.arg("-f").arg("docker-compose.yml");

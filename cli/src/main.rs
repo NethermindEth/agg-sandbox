@@ -158,12 +158,10 @@ fn start_sandbox(detach: bool, build: bool, fork: bool, multi_l2: bool) -> Resul
     }
 
     let mut cmd = Command::new("docker-compose");
-
-    cmd.arg("-f").arg("docker-compose.yml");
-    cmd.arg("-f").arg("docker-compose.aggnode.yml");
     
     // Add compose files based on mode
     if multi_l2 {
+        cmd.arg("-f").arg("docker-compose.yml");
         cmd.arg("-f").arg("docker-compose.multi-l2.yml");
     }
 
@@ -278,7 +276,6 @@ fn stop_sandbox(volumes: bool) -> Result<()> {
     // Try to stop both regular and multi-L2 configurations
     let mut cmd = Command::new("docker-compose");
     cmd.arg("-f").arg("docker-compose.yml");
-    cmd.arg("-f").arg("docker-compose.aggnode.yml");
 
     // Check if multi-L2 compose file exists and add it
     if Path::new("docker-compose.multi-l2.yml").exists() {
@@ -318,7 +315,6 @@ fn show_status() -> Result<()> {
 
     let mut cmd = Command::new("docker-compose");
     cmd.arg("-f").arg("docker-compose.yml");
-    cmd.arg("-f").arg("docker-compose.aggnode.yml");
 
     // Check if multi-L2 compose file exists and add it
     if Path::new("docker-compose.multi-l2.yml").exists() {
@@ -357,7 +353,6 @@ fn show_logs(follow: bool, service: Option<String>) -> Result<()> {
 
     let mut cmd = Command::new("docker-compose");
     cmd.arg("-f").arg("docker-compose.yml");
-    cmd.arg("-f").arg("docker-compose.aggnode.yml");
 
     // Check if multi-L2 compose file exists and add it
     if Path::new("docker-compose.multi-l2.yml").exists() {

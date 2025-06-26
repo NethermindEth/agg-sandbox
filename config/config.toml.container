@@ -1,0 +1,33 @@
+# Configuration for AggKit using SQLite
+# When in "mock-prover" mode, most of the fields are not needed or have default values
+
+debug-mode = true
+mock-verifier = true                 # keep explicit for clarity
+
+# Set the root directory for all component SQLite DBs
+PathRWData = "/data"
+
+[rpc]
+readrpc-port = 8645                  # matches compose
+host         = "0.0.0.0"
+
+[log]
+level  = "info"
+format = "json"
+
+[epoch.block-clock]
+epoch-duration = 15
+
+# Required configuration values based on debug output
+sequencer-private-key-path = "/config/sequencer.key"
+sequencer-private-key-password = ""
+
+l2-url = "http://host.docker.internal:8546"
+l1-url = "http://host.docker.internal:8545"
+
+[l1-config]
+polygon-zk-evm-address = "0x0000000000000000000000000000000000000000"
+polygon-zk-evm-global-exit-root-address = "0x0000000000000000000000000000000000000000"
+polygon-rollup-manager-address = "0x0000000000000000000000000000000000000000"
+
+aggsender-private-key = ""

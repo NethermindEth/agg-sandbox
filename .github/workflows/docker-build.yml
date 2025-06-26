@@ -26,3 +26,4 @@ jobs:
 
       - name: Build Docker image (deploy)
         run: docker build -f images/Dockerfile.deploy .
+

@@ -22,8 +22,8 @@ epoch-duration = 15
 sequencer-private-key-path = "/config/sequencer.key"
 sequencer-private-key-password = ""
 
-l2-url = "http://anvil-polygon:8545"
-l1-url = "http://anvil-mainnet:8545"
+l2-url = "http://host.docker.internal:8546"
+l1-url = "http://host.docker.internal:8545"
 
 [l1-config]
 polygon-zk-evm-address = "0x0000000000000000000000000000000000000000"

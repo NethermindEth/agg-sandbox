@@ -37,6 +37,22 @@ services:
       retries: 5
       start_period: 10s
 
+  aggkit:
+    image: aggkit:latest
+    depends_on:
+      anvil-mainnet:
+        condition: service_healthy
+      anvil-polygon:
+        condition: service_healthy
+    networks:
+      - anvil-network
+    volumes:
+      - ./config:/app/config
+      - aggkit-data:/data
+    environment:
+      - RPC_URL_1=http://anvil-mainnet:8545
+      - RPC_URL_2=http://anvil-polygon:8545
+
   contract-deployer:
     build:
       context: .
@@ -56,4 +72,7 @@ services:
 
 networks:
   anvil-network:
-    driver: bridge 
+    driver: bridge
+
+volumes:
+  aggkit-data: 

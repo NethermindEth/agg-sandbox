@@ -255,12 +255,6 @@ fn start_sandbox(detach: bool, build: bool, fork: bool, multi_l2: bool) -> Resul
     Ok(())
 }
 
-
-
-
-
-
-
 fn stop_sandbox(volumes: bool) -> Result<()> {
     println!(
         "{}",

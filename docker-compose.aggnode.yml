@@ -1,0 +1,43 @@
+services:
+  agglayer-db:
+    image: postgres:15-alpine
+    restart: unless-stopped
+    environment:
+      - POSTGRES_DB=agglayer_db
+      - POSTGRES_USER=agglayer_user
+      - POSTGRES_PASSWORD=agglayer_pass
+    networks:
+      - my-network
+    volumes:
+      - agglayer-pg-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U agglayer_user -d agglayer_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    ports:
+      - "5432:5432"
+      
+  aggnode:
+    image: 0xpolygon/agglayer:latest
+    command: ["run", "--cfg", "/config/config.toml"]
+    volumes:
+      - ./config/aggnode:/config
+    networks:
+      - my-network
+    ports:
+      - "8645:8645"
+    environment:
+      # AggNode respects DATABASE_URL when not set in cfg
+      DATABASE_URL: postgres://agglayer_user:agglayer_pass@agglayer-db:5432/agglayer_db
+    depends_on:
+      agglayer-db:
+        condition: service_healthy
+
+volumes:
+  agglayer-pg-data:
+
+networks:
+  my-network:
+    driver: bridge

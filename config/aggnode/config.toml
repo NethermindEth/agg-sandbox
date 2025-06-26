@@ -1,0 +1,16 @@
+# Configuration taken from https://github.com/0xPolygon/kurtosis-cdk/blob/main/templates/bridge-infra/agglayer-config.toml
+# When in "mock-prover" mode, most of the fields are not needed or have default values
+
+debug-mode = true
+mock-verifier = true                 # keep explicit for clarity
+
+[rpc]
+readrpc-port = 8645                  # matches compose
+host         = "0.0.0.0"
+
+[log]
+level  = "info"
+format = "json"
+
+[epoch.block-clock]
+epoch-duration = 15

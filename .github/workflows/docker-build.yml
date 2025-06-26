@@ -12,7 +12,7 @@ on:
     branches: [main]
 
 jobs:
-  build-docker-images:
+  build-all:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
@@ -26,3 +26,11 @@ jobs:
 
       - name: Build Docker image (deploy)
         run: docker build -f images/Dockerfile.deploy .
+
+      - name: Pull AggNode image
+        run: docker pull 0xpolygon/agglayer:latest
+
+      - name: Smoke-test mock-prover flag
+        run: |
+          docker run --rm 0xpolygon/agglayer:latest \
+            aggnode --mock-prover --help

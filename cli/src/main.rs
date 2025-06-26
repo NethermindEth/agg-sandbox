@@ -212,44 +212,54 @@ fn start_sandbox(detach: bool, build: bool, fork: bool, multi_l2: bool) -> Resul
         );
     }
 
-    // Capture output to ensure consistent behavior across platforms
-    let output = cmd
-        .output()
-        .context("Failed to execute docker-compose up")?;
+    // Handle detached vs non-detached mode differently
+    if detach {
+        // In detached mode, capture output to ensure consistent behavior across platforms
+        let output = cmd
+            .output()
+            .context("Failed to execute docker-compose up")?;
 
-    // In detached mode, only show output if there's an error
-    // In non-detached mode, always show output
-    if !detach || !output.status.success() {
-        if !output.stdout.is_empty() {
-            print!("{}", String::from_utf8_lossy(&output.stdout));
-        }
-        if !output.stderr.is_empty() {
-            eprint!("{}", String::from_utf8_lossy(&output.stderr));
-        }
-    }
-
-    if output.status.success() {
-        if detach {
-            let success_msg = match (fork, multi_l2) {
-                (true, true) => "✅ Multi-L2 sandbox started in fork mode (detached)",
-                (true, false) => "✅ Sandbox started in fork mode (detached)",
-                (false, true) => "✅ Multi-L2 sandbox started (detached)",
-                (false, false) => "✅ Sandbox started in detached mode",
-            };
-            println!("{}", success_msg.green());
-
-            // Print appropriate info
-            match (fork, multi_l2) {
-                (_, true) => logs::print_multi_l2_info(fork),
-                (true, false) => logs::print_sandbox_fork_info(),
-                (false, false) => logs::print_sandbox_info(),
+        // Only show output if there's an error
+        if !output.status.success() {
+            if !output.stdout.is_empty() {
+                print!("{}", String::from_utf8_lossy(&output.stdout));
             }
-        } else {
-            println!("{}", "✅ Sandbox stopped".green());
+            if !output.stderr.is_empty() {
+                eprint!("{}", String::from_utf8_lossy(&output.stderr));
+            }
+            eprintln!("{}", "❌ Failed to start sandbox".red());
+            std::process::exit(1);
+        }
+
+        let success_msg = match (fork, multi_l2) {
+            (true, true) => "✅ Multi-L2 sandbox started in fork mode (detached)",
+            (true, false) => "✅ Sandbox started in fork mode (detached)",
+            (false, true) => "✅ Multi-L2 sandbox started (detached)",
+            (false, false) => "✅ Sandbox started in detached mode",
+        };
+        println!("{}", success_msg.green());
+
+        // Print appropriate info
+        match (fork, multi_l2) {
+            (_, true) => logs::print_multi_l2_info(fork),
+            (true, false) => logs::print_sandbox_fork_info(),
+            (false, false) => logs::print_sandbox_info(),
         }
     } else {
-        eprintln!("{}", "❌ Failed to start sandbox".red());
-        std::process::exit(1);
+        // In non-detached mode, run in foreground with real-time output
+        println!("{}", "Starting services in foreground mode...".cyan());
+        println!("{}", "Press Ctrl+C to stop the sandbox".yellow());
+
+        let status = cmd
+            .status()
+            .context("Failed to execute docker-compose up")?;
+
+        if status.success() {
+            println!("{}", "✅ Sandbox stopped".green());
+        } else {
+            eprintln!("{}", "❌ Failed to start sandbox".red());
+            std::process::exit(1);
+        }
     }
 
     Ok(())

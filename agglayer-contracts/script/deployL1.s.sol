@@ -65,5 +65,6 @@ contract DeployContractsL1 is Script {
         console2.log("PolygonZkEVMTimelock:   ", address(polygonZkEVMTimelock));
         console2.log("PolygonZkEVMGlobalExitRootV2: ", address(polygonZkEVMGlobalExitRootV2));
         console2.log("PolygonRollupManager:   ", address(polygonRollupManager));
+        console2.log("Matic:                 ", address(matic));
     }
 }

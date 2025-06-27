@@ -1,15 +1,5 @@
 #!/bin/bash
 
-# Detect OS and set SED command accordingly
-if [[ "$OSTYPE" == "darwin"* ]]; then
-    # MacOS - needs special handling without using variables
-    # We'll handle this directly in the function
-    SED_IS_MAC=true
-else
-    # Linux and others
-    SED_IS_MAC=false
-fi
-
 # Function to print timestamped messages
 echo_ts() {
     local green="\e[32m"
@@ -28,28 +18,49 @@ update_env_file() {
     
     echo_ts "Updating $var_name=$var_value in $env_file"
     
-    # Check if variable already exists (commented or uncommented)
-    if grep -q "^$var_name=" "$env_file"; then
-        # Update existing uncommented variable
-        if [[ "$SED_IS_MAC" == "true" ]]; then
-            # MacOS requires a different sed syntax
-            sed -i '' "s|^$var_name=.*|$var_name=$var_value|" "$env_file"
+    # Create a temporary file
+    local temp_file="${env_file}.tmp.$$"
+    
+    # If the env file doesn't exist, create it
+    if [[ ! -f "$env_file" ]]; then
+        touch "$env_file"
+    fi
+    
+    # Process the file line by line
+    local var_found=false
+    while IFS= read -r line || [[ -n "$line" ]]; do
+        # Check if line starts with the variable name (uncommented)
+        if [[ "$line" == "${var_name}="* ]]; then
+            # Replace existing variable
+            echo "$var_name=$var_value" >> "$temp_file"
+            var_found=true
+            echo_ts "Found and replacing existing variable: $var_name"
+        # Check if line starts with commented version
+        elif [[ "$line" == "#"*"${var_name}="* ]] || [[ "$line" == "# ${var_name}="* ]]; then
+            # Replace existing commented variable
+            echo "$var_name=$var_value" >> "$temp_file"
+            var_found=true
+            echo_ts "Found and replacing commented variable: $var_name"
         else
-            # Linux
-            sed -i "s|^$var_name=.*|$var_name=$var_value|" "$env_file"
+            # Keep existing line
+            echo "$line" >> "$temp_file"
         fi
-    elif grep -q "^# $var_name=" "$env_file"; then
-        # Update existing commented variable
-        if [[ "$SED_IS_MAC" == "true" ]]; then
-            # MacOS requires a different sed syntax
-            sed -i '' "s|^# $var_name=.*|$var_name=$var_value|" "$env_file"
-        else
-            # Linux
-            sed -i "s|^# $var_name=.*|$var_name=$var_value|" "$env_file"
-        fi
+    done < "$env_file"
+    
+    # If variable wasn't found, append it
+    if [[ "$var_found" == "false" ]]; then
+        echo "$var_name=$var_value" >> "$temp_file"
+        echo_ts "Adding new variable: $var_name"
+    fi
+    
+    # Replace the original file with the temporary file
+    if mv "$temp_file" "$env_file"; then
+        echo_ts "Successfully updated $var_name in $env_file"
     else
-        # Append new variable
-        echo "$var_name=$var_value" >> "$env_file"
+        echo_ts "Error: Failed to update $env_file"
+        # Clean up temp file if move failed
+        rm -f "$temp_file"
+        return 1
     fi
 }
 
@@ -141,6 +152,9 @@ while read -r line; do
     elif [[ $line =~ PolygonRollupManager:[[:space:]]+([0-9a-fA-Fx]+) ]]; then
         addr="${BASH_REMATCH[1]}"
         update_env_file "$ENV_FILE" "POLYGON_ROLLUP_MANAGER_$suffix" "$addr"
+    elif [[ $line =~ Matic:[[:space:]]+([0-9a-fA-Fx]+) ]]; then
+        addr="${BASH_REMATCH[1]}"
+        update_env_file "$ENV_FILE" "ERC20" "$addr"
     fi
 done < <(echo "$output")
 

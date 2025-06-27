@@ -80,10 +80,7 @@ fn print_contract_addresses() {
         "  PolygonRollupManager: {}",
         get_env_var("POLYGON_ROLLUP_MANAGER_L1", "Not deployed").white()
     );
-    println!(
-        "  ERC20: {}",
-        get_env_var("ERC20", "Not deployed").white()
-    );
+    println!("  ERC20: {}", get_env_var("ERC20", "Not deployed").white());
 
     println!("{}", "L2 Contracts:".green());
     println!(

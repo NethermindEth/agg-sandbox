@@ -38,7 +38,7 @@ services:
       start_period: 10s
 
   aggkit:
-    image: aggkit:latest
+    image: ametelnethermind/agg-sandbox:aggkit
     depends_on:
       anvil-mainnet:
         condition: service_healthy

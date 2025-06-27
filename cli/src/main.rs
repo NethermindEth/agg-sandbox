@@ -101,12 +101,9 @@ fn start_sandbox(detach: bool, build: bool, fork: bool, multi_l2: bool) -> Resul
 
     println!(
         "{}",
-        format!(
-            "🚀 Starting AggLayer sandbox environment in {}...",
-            mode_str
-        )
-        .green()
-        .bold()
+        format!("🚀 Starting AggLayer sandbox environment in {mode_str}...")
+            .green()
+            .bold()
     );
 
     // Fork mode validation

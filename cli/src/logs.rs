@@ -80,6 +80,10 @@ fn print_contract_addresses() {
         "  PolygonRollupManager: {}",
         get_env_var("POLYGON_ROLLUP_MANAGER_L1", "Not deployed").white()
     );
+    println!(
+        "  ERC20: {}",
+        get_env_var("ERC20", "Not deployed").white()
+    );
 
     println!("{}", "L2 Contracts:".green());
     println!(
@@ -129,6 +133,7 @@ pub fn print_sandbox_info() {
         "agg-sandbox start --multi-l2 --detach".yellow()
     );
     println!("• Stop sandbox: {}", "agg-sandbox stop".yellow());
+    println!("• Sandbox info: {}", "agg-sandbox info".yellow());
     println!();
 }
 
@@ -165,6 +170,7 @@ pub fn print_sandbox_fork_info() {
         "agg-sandbox start --multi-l2 --fork --detach".yellow()
     );
     println!("• Stop sandbox: {}", "agg-sandbox stop".yellow());
+    println!("• Sandbox info: {}", "agg-sandbox info".yellow());
     println!();
     println!(
         "{}",

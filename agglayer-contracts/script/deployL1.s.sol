@@ -13,6 +13,7 @@ import {IVerifierRollup} from "../src/interfaces/IVerifierRollup.sol";
 import {IPolygonZkEVMBridge} from "../src/interfaces/IPolygonZkEVMBridge.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {IPolygonZkEVMGlobalExitRootV2} from "../src/interfaces/IPolygonZkEVMGlobalExitRootV2.sol";
+import {IBasePolygonZkEVMGlobalExitRoot} from "../src/interfaces/IBasePolygonZkEVMGlobalExitRoot.sol";
 
 contract DeployContractsL1 is Script {
     function run() external {
@@ -55,6 +56,16 @@ contract DeployContractsL1 is Script {
             IPolygonZkEVMBridge(address(polygonZkEVMBridgeV2))
         );
 
+        // Initialize the bridge
+        polygonZkEVMBridgeV2.initialize(
+            1, // _networkID - 1 for Ethereum
+            address(0), // _gasTokenAddress - address(0) for ETH
+            1, // _gasTokenNetwork - 1 for Ethereum
+            IBasePolygonZkEVMGlobalExitRoot(address(polygonZkEVMGlobalExitRootV2)), // _globalExitRootManager
+            address(polygonRollupManager), // _polygonRollupManager
+            "" // _gasTokenMetadata - empty for ETH
+        );
+
         // stop broadcasting so logs don't count as on-chain txs
         vm.stopBroadcast();
 
@@ -65,5 +76,7 @@ contract DeployContractsL1 is Script {
         console2.log("PolygonZkEVMTimelock:   ", address(polygonZkEVMTimelock));
         console2.log("PolygonZkEVMGlobalExitRootV2: ", address(polygonZkEVMGlobalExitRootV2));
         console2.log("PolygonRollupManager:   ", address(polygonRollupManager));
+        console2.log("Matic:                 ", address(matic));
+        console2.log("Bridge initialized successfully!");
     }
 }

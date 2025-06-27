@@ -26,8 +26,8 @@ l2-url = "http://anvil-polygon:8545"
 l1-url = "http://anvil-mainnet:8545"
 
 [l1-config]
-polygon-zk-evm-address = "0x0000000000000000000000000000000000000000"
-polygon-zk-evm-global-exit-root-address = "0x0000000000000000000000000000000000000000"
-polygon-rollup-manager-address = "0x0000000000000000000000000000000000000000"
+polygon-zk-evm-address = "0xDc64a140Aa3E981100a9becA4E685f962f0cF6C9"
+polygon-zk-evm-global-exit-root-address = "0xCf7Ed3AccA5a467e9e704C703E8D87F634fB0Fc9"
+polygon-rollup-manager-address = "0x0165878A594ca255338adfa4d48449f69242Eb8F"
 
 aggsender-private-key = ""

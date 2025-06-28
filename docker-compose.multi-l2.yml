@@ -1,5 +1,5 @@
 services:
-  anvil-agglayer:
+  anvil-l3:
     build:
       context: ./images
       dockerfile: Dockerfile.anvil
@@ -18,15 +18,42 @@ services:
       retries: 5
       start_period: 10s
 
-  contract-deployer:
+  aggkit-l2:
+    image: ametelnethermind/aggkit:latest
     depends_on:
-      anvil-mainnet:
+      anvil-l1:
         condition: service_healthy
-      anvil-polygon:
+      anvil-l2:
         condition: service_healthy
-      anvil-agglayer:
-        condition: service_healthy
+    networks:
+      - anvil-network
+    volumes:
+      - ./config:/app/config
+      - aggkit-l2-data:/data
     environment:
-      - RPC_URL_1=http://anvil-mainnet:8545
-      - RPC_URL_2=http://anvil-polygon:8545
-      - RPC_URL_3=http://anvil-agglayer:8545 
+      - RPC_URL_1=http://anvil-l1:8545
+      - RPC_URL_2=http://anvil-l2:8545
+
+  contract-deployer:
+    build:
+      context: .
+      dockerfile: images/Dockerfile.deploy
+      no_cache: true
+    depends_on:
+      anvil-l1:
+        condition: service_healthy
+      anvil-l2:
+        condition: service_healthy
+      anvil-l3:
+        condition: service_healthy
+    networks:
+      - anvil-network
+    environment:
+      - RPC_URL_1=http://anvil-l1:8545
+      - RPC_URL_2=http://anvil-l2:8545
+      - RPC_URL_3=http://anvil-l3:8545
+    volumes:
+      - ./.env:/app/output/deployed-contracts.env
+
+volumes:
+  aggkit-l2-data: 

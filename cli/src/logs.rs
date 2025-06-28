@@ -119,18 +119,18 @@ pub fn print_sandbox_info() {
 
     println!();
     println!("{}", "🔧 Next steps:".blue().bold());
-    println!("• Check status: {}", "agg-sandbox status".yellow());
-    println!("• View logs: {}", "agg-sandbox logs --follow".yellow());
+    println!("• Check status: {}", "aggsandbox status".yellow());
+    println!("• View logs: {}", "aggsandbox logs --follow".yellow());
     println!(
         "• Start in fork mode: {}",
-        "agg-sandbox start --fork --detach".yellow()
+        "aggsandbox start --fork --detach".yellow()
     );
     println!(
         "• Start with second L2: {}",
-        "agg-sandbox start --multi-l2 --detach".yellow()
+        "aggsandbox start --multi-l2 --detach".yellow()
     );
-    println!("• Stop sandbox: {}", "agg-sandbox stop".yellow());
-    println!("• Sandbox info: {}", "agg-sandbox info".yellow());
+    println!("• Stop sandbox: {}", "aggsandbox stop".yellow());
+    println!("• Sandbox info: {}", "aggsandbox info".yellow());
     println!();
 }
 
@@ -160,14 +160,14 @@ pub fn print_sandbox_fork_info() {
 
     println!();
     println!("{}", "🔧 Next steps:".blue().bold());
-    println!("• Check status: {}", "agg-sandbox status".yellow());
-    println!("• View logs: {}", "agg-sandbox logs --follow".yellow());
+    println!("• Check status: {}", "aggsandbox status".yellow());
+    println!("• View logs: {}", "aggsandbox logs --follow".yellow());
     println!(
         "• Start multi-L2 with fork: {}",
-        "agg-sandbox start --multi-l2 --fork --detach".yellow()
+        "aggsandbox start --multi-l2 --fork --detach".yellow()
     );
-    println!("• Stop sandbox: {}", "agg-sandbox stop".yellow());
-    println!("• Sandbox info: {}", "agg-sandbox info".yellow());
+    println!("• Stop sandbox: {}", "aggsandbox stop".yellow());
+    println!("• Sandbox info: {}", "aggsandbox info".yellow());
     println!();
     println!(
         "{}",
@@ -231,9 +231,9 @@ pub fn print_multi_l2_info(fork: bool) {
 
     println!();
     println!("{}", "🔧 Next steps:".blue().bold());
-    println!("• Check status: {}", "agg-sandbox status".yellow());
-    println!("• View logs: {}", "agg-sandbox logs --follow".yellow());
-    println!("• Stop sandbox: {}", "agg-sandbox stop".yellow());
+            println!("• Check status: {}", "aggsandbox status".yellow());
+        println!("• View logs: {}", "aggsandbox logs --follow".yellow());
+        println!("• Stop sandbox: {}", "aggsandbox stop".yellow());
 
     if fork {
         println!();

@@ -1,10 +1,10 @@
 [package]
-name = "agg-sandbox"
+name = "aggsandbox"
 version = "0.1.0"
 edition = "2021"
 
 [[bin]]
-name = "agg-sandbox"
+name = "aggsandbox"
 path = "src/main.rs"
 
 [dependencies]

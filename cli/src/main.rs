@@ -7,7 +7,7 @@ use std::process::Command;
 mod logs;
 
 #[derive(Parser)]
-#[command(name = "agg-sandbox")]
+#[command(name = "aggsandbox")]
 #[command(about = "CLI for managing AggLayer sandbox environment")]
 #[command(version = "0.1.0")]
 struct Cli {

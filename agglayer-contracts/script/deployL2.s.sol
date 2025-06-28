@@ -4,9 +4,12 @@ pragma solidity ^0.8.22;
 import {PolygonZkEVMBridgeV2} from "../src/PolygonZkEVMBridgeV2.sol";
 import {PolygonZkEVMTimelock} from "../src/PolygonZkEVMTimelock.sol";
 import {PolygonZkEVM} from "../src/PolygonZkEVM.sol";
+import {IBasePolygonZkEVMGlobalExitRoot} from "../src/interfaces/IBasePolygonZkEVMGlobalExitRoot.sol";
 import {Script, console2} from "forge-std/Script.sol";
 
-contract DeployContractsL1 is Script {
+import {GlobalExitRootManagerL2SovereignChain} from "../src/GlobalExitRootManagerL2SovereignChain.sol";
+
+contract DeployContractsL2 is Script {
     function run() external {
         // load your deployer private key from env
         uint256 deployerKey = vm.envUint("PRIVATE_KEY_1");
@@ -16,6 +19,8 @@ contract DeployContractsL1 is Script {
         vm.startBroadcast(deployerKey);
 
         PolygonZkEVMBridgeV2 polygonZkEVMBridgeV2 = new PolygonZkEVMBridgeV2();
+        GlobalExitRootManagerL2SovereignChain globalExitRootManagerL2SovereignChain =
+            new GlobalExitRootManagerL2SovereignChain(address(polygonZkEVMBridgeV2));
 
         uint256 minDelay = 3600;
         address[] memory proposers = new address[](1);
@@ -25,10 +30,21 @@ contract DeployContractsL1 is Script {
         PolygonZkEVMTimelock polygonZkEVMTimelock =
             new PolygonZkEVMTimelock(minDelay, proposers, executors, deployer, PolygonZkEVM(address(0)));
 
+        // Initialize the bridge
+        polygonZkEVMBridgeV2.initialize(
+            1101, // _networkID - 1 for Ethereum
+            address(0), // _gasTokenAddress - address(0) for ETH
+            0, // _gasTokenNetwork
+            IBasePolygonZkEVMGlobalExitRoot(address(0)), // _globalExitRootManager
+            address(0), // _polygonRollupManager
+            "" // _gasTokenMetadata - empty for ETH
+        );
+
         // stop broadcasting so logs don't count as on-chain txs
         vm.stopBroadcast();
 
         console2.log("PolygonZkEVMBridgeV2:   ", address(polygonZkEVMBridgeV2));
         console2.log("PolygonZkEVMTimelock:   ", address(polygonZkEVMTimelock));
+        console2.log("GlobalExitRootManagerL2SovereignChain:   ", address(globalExitRootManagerL2SovereignChain));
     }
 }

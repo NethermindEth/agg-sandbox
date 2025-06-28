@@ -14,6 +14,8 @@ import {IPolygonZkEVMBridge} from "../src/interfaces/IPolygonZkEVMBridge.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {IPolygonZkEVMGlobalExitRootV2} from "../src/interfaces/IPolygonZkEVMGlobalExitRootV2.sol";
 import {IBasePolygonZkEVMGlobalExitRoot} from "../src/interfaces/IBasePolygonZkEVMGlobalExitRoot.sol";
+import {IPolygonRollupBase} from "../src/interfaces/IPolygonRollupBase.sol";
+import {IPolygonRollupManager} from "../src/interfaces/IPolygonRollupManager.sol";
 
 contract DeployContractsL1 is Script {
     function run() external {
@@ -60,10 +62,24 @@ contract DeployContractsL1 is Script {
         polygonZkEVMBridgeV2.initialize(
             1, // _networkID - 1 for Ethereum
             address(0), // _gasTokenAddress - address(0) for ETH
-            1, // _gasTokenNetwork - 1 for Ethereum
+            0, // _gasTokenNetwork
             IBasePolygonZkEVMGlobalExitRoot(address(polygonZkEVMGlobalExitRootV2)), // _globalExitRootManager
             address(polygonRollupManager), // _polygonRollupManager
             "" // _gasTokenMetadata - empty for ETH
+        );
+
+        // Initialize the RollupManager (MOCK VERSION: automatically grants roles to deployer)
+        polygonRollupManager.initialize();
+
+        // Register the PolygonZkEVM rollup in the RollupManager
+        polygonRollupManager.addExistingRollup(
+            IPolygonRollupBase(address(polygonZkEVM)), // rollupAddress
+            address(fflonkVerifier), // verifier
+            1, // forkID
+            1101, // chainID (your L2 chain ID)
+            0x0000000000000000000000000000000000000000000000000000000000000000, // initRoot (genesis state root)
+            IPolygonRollupManager.VerifierType.StateTransition, // rollupVerifierType
+            0x0000000000000000000000000000000000000000000000000000000000000000 // programVKey (empty for StateTransition)
         );
 
         // stop broadcasting so logs don't count as on-chain txs
@@ -78,5 +94,7 @@ contract DeployContractsL1 is Script {
         console2.log("PolygonRollupManager:   ", address(polygonRollupManager));
         console2.log("Matic:                 ", address(matic));
         console2.log("Bridge initialized successfully!");
+        console2.log("RollupManager initialized and rollup registered!");
+        console2.log("Rollup registered with ID: 1");
     }
 }

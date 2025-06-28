@@ -134,9 +134,7 @@ contract PolygonZkEVMBridgeV2 is
     /**
      * Disable initalizers on the implementation following the best practices
      */
-    constructor() {
-        _disableInitializers();
-    }
+    constructor() {}
 
     /**
      * @param _networkID networkID

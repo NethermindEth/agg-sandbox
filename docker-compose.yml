@@ -56,7 +56,7 @@ services:
       - ./.env:/app/output/deployed-contracts.env
 
   aggkit:
-    image: aggkit-sandbox-fixed:latest
+    image: ametelnethermind/agg-sandbox:latest
     depends_on:
       anvil-l1:
         condition: service_healthy
@@ -64,6 +64,10 @@ services:
         condition: service_healthy
       contract-deployer:
         condition: service_completed_successfully
+    ports:
+      - "5577:5577"
+      - "8080:8080"
+      - "8555:8555"
     networks:
       - anvil-network
     volumes:

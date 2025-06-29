@@ -91,11 +91,17 @@ fi
 # Check if RPC URLs are set
 if [[ -z "$RPC_URL_1" || -z "$RPC_URL_2" ]]; then
     echo_ts "RPC URLs not set. Using default values."
-    RPC_URL_1="http://localhost:8545"
-    RPC_URL_2="http://localhost:8546"
+    RPC_URL_1="http://anvil-l1:8545"
+    RPC_URL_2="http://anvil-l2:8545"
     
     update_env_file "$ENV_FILE" "RPC_URL_1" "$RPC_URL_1"
     update_env_file "$ENV_FILE" "RPC_URL_2" "$RPC_URL_2"
+fi
+
+# Handle RPC_URL_3 for multi-L2 mode if it exists
+if [[ ! -z "$RPC_URL_3" ]]; then
+    echo_ts "RPC_URL_3 is set. Using for third chain deployment."
+    update_env_file "$ENV_FILE" "RPC_URL_3" "$RPC_URL_3"
 fi
 
 # Check if private keys are set
@@ -165,7 +171,7 @@ private_key="$PRIVATE_KEY_2"
 suffix="L2"
 
 # Note: The class name in deployL2.s.sol is DeployContractsL1, not DeployContractsL2
-output=$(forge script script/deployL2.s.sol:DeployContractsL1 --rpc-url "$rpc_url" --broadcast --private-key "$private_key" 2>&1)
+output=$(forge script script/deployL2.s.sol:DeployContractsL2 --rpc-url "$rpc_url" --broadcast --private-key "$private_key" 2>&1)
 echo "$output" > deploy_output_$suffix.log
 
 echo_ts "L2 deployment output:"

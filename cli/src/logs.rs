@@ -231,9 +231,9 @@ pub fn print_multi_l2_info(fork: bool) {
 
     println!();
     println!("{}", "🔧 Next steps:".blue().bold());
-            println!("• Check status: {}", "aggsandbox status".yellow());
-        println!("• View logs: {}", "aggsandbox logs --follow".yellow());
-        println!("• Stop sandbox: {}", "aggsandbox stop".yellow());
+    println!("• Check status: {}", "aggsandbox status".yellow());
+    println!("• View logs: {}", "aggsandbox logs --follow".yellow());
+    println!("• Stop sandbox: {}", "aggsandbox stop".yellow());
 
     if fork {
         println!();

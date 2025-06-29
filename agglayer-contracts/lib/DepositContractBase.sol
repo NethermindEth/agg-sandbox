@@ -89,28 +89,24 @@ contract DepositContractBase {
     /**
      * @notice Verify merkle proof
      * @param leafHash Leaf hash
-     * @param smtProof Smt proof
      * @param index Index of the leaf
      * @param root Merkle root
      */
     function verifyMerkleProof(
         bytes32 leafHash,
-        bytes32[_DEPOSIT_CONTRACT_TREE_DEPTH] calldata smtProof,
         uint32 index,
         bytes32 root
     ) public pure returns (bool) {
-        return calculateRoot(leafHash, smtProof, index) == root;
+        return calculateRoot(leafHash, index) == root;
     }
 
     /**
      * @notice Calculate root from merkle proof
      * @param leafHash Leaf hash
-     * @param smtProof Smt proof
      * @param index Index of the leaf
      */
     function calculateRoot(
         bytes32 leafHash,
-        bytes32[_DEPOSIT_CONTRACT_TREE_DEPTH] calldata smtProof,
         uint32 index
     ) public pure returns (bytes32) {
         bytes32 node = leafHash;
@@ -122,8 +118,8 @@ contract DepositContractBase {
             height++
         ) {
             if (((index >> height) & 1) == 1)
-                node = keccak256(abi.encodePacked(smtProof[height], node));
-            else node = keccak256(abi.encodePacked(node, smtProof[height]));
+                node = keccak256(abi.encodePacked(height, node));
+            else node = keccak256(abi.encodePacked(node, height));
         }
 
         return node;

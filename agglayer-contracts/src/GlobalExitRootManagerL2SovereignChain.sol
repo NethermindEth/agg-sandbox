@@ -42,9 +42,7 @@ contract GlobalExitRootManagerL2SovereignChain is PolygonZkEVMGlobalExitRootL2, 
     /**
      * @param _bridgeAddress PolygonZkEVMBridge contract address
      */
-    constructor(address _bridgeAddress) PolygonZkEVMGlobalExitRootL2(_bridgeAddress) {
-        _disableInitializers();
-    }
+    constructor(address _bridgeAddress) PolygonZkEVMGlobalExitRootL2(_bridgeAddress) {}
 
     /**
      * @notice Initialize contract

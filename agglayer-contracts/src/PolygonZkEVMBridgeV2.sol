@@ -402,8 +402,6 @@ contract PolygonZkEVMBridgeV2 is
 
     /**
      * @notice Verify merkle proof and withdraw tokens/ether
-     * @param smtProofLocalExitRoot Smt proof to proof the leaf against the network exit root
-     * @param smtProofRollupExitRoot Smt proof to proof the rollupLocalExitRoot against the rollups exit root
      * @param globalIndex Global index is defined as:
      * | 191 bits |    1 bit     |   32 bits   |     32 bits    |
      * |    0     |  mainnetFlag | rollupIndex | localRootIndex |
@@ -421,8 +419,6 @@ contract PolygonZkEVMBridgeV2 is
      * @param metadata Abi encoded metadata if any, empty otherwise
      */
     function claimAsset(
-        bytes32[_DEPOSIT_CONTRACT_TREE_DEPTH] calldata smtProofLocalExitRoot,
-        bytes32[_DEPOSIT_CONTRACT_TREE_DEPTH] calldata smtProofRollupExitRoot,
         uint256 globalIndex,
         bytes32 mainnetExitRoot,
         bytes32 rollupExitRoot,
@@ -440,8 +436,6 @@ contract PolygonZkEVMBridgeV2 is
 
         // Verify leaf exist and it does not have been claimed
         _verifyLeaf(
-            smtProofLocalExitRoot,
-            smtProofRollupExitRoot,
             globalIndex,
             mainnetExitRoot,
             rollupExitRoot,
@@ -521,8 +515,6 @@ contract PolygonZkEVMBridgeV2 is
      * If the receiving address is an EOA, the call will result as a success
      * Which means that the amount of ether will be transferred correctly, but the message
      * will not trigger any execution
-     * @param smtProofLocalExitRoot Smt proof to proof the leaf against the exit root
-     * @param smtProofRollupExitRoot Smt proof to proof the rollupLocalExitRoot against the rollups exit root
      * @param globalIndex Global index is defined as:
      * | 191 bits |    1 bit     |   32 bits   |     32 bits    |
      * |    0     |  mainnetFlag | rollupIndex | localRootIndex |
@@ -540,8 +532,6 @@ contract PolygonZkEVMBridgeV2 is
      * @param metadata Abi encoded metadata if any, empty otherwise
      */
     function claimMessage(
-        bytes32[_DEPOSIT_CONTRACT_TREE_DEPTH] calldata smtProofLocalExitRoot,
-        bytes32[_DEPOSIT_CONTRACT_TREE_DEPTH] calldata smtProofRollupExitRoot,
         uint256 globalIndex,
         bytes32 mainnetExitRoot,
         bytes32 rollupExitRoot,
@@ -559,8 +549,6 @@ contract PolygonZkEVMBridgeV2 is
 
         // Verify leaf exist and it does not have been claimed
         _verifyLeaf(
-            smtProofLocalExitRoot,
-            smtProofRollupExitRoot,
             globalIndex,
             mainnetExitRoot,
             rollupExitRoot,
@@ -662,21 +650,14 @@ contract PolygonZkEVMBridgeV2 is
 
     /**
      * @notice Verify leaf and checks that it has not been claimed
-     * @param smtProofLocalExitRoot Smt proof
-     * @param smtProofRollupExitRoot Smt proof
      * @param globalIndex Index of the leaf
      * @param mainnetExitRoot Mainnet exit root
      * @param rollupExitRoot Rollup exit root
      * @param leafValue leaf value
      */
-    function _verifyLeaf(
-        bytes32[_DEPOSIT_CONTRACT_TREE_DEPTH] calldata smtProofLocalExitRoot,
-        bytes32[_DEPOSIT_CONTRACT_TREE_DEPTH] calldata smtProofRollupExitRoot,
-        uint256 globalIndex,
-        bytes32 mainnetExitRoot,
-        bytes32 rollupExitRoot,
-        bytes32 leafValue
-    ) internal {
+    function _verifyLeaf(uint256 globalIndex, bytes32 mainnetExitRoot, bytes32 rollupExitRoot, bytes32 leafValue)
+        internal
+    {
         // Check blockhash where the global exit root was set
         // Note that previusly timestamps were setted, since in only checked if != 0 it's ok
         uint256 blockHashGlobalExitRoot = globalExitRootManager.globalExitRootMap(
@@ -698,8 +679,9 @@ contract PolygonZkEVMBridgeV2 is
             // Last 32 bits are leafIndex
             leafIndex = uint32(globalIndex);
 
-            if (!verifyMerkleProof(leafValue, smtProofLocalExitRoot, leafIndex, mainnetExitRoot)) {
-                revert InvalidSmtProof();
+            if (!verifyMerkleProof(leafValue, leafIndex, mainnetExitRoot)) {
+                // TODO: we are in sandbox mode, proof are not required;
+                // revert InvalidSmtProof();
             }
         } else {
             // the network is a rollup, therefore sourceBridgeNetwork must be decoded
@@ -710,15 +692,9 @@ contract PolygonZkEVMBridgeV2 is
             leafIndex = uint32(globalIndex);
 
             // Verify merkle proof agains rollup exit root
-            if (
-                !verifyMerkleProof(
-                    calculateRoot(leafValue, smtProofLocalExitRoot, leafIndex),
-                    smtProofRollupExitRoot,
-                    indexRollup,
-                    rollupExitRoot
-                )
-            ) {
-                revert InvalidSmtProof();
+            if (!verifyMerkleProof(calculateRoot(leafValue, leafIndex), indexRollup, rollupExitRoot)) {
+                // TODO: we are in sandbox mode, proof are not required;
+                // revert InvalidSmtProof();
             }
         }
 

@@ -7,7 +7,7 @@ import {PolygonZkEVMBridgeV2} from "../src/PolygonZkEVMBridgeV2.sol";
 import {PolygonZkEVMTimelock} from "../src/PolygonZkEVMTimelock.sol";
 import {PolygonZkEVMGlobalExitRootV2} from "../src/PolygonZkEVMGlobalExitRootV2.sol";
 import {PolygonRollupManager} from "../src/PolygonRollupManager.sol";
-import {Matic} from "../src/mocks/Matic.sol";
+import {AggERC20} from "../src/mocks/AggERC20.sol";
 import {Script, console2} from "forge-std/Script.sol";
 import {IVerifierRollup} from "../src/interfaces/IVerifierRollup.sol";
 import {IPolygonZkEVMBridge} from "../src/interfaces/IPolygonZkEVMBridge.sol";
@@ -26,7 +26,7 @@ contract DeployContractsL1 is Script {
         // start broadcasting transactions
         vm.startBroadcast(deployerKey);
 
-        Matic matic = new Matic(deployer, deployer);
+        AggERC20 aggERC20 = new AggERC20(deployer, deployer, 1000000);
 
         // actual on-chain deploys
         FflonkVerifier fflonkVerifier = new FflonkVerifier();
@@ -38,7 +38,7 @@ contract DeployContractsL1 is Script {
 
         PolygonZkEVM polygonZkEVM = new PolygonZkEVM(
             IPolygonZkEVMGlobalExitRootV2(address(polygonZkEVMGlobalExitRootV2)),
-            IERC20(address(matic)),
+            IERC20(address(aggERC20)),
             IVerifierRollup(address(fflonkVerifier)),
             IPolygonZkEVMBridge(address(polygonZkEVMBridgeV2)),
             1,
@@ -54,7 +54,7 @@ contract DeployContractsL1 is Script {
             new PolygonZkEVMTimelock(minDelay, proposers, executors, deployer, polygonZkEVM);
         PolygonRollupManager polygonRollupManager = new PolygonRollupManager(
             IPolygonZkEVMGlobalExitRootV2(address(polygonZkEVMGlobalExitRootV2)),
-            IERC20(address(matic)),
+            IERC20(address(aggERC20)),
             IPolygonZkEVMBridge(address(polygonZkEVMBridgeV2))
         );
 
@@ -92,7 +92,7 @@ contract DeployContractsL1 is Script {
         console2.log("PolygonZkEVMTimelock:   ", address(polygonZkEVMTimelock));
         console2.log("PolygonZkEVMGlobalExitRootV2: ", address(polygonZkEVMGlobalExitRootV2));
         console2.log("PolygonRollupManager:   ", address(polygonRollupManager));
-        console2.log("Matic:                 ", address(matic));
+        console2.log("AggERC20:              ", address(aggERC20));
         console2.log("Bridge initialized successfully!");
         console2.log("RollupManager initialized and rollup registered!");
         console2.log("Rollup registered with ID: 1");

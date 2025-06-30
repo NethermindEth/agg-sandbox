@@ -114,6 +114,29 @@ aggsandbox stop
 aggsandbox info
 ```
 
+#### Bridge Information Commands
+
+Query bridge endpoints for debugging and monitoring:
+
+```bash
+# Show bridges for a network (default: network_id=1)
+aggsandbox show bridges
+aggsandbox show bridges --network-id 2
+
+# Show claims for a network (default: network_id=1101)
+aggsandbox show claims
+aggsandbox show claims --network-id 1
+
+# Show claim proof (default: network_id=1, leaf_index=0, deposit_count=1)
+aggsandbox show claim-proof
+aggsandbox show claim-proof --network-id 1 --leaf-index 5 --deposit-count 10
+```
+
+These commands query the bridge service at `http://localhost:5577` and display:
+- **bridges**: Available bridges for the specified network
+- **claims**: Claims information for the specified network  
+- **claim-proof**: Claim proof data with configurable parameters
+
 ## Configuration
 
 The sandbox uses environment variables defined in the `.env` file:

@@ -24,13 +24,13 @@ const BASE_URL: &str = "http://localhost:5577";
 
 pub async fn get_bridges(network_id: u64) -> Result<BridgeResponse> {
     let client = reqwest::Client::new();
-    let url = format!("{}/bridge/v1/bridges?network_id={}", BASE_URL, network_id);
+    let url = format!("{BASE_URL}/bridge/v1/bridges?network_id={network_id}");
 
     println!(
         "{}",
-        format!("🔍 Fetching bridges for network_id: {}", network_id).cyan()
+        format!("🔍 Fetching bridges for network_id: {network_id}").cyan()
     );
-    println!("{}", format!("📡 URL: {}", url).dimmed());
+    println!("{}", format!("📡 URL: {url}").dimmed());
 
     let response = client
         .get(&url)
@@ -55,13 +55,13 @@ pub async fn get_bridges(network_id: u64) -> Result<BridgeResponse> {
 
 pub async fn get_claims(network_id: u64) -> Result<ClaimResponse> {
     let client = reqwest::Client::new();
-    let url = format!("{}/bridge/v1/claims?network_id={}", BASE_URL, network_id);
+    let url = format!("{BASE_URL}/bridge/v1/claims?network_id={network_id}");
 
     println!(
         "{}",
-        format!("🔍 Fetching claims for network_id: {}", network_id).cyan()
+        format!("🔍 Fetching claims for network_id: {network_id}").cyan()
     );
-    println!("{}", format!("📡 URL: {}", url).dimmed());
+    println!("{}", format!("📡 URL: {url}").dimmed());
 
     let response = client
         .get(&url)
@@ -91,19 +91,17 @@ pub async fn get_claim_proof(
 ) -> Result<ClaimProofResponse> {
     let client = reqwest::Client::new();
     let url = format!(
-        "{}/bridge/v1/claim-proof?network_id={}&leaf_index={}&deposit_count={}",
-        BASE_URL, network_id, leaf_index, deposit_count
+        "{BASE_URL}/bridge/v1/claim-proof?network_id={network_id}&leaf_index={leaf_index}&deposit_count={deposit_count}"
     );
 
     println!(
         "{}",
         format!(
-            "🔍 Fetching claim proof for network_id: {}, leaf_index: {}, deposit_count: {}",
-            network_id, leaf_index, deposit_count
+            "🔍 Fetching claim proof for network_id: {network_id}, leaf_index: {leaf_index}, deposit_count: {deposit_count}"
         )
         .cyan()
     );
-    println!("{}", format!("📡 URL: {}", url).dimmed());
+    println!("{}", format!("📡 URL: {url}").dimmed());
 
     let response = client
         .get(&url)
@@ -127,11 +125,11 @@ pub async fn get_claim_proof(
 }
 
 pub fn print_json_response(title: &str, data: &serde_json::Value) {
-    println!("\n{}", format!("📋 {}", title).green().bold());
+    println!("\n{}", format!("📋 {title}").green().bold());
     println!("{}", "═".repeat(60).dimmed());
 
-    let pretty_json = serde_json::to_string_pretty(data).unwrap_or_else(|_| format!("{:?}", data));
+    let pretty_json = serde_json::to_string_pretty(data).unwrap_or_else(|_| format!("{data:?}"));
 
-    println!("{}", pretty_json);
+    println!("{pretty_json}");
     println!("{}", "═".repeat(60).dimmed());
 }

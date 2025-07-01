@@ -11,7 +11,7 @@ cp .env.example .env
 ```
 
 ```bash
-agg-sandbox start --detach
+aggsandbox start --detach
 ```
 
 ```bash

@@ -7,7 +7,7 @@ This document provides the commands and endpoints needed to perform a complete a
 Before starting the bridging process, make sure to start the agg-sandbox environment and source your environment variables:
 
 ```bash
-agg-sandbox start --detach
+aggsandbox start --detach
 ```
 
 ```bash

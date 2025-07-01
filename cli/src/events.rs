@@ -132,6 +132,18 @@ fn get_event_signatures() -> HashMap<&'static str, &'static str> {
         "UpdateL1InfoTreeV2(bytes32,uint32,uint256,uint64)",
     );
 
+    // Global Exit Root Events
+    m.insert(
+        "0xb1b866fe5fac68e8f1a4ab2520c7a6b493a954934bbd0f054bd91d6674a4c0d5",
+        "InsertGlobalExitRoot(bytes32)",
+    );
+
+    // Bridge Token Events
+    m.insert(
+        "0x490e59a1701b938786ac72570a1efeac994a3dbe96e2e883e19e902ace6e6a39",
+        "NewWrappedToken(uint32,address,address,bytes)",
+    );
+
     // Sequencer Events
     m.insert(
         "0xf54144f9611984021529f814a1cb6a41e22c58351510a0d9f7e822618abb9cc0",
@@ -354,6 +366,8 @@ fn decode_known_event(event_name: &str, log: &Log) -> Result<()> {
         "UpdateL1InfoTreeV2(bytes32,uint32,uint256,uint64)" => {
             decode_update_l1_info_tree_v2_event(log)
         }
+        "InsertGlobalExitRoot(bytes32)" => decode_insert_global_exit_root_event(log),
+        "NewWrappedToken(uint32,address,address,bytes)" => decode_new_wrapped_token_event(log),
         _ => {
             println!("  ⚠️  Decoding not implemented for this event type");
             Ok(())
@@ -370,17 +384,6 @@ fn decode_transfer_event(log: &Log) -> Result<()> {
         println!("  📤 From: {}", format!("0x{:x}", from).cyan());
         println!("  📥 To: {}", format!("0x{:x}", to).cyan());
         println!("  💰 Amount: {} tokens", amount.to_string().green());
-
-        // Convert to human readable if it's a reasonable number
-        if amount < U256::from(1_000_000_000_000_000_000_000_000u128) {
-            let eth_amount = amount.as_u128() as f64 / 1e18;
-            if eth_amount > 0.0 {
-                println!(
-                    "  💰 Amount (18 decimals): {:.6} tokens",
-                    eth_amount.to_string().green()
-                );
-            }
-        }
     }
     Ok(())
 }
@@ -394,25 +397,31 @@ fn decode_approval_event(log: &Log) -> Result<()> {
         println!("  👤 Owner: {}", format!("0x{:x}", owner).cyan());
         println!("  🤝 Spender: {}", format!("0x{:x}", spender).cyan());
         println!("  💰 Allowance: {} tokens", amount.to_string().green());
-
-        // Convert to human readable if it's a reasonable number
-        if amount < U256::from(1_000_000_000_000_000_000_000_000u128) {
-            let eth_amount = amount.as_u128() as f64 / 1e18;
-            if eth_amount > 0.0 {
-                println!(
-                    "  💰 Allowance (18 decimals): {:.6} tokens",
-                    eth_amount.to_string().green()
-                );
-            }
-        }
     }
     Ok(())
 }
 
 fn decode_bridge_event(log: &Log) -> Result<()> {
     println!("  🌉 Bridge Event Details:");
-    if !log.topics.is_empty() && !log.data.is_empty() {
-        // This is a complex event, just show that it's a bridge event for now
+    if !log.data.is_empty() && log.data.len() >= 256 {
+        // Decode the bridge event parameters
+        let leaf_type = U256::from(&log.data[0..32]);
+        let origin_network = U256::from(&log.data[32..64]);
+        let origin_address = format!("0x{}", hex::encode(&log.data[76..96]));
+        let destination_network = U256::from(&log.data[96..128]);
+        let destination_address = format!("0x{}", hex::encode(&log.data[140..160]));
+        let amount = U256::from(&log.data[160..192]);
+
+        println!("  🍃 Leaf Type: {}", leaf_type.to_string().dimmed());
+        println!("  🌐 Origin Network: {}", origin_network.to_string().cyan());
+        println!("  📍 Origin Address: {}", origin_address.yellow());
+        println!(
+            "  🎯 Destination Network: {}",
+            destination_network.to_string().cyan()
+        );
+        println!("  📍 Destination Address: {}", destination_address.green());
+        println!("  💰 Amount: {}", amount.to_string().green());
+    } else {
         println!("  ⚠️  Complex bridge event - showing raw data");
         println!("  📊 Data length: {} bytes", log.data.len());
     }
@@ -432,7 +441,20 @@ fn decode_ownership_transferred_event(log: &Log) -> Result<()> {
 
 fn decode_claim_event(log: &Log) -> Result<()> {
     println!("  🎯 Claim Event:");
-    if !log.data.is_empty() {
+    if !log.data.is_empty() && log.data.len() >= 160 {
+        // Decode ClaimEvent(uint256,uint32,address,address,uint256)
+        let global_index = U256::from(&log.data[0..32]);
+        let origin_network = U256::from(&log.data[32..64]);
+        let origin_address = format!("0x{}", hex::encode(&log.data[76..96]));
+        let destination_address = format!("0x{}", hex::encode(&log.data[108..128]));
+        let amount = U256::from(&log.data[128..160]);
+
+        println!("  🌍 Global Index: {}", global_index.to_string().cyan());
+        println!("  🌐 Origin Network: {}", origin_network.to_string().cyan());
+        println!("  📍 Origin Address: {}", origin_address.yellow());
+        println!("  📍 Destination Address: {}", destination_address.green());
+        println!("  💰 Amount: {}", amount.to_string().green());
+    } else {
         println!("  ⚠️  Complex claim event - showing raw data");
     }
     Ok(())
@@ -569,6 +591,39 @@ fn decode_update_l1_info_tree_v2_event(log: &Log) -> Result<()> {
         println!("  📊 Leaf Count: {}", leaf_count.to_string().green());
         println!("  🧱 Block Hash: {}", block_hash.yellow());
         println!("  ⏰ Timestamp: {}", timestamp.to_string().dimmed());
+    }
+    Ok(())
+}
+
+fn decode_insert_global_exit_root_event(log: &Log) -> Result<()> {
+    println!("  🌍 Insert Global Exit Root:");
+    if log.topics.len() >= 2 {
+        let global_exit_root = format!("0x{}", hex::encode(log.topics[1]));
+        println!("  🔗 Global Exit Root: {}", global_exit_root.cyan());
+    }
+    Ok(())
+}
+
+fn decode_new_wrapped_token_event(log: &Log) -> Result<()> {
+    println!("  🪙 New Wrapped Token:");
+    if !log.data.is_empty() && log.data.len() >= 128 {
+        let origin_network = U256::from(&log.data[0..32]);
+        let origin_token_address = format!("0x{}", hex::encode(&log.data[44..64]));
+        let wrapped_token_address = format!("0x{}", hex::encode(&log.data[76..96]));
+
+        println!("  🌐 Origin Network: {}", origin_network.to_string().cyan());
+        println!("  📍 Origin Token: {}", origin_token_address.yellow());
+        println!("  🎁 Wrapped Token: {}", wrapped_token_address.green());
+
+        // Try to decode metadata if present
+        if log.data.len() > 128 {
+            // Skip the first 128 bytes (4 * 32) and try to find the metadata offset
+            if let Ok(metadata_offset) = std::str::from_utf8(&log.data[128..]) {
+                if !metadata_offset.trim().is_empty() {
+                    println!("  📋 Metadata: Available");
+                }
+            }
+        }
     }
     Ok(())
 }

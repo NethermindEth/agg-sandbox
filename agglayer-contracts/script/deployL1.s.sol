@@ -16,6 +16,7 @@ import {IPolygonZkEVMGlobalExitRootV2} from "../src/interfaces/IPolygonZkEVMGlob
 import {IBasePolygonZkEVMGlobalExitRoot} from "../src/interfaces/IBasePolygonZkEVMGlobalExitRoot.sol";
 import {IPolygonRollupBase} from "../src/interfaces/IPolygonRollupBase.sol";
 import {IPolygonRollupManager} from "../src/interfaces/IPolygonRollupManager.sol";
+import {BridgeExtension} from "../src/BridgeExtension.sol";
 
 contract DeployContractsL1 is Script {
     function run() external {
@@ -58,6 +59,8 @@ contract DeployContractsL1 is Script {
             IPolygonZkEVMBridge(address(polygonZkEVMBridgeV2))
         );
 
+        BridgeExtension bridgeExtension = new BridgeExtension(address(polygonZkEVMBridgeV2));
+
         // Initialize the bridge
         polygonZkEVMBridgeV2.initialize(
             1, // _networkID - 1 for Ethereum
@@ -93,6 +96,7 @@ contract DeployContractsL1 is Script {
         console2.log("PolygonZkEVMGlobalExitRootV2: ", address(polygonZkEVMGlobalExitRootV2));
         console2.log("PolygonRollupManager:   ", address(polygonRollupManager));
         console2.log("AggERC20:              ", address(aggERC20));
+        console2.log("BridgeExtension:       ", address(bridgeExtension));
         console2.log("Bridge initialized successfully!");
         console2.log("RollupManager initialized and rollup registered!");
         console2.log("Rollup registered with ID: 1");

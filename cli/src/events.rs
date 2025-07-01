@@ -436,7 +436,7 @@ fn decode_initialized_event(log: &Log) -> Result<()> {
 fn decode_role_granted_event(log: &Log) -> Result<()> {
     println!("  🔐 Role Granted:");
     if log.topics.len() >= 4 {
-        let role = format!("0x{}", hex::encode(&log.topics[1]));
+        let role = format!("0x{}", hex::encode(log.topics[1]));
         let account = format!("0x{}", hex::encode(&log.topics[2][12..]));
         let sender = format!("0x{}", hex::encode(&log.topics[3][12..]));
         println!("  🎭 Role: {}", role.yellow());
@@ -449,7 +449,7 @@ fn decode_role_granted_event(log: &Log) -> Result<()> {
 fn decode_role_revoked_event(log: &Log) -> Result<()> {
     println!("  🚫 Role Revoked:");
     if log.topics.len() >= 4 {
-        let role = format!("0x{}", hex::encode(&log.topics[1]));
+        let role = format!("0x{}", hex::encode(log.topics[1]));
         let account = format!("0x{}", hex::encode(&log.topics[2][12..]));
         let sender = format!("0x{}", hex::encode(&log.topics[3][12..]));
         println!("  🎭 Role: {}", role.yellow());

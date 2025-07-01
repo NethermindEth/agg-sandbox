@@ -6,13 +6,13 @@ import {ERC20Burnable} from "@openzeppelin/contracts/token/ERC20/extensions/ERC2
 import {ERC20Permit} from "@openzeppelin/contracts/token/ERC20/extensions/ERC20Permit.sol";
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 
-contract Matic is ERC20, ERC20Burnable, Ownable, ERC20Permit {
-    constructor(address recipient, address initialOwner)
-        ERC20("Matic", "MATIC")
+contract AggERC20 is ERC20, ERC20Burnable, Ownable, ERC20Permit {
+    constructor(address recipient, address initialOwner, uint256 mintAmount)
+        ERC20("AggERC20", "AGGERC20")
         Ownable(initialOwner)
-        ERC20Permit("Matic")
+        ERC20Permit("AggERC20")
     {
-        _mint(recipient, 1000000 * 10 ** decimals());
+        _mint(recipient, mintAmount * 10 ** decimals());
     }
 
     function mint(address to, uint256 amount) public onlyOwner {

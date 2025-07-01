@@ -36,7 +36,7 @@ The CLI provides a single `start` command with different flags for various modes
 Start with completely local blockchain simulation:
 
 ```bash
-agg-sandbox start --detach
+aggsandbox start --detach
 ```
 
 #### Available Flags
@@ -62,7 +62,7 @@ Fork existing blockchains for testing against real network state:
 2. Start in fork mode:
 
    ```bash
-   agg-sandbox start --fork --detach
+   aggsandbox start --fork --detach
    ```
 
 #### Multi-L2 Mode
@@ -72,47 +72,70 @@ Run with a second L2 chain for multi-chain testing:
 1. **Local Multi-L2**: Run with local blockchain simulation on three chains:
 
    ```bash
-   agg-sandbox start --multi-l2 --detach
+   aggsandbox start --multi-l2 --detach
    ```
 
 2. **Fork Multi-L2**: Fork existing blockchains with a second L2 chain:
 
    ```bash
    # Configure all fork URLs in .env including FORK_URL_AGGLAYER_2
-   agg-sandbox start --multi-l2 --fork --detach
+   aggsandbox start --multi-l2 --fork --detach
    ```
 
 #### Quick Reference
 
 ```bash
 # Local mode (2 chains: L1 + L2)
-agg-sandbox start --detach
+aggsandbox start --detach
 
 # Fork mode (2 chains: forked from real networks)  
-agg-sandbox start --fork --detach
+aggsandbox start --fork --detach
 
 # Multi-L2 local mode (3 chains: L1 + L2 + L2)
-agg-sandbox start --multi-l2 --detach
+aggsandbox start --multi-l2 --detach
 
 # Multi-L2 fork mode (3 chains: all forked from real networks)
-agg-sandbox start --multi-l2 --fork --detach
+aggsandbox start --multi-l2 --fork --detach
 ```
 
 #### Other Commands
 
 ```bash
 # Check status (works for all modes)
-agg-sandbox status
+aggsandbox status
 
 # View logs (works for all modes)
-agg-sandbox logs --follow
+aggsandbox logs --follow
 
 # Stop the sandbox (automatically detects and stops all configurations)
-agg-sandbox stop
+aggsandbox stop
 
 # Show configuration info
-agg-sandbox info
+aggsandbox info
 ```
+
+#### Bridge Information Commands
+
+Query bridge endpoints for debugging and monitoring:
+
+```bash
+# Show bridges for a network (default: network_id=1)
+aggsandbox show bridges
+aggsandbox show bridges --network-id 2
+
+# Show claims for a network (default: network_id=1101)
+aggsandbox show claims
+aggsandbox show claims --network-id 1
+
+# Show claim proof (default: network_id=1, leaf_index=0, deposit_count=1)
+aggsandbox show claim-proof
+aggsandbox show claim-proof --network-id 1 --leaf-index 5 --deposit-count 10
+```
+
+These commands query the bridge service at `http://localhost:5577` and display:
+- **bridges**: Available bridges for the specified network
+- **claims**: Claims information for the specified network  
+- **claim-proof**: Claim proof data with configurable parameters
 
 ## Configuration
 
@@ -207,8 +230,8 @@ The multi-L2 sandbox consists of:
 ### Docker Issues
 
 - Ensure Docker daemon is running
-- Try rebuilding images: `agg-sandbox start --build`
-- Check logs: `agg-sandbox logs`
+- Try rebuilding images: `aggsandbox start --build`
+- Check logs: `aggsandbox logs`
 
 ## License
 

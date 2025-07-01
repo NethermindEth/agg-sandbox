@@ -4,10 +4,11 @@ use colored::*;
 use std::path::Path;
 use std::process::Command;
 
+mod api;
 mod logs;
 
 #[derive(Parser)]
-#[command(name = "agg-sandbox")]
+#[command(name = "aggsandbox")]
 #[command(about = "CLI for managing AggLayer sandbox environment")]
 #[command(version = "0.1.0")]
 struct Cli {
@@ -52,9 +53,43 @@ enum Commands {
     Restart,
     /// Show sandbox configuration and accounts
     Info,
+    /// Show bridge information
+    Show {
+        #[command(subcommand)]
+        subcommand: ShowCommands,
+    },
 }
 
-fn main() -> Result<()> {
+#[derive(Subcommand)]
+enum ShowCommands {
+    /// Show bridges for a network
+    Bridges {
+        /// Network ID to query bridges for
+        #[arg(short, long, default_value = "1")]
+        network_id: u64,
+    },
+    /// Show claims for a network
+    Claims {
+        /// Network ID to query claims for
+        #[arg(short, long, default_value = "1101")]
+        network_id: u64,
+    },
+    /// Show claim proof
+    ClaimProof {
+        /// Network ID
+        #[arg(short, long, default_value = "1")]
+        network_id: u64,
+        /// Leaf index
+        #[arg(short, long, default_value = "0")]
+        leaf_index: u64,
+        /// Deposit count
+        #[arg(short, long, default_value = "1")]
+        deposit_count: u64,
+    },
+}
+
+#[tokio::main]
+async fn main() -> Result<()> {
     let cli = Cli::parse();
 
     // Ensure we're in the right directory (where docker-compose.yml exists)
@@ -87,6 +122,7 @@ fn main() -> Result<()> {
         Commands::Logs { follow, service } => show_logs(follow, service),
         Commands::Restart => restart_sandbox(),
         Commands::Info => show_info(),
+        Commands::Show { subcommand } => show_bridge_info(subcommand).await,
     }
 }
 
@@ -421,5 +457,27 @@ fn restart_sandbox() -> Result<()> {
 fn show_info() -> Result<()> {
     println!("{}", "📋 AggLayer Sandbox Information".blue().bold());
     logs::print_sandbox_info();
+    Ok(())
+}
+
+async fn show_bridge_info(subcommand: ShowCommands) -> Result<()> {
+    match subcommand {
+        ShowCommands::Bridges { network_id } => {
+            let response = api::get_bridges(network_id).await?;
+            api::print_json_response("Bridge Information", &response.data);
+        }
+        ShowCommands::Claims { network_id } => {
+            let response = api::get_claims(network_id).await?;
+            api::print_json_response("Claims Information", &response.data);
+        }
+        ShowCommands::ClaimProof {
+            network_id,
+            leaf_index,
+            deposit_count,
+        } => {
+            let response = api::get_claim_proof(network_id, leaf_index, deposit_count).await?;
+            api::print_json_response("Claim Proof Information", &response.data);
+        }
+    }
     Ok(())
 }

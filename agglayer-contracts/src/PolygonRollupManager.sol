@@ -18,10 +18,14 @@ import "./interfaces/IPolygonRollupManager.sol";
 import "./interfaces/IPolygonZkEVMBridge.sol";
 
 /**
- * Contract responsible for managing rollups and the verification of their batches.
+ * MOCK VERSION - Contract responsible for managing rollups and the verification of their batches.
  * This contract will create and update rollups and store all the hashed sequenced data from them.
  * The logic for sequence batches is moved to the `consensus` contracts, while the verification of all of
  * them will be done in this one. In this way, the proof aggregation of the rollups will be easier on a close future.
+ *
+ * MOCK MODIFICATIONS:
+ * - Automatically grants all admin roles to the deployer during initialization
+ * - Simplified for testing and development purposes
  */
 contract PolygonRollupManager is
     PolygonAccessControlUpgradeable,
@@ -378,8 +382,24 @@ contract PolygonRollupManager is
 
     /**
      * Initializer function to set new rollup manager version
+     * MOCK VERSION: Automatically grants admin roles to deployer
      */
-    function initialize() external virtual reinitializer(3) {
+    function initialize() external virtual {
+        // Grant all necessary roles to the deployer (msg.sender)
+        _grantRole(DEFAULT_ADMIN_ROLE, msg.sender);
+        _grantRole(_ADD_ROLLUP_TYPE_ROLE, msg.sender);
+        _grantRole(_OBSOLETE_ROLLUP_TYPE_ROLE, msg.sender);
+        _grantRole(_CREATE_ROLLUP_ROLE, msg.sender);
+        _grantRole(_ADD_EXISTING_ROLLUP_ROLE, msg.sender);
+        _grantRole(_UPDATE_ROLLUP_ROLE, msg.sender);
+        _grantRole(_TRUSTED_AGGREGATOR_ROLE, msg.sender);
+        _grantRole(_TRUSTED_AGGREGATOR_ROLE_ADMIN, msg.sender);
+        _grantRole(_TWEAK_PARAMETERS_ROLE, msg.sender);
+        _grantRole(_SET_FEE_ROLE, msg.sender);
+        _grantRole(_STOP_EMERGENCY_ROLE, msg.sender);
+        _grantRole(_EMERGENCY_COUNCIL_ROLE, msg.sender);
+        _grantRole(_EMERGENCY_COUNCIL_ADMIN, msg.sender);
+
         emit UpdateRollupManagerVersion(ROLLUP_MANAGER_VERSION);
     }
 

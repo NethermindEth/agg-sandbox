@@ -46,12 +46,12 @@ RUN cd /app/agglayer-contracts && \
 # Create a wait script to ensure Anvil instances are ready
 RUN echo '#!/bin/bash\n\
 echo "Waiting for Anvil instances to be ready..."\n\
-until curl -s http://anvil-mainnet:8545 > /dev/null; do\n\
-    echo "Waiting for anvil-mainnet..."\n\
+until curl -s http://anvil-l1:8545 > /dev/null; do\n\
+    echo "Waiting for anvil-l1..."\n\
     sleep 2\n\
 done\n\
-until curl -s http://anvil-polygon:8545 > /dev/null; do\n\
-    echo "Waiting for anvil-polygon..."\n\
+until curl -s http://anvil-l2:8545 > /dev/null; do\n\
+    echo "Waiting for anvil-l2..."\n\
     sleep 2\n\
 done\n\
 echo "Both Anvil instances are ready!"\n\
@@ -65,8 +65,8 @@ else\n\
     echo "Using template .env"\n\
 fi\n\
 # Set RPC URLs from environment variables\n\
-export RPC_URL_1="${RPC_URL_1:-http://anvil-mainnet:8545}"\n\
-export RPC_URL_2="${RPC_URL_2:-http://anvil-polygon:8545}"\n\
+export RPC_URL_1="${RPC_URL_1:-http://anvil-l1:8545}"\n\
+export RPC_URL_2="${RPC_URL_2:-http://anvil-l2:8545}"\n\
 echo "Starting contract deployment..."\n\
 cd /app/agglayer-contracts\n\
 FOUNDRY_AUTO_DETECT_SOLC=true forge build\n\

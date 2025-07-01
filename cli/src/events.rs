@@ -122,6 +122,16 @@ fn get_event_signatures() -> HashMap<&'static str, &'static str> {
         "RemoveLastGlobalExitRoot(bytes32)",
     );
 
+    // L1 Info Tree Events
+    m.insert(
+        "0xda61aa7823fcd807e37b95aabcbe17f03a6f3efd514176444dae191d27fd66b3",
+        "UpdateL1InfoTree(bytes32,bytes32)",
+    );
+    m.insert(
+        "0xaf6c6cd7790e0180a4d22eb8ed846e55846f54ed10e5946db19972b5a0813a59",
+        "UpdateL1InfoTreeV2(bytes32,uint32,uint256,uint64)",
+    );
+
     // Sequencer Events
     m.insert(
         "0xf54144f9611984021529f814a1cb6a41e22c58351510a0d9f7e822618abb9cc0",
@@ -340,6 +350,10 @@ fn decode_known_event(event_name: &str, log: &Log) -> Result<()> {
         "SetTrustedAggregator(address)" => decode_set_trusted_aggregator_event(log),
         "SequenceBatches(uint64)" => decode_sequence_batches_event(log),
         "VerifyBatches(uint64,bytes32,address)" => decode_verify_batches_event(log),
+        "UpdateL1InfoTree(bytes32,bytes32)" => decode_update_l1_info_tree_event(log),
+        "UpdateL1InfoTreeV2(bytes32,uint32,uint256,uint64)" => {
+            decode_update_l1_info_tree_v2_event(log)
+        }
         _ => {
             println!("  ⚠️  Decoding not implemented for this event type");
             Ok(())
@@ -527,6 +541,34 @@ fn decode_verify_batches_event(log: &Log) -> Result<()> {
     if log.topics.len() >= 4 {
         let aggregator = format!("0x{}", hex::encode(&log.topics[3][12..]));
         println!("  👤 Aggregator: {}", aggregator.green());
+    }
+    Ok(())
+}
+
+fn decode_update_l1_info_tree_event(log: &Log) -> Result<()> {
+    println!("  🌳 Update L1 Info Tree:");
+    if log.topics.len() >= 3 {
+        let main_exit_root = format!("0x{}", hex::encode(log.topics[1]));
+        let rollup_exit_root = format!("0x{}", hex::encode(log.topics[2]));
+        println!("  🔗 Main Exit Root: {}", main_exit_root.cyan());
+        println!("  🔗 Rollup Exit Root: {}", rollup_exit_root.yellow());
+    }
+    Ok(())
+}
+
+fn decode_update_l1_info_tree_v2_event(log: &Log) -> Result<()> {
+    println!("  🌳 Update L1 Info Tree V2:");
+    if log.topics.len() >= 2 {
+        let current_l1_info_root = format!("0x{}", hex::encode(log.topics[1]));
+        println!("  🔗 Current L1 Info Root: {}", current_l1_info_root.cyan());
+    }
+    if !log.data.is_empty() && log.data.len() >= 96 {
+        let leaf_count = U256::from(&log.data[0..32]);
+        let block_hash = format!("0x{}", hex::encode(&log.data[32..64]));
+        let timestamp = U256::from(&log.data[64..96]);
+        println!("  📊 Leaf Count: {}", leaf_count.to_string().green());
+        println!("  🧱 Block Hash: {}", block_hash.yellow());
+        println!("  ⏰ Timestamp: {}", timestamp.to_string().dimmed());
     }
     Ok(())
 }

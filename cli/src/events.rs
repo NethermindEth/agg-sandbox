@@ -208,15 +208,15 @@ pub async fn fetch_and_display_events(
 
     println!(
         "{}",
-        format!("🔍 Fetching events from {} chain", chain)
+        format!("🔍 Fetching events from {chain} chain")
             .cyan()
             .bold()
     );
-    println!("{}", format!("📡 RPC URL: {}", rpc_url).dimmed());
-    println!("{}", format!("📊 Scanning last {} blocks", blocks).dimmed());
+    println!("{}", format!("📡 RPC URL: {rpc_url}").dimmed());
+    println!("{}", format!("📊 Scanning last {blocks} blocks").dimmed());
 
     if let Some(addr) = &address {
-        println!("{}", format!("🎯 Filtering by contract: {}", addr).dimmed());
+        println!("{}", format!("🎯 Filtering by contract: {addr}").dimmed());
     }
 
     // Connect to the chain
@@ -239,7 +239,7 @@ pub async fn fetch_and_display_events(
 
     println!(
         "{}",
-        format!("🔍 Scanning blocks {} to {}", from_block, latest_block).green()
+        format!("🔍 Scanning blocks {from_block} to {latest_block}").green()
     );
 
     // Create filter for events
@@ -289,7 +289,7 @@ pub async fn fetch_and_display_events(
 }
 
 async fn display_event(index: usize, log: &Log, client: &Arc<Provider<Http>>) -> Result<()> {
-    println!("{}", format!("📝 Event #{}", index).blue().bold());
+    println!("{}", format!("📝 Event #{index}").blue().bold());
 
     // Get block information
     if let Some(block_number) = log.block_number {
@@ -309,7 +309,7 @@ async fn display_event(index: usize, log: &Log, client: &Arc<Provider<Http>>) ->
     }
 
     if let Some(tx_hash) = log.transaction_hash {
-        println!("📄 Transaction: {}", format!("0x{:x}", tx_hash).yellow());
+        println!("📄 Transaction: {}", format!("0x{tx_hash:x}").yellow());
     }
 
     println!("📍 Contract: {}", format!("0x{:x}", log.address).yellow());
@@ -381,8 +381,8 @@ fn decode_transfer_event(log: &Log) -> Result<()> {
         let to = Address::from(log.topics[2]);
         let amount = U256::from_big_endian(&log.data[0..32]);
 
-        println!("  📤 From: {}", format!("0x{:x}", from).cyan());
-        println!("  📥 To: {}", format!("0x{:x}", to).cyan());
+        println!("  📤 From: {}", format!("0x{from:x}").cyan());
+        println!("  📥 To: {}", format!("0x{to:x}").cyan());
         println!("  💰 Amount: {} tokens", amount.to_string().green());
     }
     Ok(())
@@ -394,8 +394,8 @@ fn decode_approval_event(log: &Log) -> Result<()> {
         let spender = Address::from(log.topics[2]);
         let amount = U256::from_big_endian(&log.data[0..32]);
 
-        println!("  👤 Owner: {}", format!("0x{:x}", owner).cyan());
-        println!("  🤝 Spender: {}", format!("0x{:x}", spender).cyan());
+        println!("  👤 Owner: {}", format!("0x{owner:x}").cyan());
+        println!("  🤝 Spender: {}", format!("0x{spender:x}").cyan());
         println!("  💰 Allowance: {} tokens", amount.to_string().green());
     }
     Ok(())

@@ -58,6 +58,12 @@ The CLI provides a single `start` command with different flags for various modes
 
 #### Local Mode (Default)
 
+First, create an `.env` file:
+
+   ```bash
+   cp env.example .env
+   ```
+
 Start with completely local blockchain simulation:
 
 ```bash
@@ -80,7 +86,6 @@ Fork existing blockchains for testing against real network state:
 1. First, configure your fork URLs in `.env`:
 
    ```bash
-   cp env.example .env
    # Edit .env and set your fork URLs:
    # FORK_URL_MAINNET=
    # FORK_URL_AGGLAYER_1=

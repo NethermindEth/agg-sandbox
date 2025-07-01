@@ -5,6 +5,7 @@ use std::path::Path;
 use std::process::Command;
 
 mod api;
+mod events;
 mod logs;
 
 #[derive(Parser)]
@@ -57,6 +58,18 @@ enum Commands {
     Show {
         #[command(subcommand)]
         subcommand: ShowCommands,
+    },
+    /// Fetch and display events from blockchain
+    Events {
+        /// Chain to fetch events from (anvil-l1 or anvil-l2)
+        #[arg(short, long)]
+        chain: String,
+        /// Number of latest blocks to scan (default: 10)
+        #[arg(short, long, default_value = "10")]
+        blocks: u64,
+        /// Contract address to filter events (optional)
+        #[arg(short = 'a', long)]
+        address: Option<String>,
     },
 }
 
@@ -123,6 +136,11 @@ async fn main() -> Result<()> {
         Commands::Restart => restart_sandbox(),
         Commands::Info => show_info(),
         Commands::Show { subcommand } => show_bridge_info(subcommand).await,
+        Commands::Events {
+            chain,
+            blocks,
+            address,
+        } => events::fetch_and_display_events(&chain, blocks, address).await,
     }
 }
 

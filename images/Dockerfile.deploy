@@ -37,7 +37,7 @@ RUN cd /app && \
     git submodule update --init --recursive
 
 # Copy env.example to .env (environment variables will override these at runtime)
-RUN cp /app/env.example /app/.env
+RUN cp /app/.env.example /app/.env
 
 # Pre-build contracts to ensure Solidity versions are downloaded
 RUN cd /app/agglayer-contracts && \

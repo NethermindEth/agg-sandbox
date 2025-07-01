@@ -16,15 +16,40 @@ A development sandbox environment for the AggLayer with support for local blockc
 ### Prerequisites
 
 - Docker and Docker Compose
-- Rust (for CLI compilation)
+- Rust (for CLI compilation) - [Install Rust](https://rustup.rs/)
+- Make (for using Makefile targets) - usually pre-installed on Unix systems
+- Ensure `~/.local/bin` is in your PATH for CLI installation
 
 ### Installation
 
-1. Clone the repository
+1. Clone the repository:
+
+   ```bash
+   git clone https://github.com/NethermindEth/agg-sandbox.git
+   cd agg-sandbox
+   ```
+
 2. Install the CLI tool:
 
    ```bash
-   ./install-cli.sh
+   make install
+   ```
+
+   Both methods will:
+   - Build the CLI in release mode
+   - Install it to `~/.local/bin/aggsandbox`
+   - Make it available system-wide (ensure `~/.local/bin` is in your PATH)
+
+3. Verify installation:
+
+   ```bash
+   aggsandbox --help
+   ```
+
+4. Uninstall (if needed):
+
+   ```bash
+   make uninstall
    ```
 
 ### Usage
@@ -219,20 +244,13 @@ Pre-configured test accounts with known private keys:
 - **L2-1 (Polygon zkEVM Fork)**: `http://127.0.0.1:8546` (Uses real Polygon state)
 - **L2-2 (Second AggLayer Chain Fork)**: `http://127.0.0.1:8547` (Uses real second chain state)
 
-## Development
+## Contributing
 
-### CLI Development
+For developers who want to contribute to the AggLayer Sandbox:
 
-The CLI is written in Rust and located in the `cli/` directory:
-
-```bash
-cd cli
-cargo build --release
-```
-
-### Contract Development
-
-Smart contracts are in the `agglayer-contracts/` directory using Foundry.
+- **CLI Development**: See [`cli/DEVELOPMENT.md`](cli/DEVELOPMENT.md) for detailed development workflows
+- **Smart Contracts**: Located in `agglayer-contracts/` using Foundry
+- **Project Management**: Use `make help` from the project root to see available build targets
 
 ## Architecture
 

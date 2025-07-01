@@ -246,7 +246,7 @@ fn decode_approval_event(log: &Log) -> Result<()> {
 
 fn decode_bridge_event(log: &Log) -> Result<()> {
     println!("  🌉 Bridge Event Details:");
-    if log.topics.len() >= 1 && !log.data.is_empty() {
+    if !log.topics.is_empty() && !log.data.is_empty() {
         // This is a complex event, just show that it's a bridge event for now
         println!("  ⚠️  Complex bridge event - showing raw data");
         println!("  📊 Data length: {} bytes", log.data.len());

@@ -73,22 +73,6 @@ This will return bridge information including transaction details, deposit count
       "deposit_count": 0,
       "is_native_token": false,
       "bridge_hash": "0xbdc21b1ceb90347c5fe8abdbbf8996fe062241770ea5bcf8b4e654e79848144b",
-      "sandbox_metadata": {
-        "sandbox_mode": true,
-        "auto_settle": true,
-        "instant_claims": true,
-        "mock_finalization": true,
-        "settlement_delay": "5s",
-        "generated_at": 1751237170,
-        "dev_metadata": {
-          "bridge_mode": "sandbox",
-          "claim_ready_instantly": true,
-          "finalization_bypassed": true,
-          "l1_chain_id": 1,
-          "l2_chain_id": 1101
-        }
-      }
-    }
   ],
 }
 ```
@@ -209,6 +193,16 @@ cast call 0xe806a11ebf128faa3d1a3aa94c2db46c5f1b60b4 "balanceOf(address)" $ACCOU
 ```
 
 **Explanation**: This command checks the token balance of the recipient address on L2 to confirm the bridging was successful. The `balanceOf` function is a standard ERC20 function that returns the token balance for a given address.
+
+## Brigde and Call
+
+```bash
+cast send $ERC20 "approve(address,uint256)" $BRIDGE_EXTENSION 100 --private-key $PRIVATE_KEY_1 --rpc-url $RPC_1
+```
+
+```bash
+cast send $BRIDGE_EXTENSION "bridgeAndCall(address,uint256,uint32,address,address,bytes,bool)" $ERC20 10 $CHAIN_ID_AGGLAYER_1 $ACCOUNT_ADDRESS_2 $ACCOUNT_ADDRESS_2 0x true --private-key $PRIVATE_KEY_1 --rpc-url $RPC_1 --value 0
+```
 
 ## AggKit API Endpoints
 

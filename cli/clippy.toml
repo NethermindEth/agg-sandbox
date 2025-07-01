@@ -1,0 +1,16 @@
+# Clippy configuration for consistent behavior
+# Only includes settings that are supported in clippy.toml
+
+# Set cognitive complexity threshold
+cognitive-complexity-threshold = 30
+
+# Disallow certain potentially problematic methods
+disallowed-methods = [
+    # Add any methods you want to disallow
+]
+
+# Set type complexity threshold
+type-complexity-threshold = 250
+
+# Enable checking for mixed uninlined format args
+allow-mixed-uninlined-format-args = false 

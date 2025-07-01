@@ -27,7 +27,7 @@ fn print_accounts_and_keys() {
     ];
 
     for (i, account) in accounts.iter().enumerate() {
-        println!("({}): {}", i, account.yellow());
+        println!("({i}): {}", account.yellow());
     }
 
     println!();
@@ -47,7 +47,7 @@ fn print_accounts_and_keys() {
     ];
 
     for (i, key) in private_keys.iter().enumerate() {
-        println!("({}): {}", i, key.yellow());
+        println!("({i}): {}", key.yellow());
     }
 }
 

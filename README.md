@@ -48,6 +48,8 @@ aggsandbox start --detach
 
 #### Fork Mode
 
+> ⚠️ **Note**: Currently only Polygon PoS can be used for forking. Polygon zkEVM will not work due to an Anvil compatibility issue.
+
 Fork existing blockchains for testing against real network state:
 
 1. First, configure your fork URLs in `.env`:
@@ -66,6 +68,8 @@ Fork existing blockchains for testing against real network state:
    ```
 
 #### Multi-L2 Mode
+
+> ⚠️ **Note**: Multi-L2 mode is currently not working and under development.
 
 Run with a second L2 chain for multi-chain testing:
 
@@ -133,9 +137,39 @@ aggsandbox show claim-proof --network-id 1 --leaf-index 5 --deposit-count 10
 ```
 
 These commands query the bridge service at `http://localhost:5577` and display:
+
 - **bridges**: Available bridges for the specified network
 - **claims**: Claims information for the specified network  
 - **claim-proof**: Claim proof data with configurable parameters
+
+#### Event Monitoring Commands
+
+Monitor and decode blockchain events in human-readable format:
+
+```bash
+# Show events from anvil-l1 chain (last 5 blocks by default)
+aggsandbox events --chain anvil-l1
+
+# Show events from anvil-l2 chain with custom block range
+aggsandbox events --chain anvil-l2 --blocks 10
+
+# Show events from anvil-l3 chain (if running multi-l2 mode)
+aggsandbox events --chain anvil-l3 --blocks 20
+
+# Filter events by contract address
+aggsandbox events --chain anvil-l1 --blocks 5 --address 0x5fbdb2315678afecb367f032d93f642f64180aa3
+
+# Show events with more blocks for comprehensive monitoring
+aggsandbox events --chain anvil-l1 --blocks 50
+```
+
+Each event displays:
+
+- 🕐 Timestamp and block number
+- 📄 Transaction hash
+- 📍 Contract address
+- 🎯 Event signature and decoded parameters
+- 🔍 Raw data for debugging
 
 ## Configuration
 

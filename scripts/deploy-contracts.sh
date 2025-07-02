@@ -158,9 +158,12 @@ while read -r line; do
     elif [[ $line =~ PolygonRollupManager:[[:space:]]+([0-9a-fA-Fx]+) ]]; then
         addr="${BASH_REMATCH[1]}"
         update_env_file "$ENV_FILE" "POLYGON_ROLLUP_MANAGER_$suffix" "$addr"
-    elif [[ $line =~ Matic:[[:space:]]+([0-9a-fA-Fx]+) ]]; then
+    elif [[ $line =~ AggERC20:[[:space:]]+([0-9a-fA-Fx]+) ]]; then
         addr="${BASH_REMATCH[1]}"
-        update_env_file "$ENV_FILE" "ERC20" "$addr"
+        update_env_file "$ENV_FILE" "AGG_ERC20_$suffix" "$addr"
+    elif [[ $line =~ BridgeExtension:[[:space:]]+([0-9a-fA-Fx]+) ]]; then
+        addr="${BASH_REMATCH[1]}"
+        update_env_file "$ENV_FILE" "BRIDGE_EXTENSION_$suffix" "$addr"
     fi
 done < <(echo "$output")
 
@@ -185,6 +188,15 @@ while read -r line; do
     elif [[ $line =~ PolygonZkEVMTimelock:[[:space:]]+([0-9a-fA-Fx]+) ]]; then
         addr="${BASH_REMATCH[1]}"
         update_env_file "$ENV_FILE" "POLYGON_ZKEVM_TIMELOCK_$suffix" "$addr"
+    elif [[ $line =~ GlobalExitRootManagerL2SovereignChain:[[:space:]]+([0-9a-fA-Fx]+) ]]; then
+        addr="${BASH_REMATCH[1]}"
+        update_env_file "$ENV_FILE" "GLOBAL_EXIT_ROOT_MANAGER_$suffix" "$addr"
+    elif [[ $line =~ AggERC20:[[:space:]]+([0-9a-fA-Fx]+) ]]; then
+        addr="${BASH_REMATCH[1]}"
+        update_env_file "$ENV_FILE" "AGG_ERC20_$suffix" "$addr"
+    elif [[ $line =~ BridgeExtension:[[:space:]]+([0-9a-fA-Fx]+) ]]; then
+        addr="${BASH_REMATCH[1]}"
+        update_env_file "$ENV_FILE" "BRIDGE_EXTENSION_$suffix" "$addr"
     fi
 done < <(echo "$output")
 

@@ -6,11 +6,9 @@ import {PolygonZkEVMTimelock} from "../src/PolygonZkEVMTimelock.sol";
 import {PolygonZkEVM} from "../src/PolygonZkEVM.sol";
 import {IBasePolygonZkEVMGlobalExitRoot} from "../src/interfaces/IBasePolygonZkEVMGlobalExitRoot.sol";
 import {Script, console2} from "forge-std/Script.sol";
-
 import {GlobalExitRootManagerL2SovereignChain} from "../src/GlobalExitRootManagerL2SovereignChain.sol";
-
 import {AggERC20} from "../src/mocks/AggERC20.sol";
-
+import {BridgeExtension} from "../src/BridgeExtension.sol";
 contract DeployContractsL2 is Script {
     function run() external {
         // load your deployer private key from env
@@ -50,6 +48,8 @@ contract DeployContractsL2 is Script {
 
         AggERC20 aggERC20 = new AggERC20(deployer, deployer, 0);
 
+        BridgeExtension bridgeExtension = new BridgeExtension(address(polygonZkEVMBridgeV2));
+
         // stop broadcasting so logs don't count as on-chain txs
         vm.stopBroadcast();
 
@@ -57,5 +57,6 @@ contract DeployContractsL2 is Script {
         console2.log("PolygonZkEVMTimelock:   ", address(polygonZkEVMTimelock));
         console2.log("GlobalExitRootManagerL2SovereignChain:   ", address(globalExitRootManagerL2SovereignChain));
         console2.log("AggERC20:              ", address(aggERC20));
+        console2.log("BridgeExtension:       ", address(bridgeExtension));
     }
 }

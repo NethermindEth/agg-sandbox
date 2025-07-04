@@ -321,7 +321,7 @@ async fn display_event(index: usize, log: &Log, client: &Arc<Provider<Http>>) ->
         let event_signatures = get_event_signatures();
         if let Some(&event_name) = event_signatures.get(event_signature.as_str()) {
             println!("🎯 Event: {}", event_name.green().bold());
-            decode_known_event(event_name, log)?;
+            decode_known_event(event_name, log);
         } else {
             println!("🎯 Event: {}", "Unknown Event".red());
             println!("📋 Raw Signature: {}", event_signature.dimmed());
@@ -341,41 +341,72 @@ async fn display_event(index: usize, log: &Log, client: &Arc<Provider<Http>>) ->
     Ok(())
 }
 
-fn decode_known_event(event_name: &str, log: &Log) -> Result<()> {
+fn decode_known_event(event_name: &str, log: &Log) {
     match event_name {
-        "Transfer(address,address,uint256)" => decode_transfer_event(log),
-        "Approval(address,address,uint256)" => decode_approval_event(log),
-        "OwnershipTransferred(address,address)" => decode_ownership_transferred_event(log),
+        "Transfer(address,address,uint256)" => {
+            decode_transfer_event(log);
+        }
+        "Approval(address,address,uint256)" => {
+            decode_approval_event(log);
+        }
+        "OwnershipTransferred(address,address)" => {
+            decode_ownership_transferred_event(log);
+        }
         "BridgeEvent(uint8,uint32,address,uint32,address,uint256,bytes,uint32)" => {
-            decode_bridge_event(log)
+            decode_bridge_event(log);
         }
-        "ClaimEvent(uint256,uint32,address,address,uint256)" => decode_claim_event(log),
-        "Initialized(uint64)" => decode_initialized_event(log),
-        "RoleGranted(bytes32,address,address)" => decode_role_granted_event(log),
-        "RoleRevoked(bytes32,address,address)" => decode_role_revoked_event(log),
+        "ClaimEvent(uint256,uint32,address,address,uint256)" => {
+            decode_claim_event(log);
+        }
+        "Initialized(uint64)" => {
+            decode_initialized_event(log);
+        }
+        "RoleGranted(bytes32,address,address)" => {
+            decode_role_granted_event(log);
+        }
+        "RoleRevoked(bytes32,address,address)" => {
+            decode_role_revoked_event(log);
+        }
         "AddExistingRollup(uint32,uint64,address,uint64,uint8,uint64,bytes32)" => {
-            decode_add_existing_rollup_event(log)
+            decode_add_existing_rollup_event(log);
         }
-        "UpdateRollupManagerVersion(string)" => decode_update_rollup_manager_version_event(log),
-        "MinDelayChange(uint256,uint256)" => decode_min_delay_change_event(log),
-        "SetTrustedSequencer(address)" => decode_set_trusted_sequencer_event(log),
-        "SetTrustedAggregator(address)" => decode_set_trusted_aggregator_event(log),
-        "SequenceBatches(uint64)" => decode_sequence_batches_event(log),
-        "VerifyBatches(uint64,bytes32,address)" => decode_verify_batches_event(log),
-        "UpdateL1InfoTree(bytes32,bytes32)" => decode_update_l1_info_tree_event(log),
+        "UpdateRollupManagerVersion(string)" => {
+            decode_update_rollup_manager_version_event(log);
+        }
+        "MinDelayChange(uint256,uint256)" => {
+            decode_min_delay_change_event(log);
+        }
+        "SetTrustedSequencer(address)" => {
+            decode_set_trusted_sequencer_event(log);
+        }
+        "SetTrustedAggregator(address)" => {
+            decode_set_trusted_aggregator_event(log);
+        }
+        "SequenceBatches(uint64)" => {
+            decode_sequence_batches_event(log);
+        }
+        "VerifyBatches(uint64,bytes32,address)" => {
+            decode_verify_batches_event(log);
+        }
+        "UpdateL1InfoTree(bytes32,bytes32)" => {
+            decode_update_l1_info_tree_event(log);
+        }
         "UpdateL1InfoTreeV2(bytes32,uint32,uint256,uint64)" => {
-            decode_update_l1_info_tree_v2_event(log)
+            decode_update_l1_info_tree_v2_event(log);
         }
-        "InsertGlobalExitRoot(bytes32)" => decode_insert_global_exit_root_event(log),
-        "NewWrappedToken(uint32,address,address,bytes)" => decode_new_wrapped_token_event(log),
+        "InsertGlobalExitRoot(bytes32)" => {
+            decode_insert_global_exit_root_event(log);
+        }
+        "NewWrappedToken(uint32,address,address,bytes)" => {
+            decode_new_wrapped_token_event(log);
+        }
         _ => {
             println!("  ⚠️  Decoding not implemented for this event type");
-            Ok(())
         }
     }
 }
 
-fn decode_transfer_event(log: &Log) -> Result<()> {
+fn decode_transfer_event(log: &Log) {
     if log.topics.len() >= 3 && log.data.len() >= 32 {
         let from = Address::from(log.topics[1]);
         let to = Address::from(log.topics[2]);
@@ -385,10 +416,9 @@ fn decode_transfer_event(log: &Log) -> Result<()> {
         println!("  📥 To: {}", format!("0x{to:x}").cyan());
         println!("  💰 Amount: {} tokens", amount.to_string().green());
     }
-    Ok(())
 }
 
-fn decode_approval_event(log: &Log) -> Result<()> {
+fn decode_approval_event(log: &Log) {
     if log.topics.len() >= 3 && log.data.len() >= 32 {
         let owner = Address::from(log.topics[1]);
         let spender = Address::from(log.topics[2]);
@@ -398,10 +428,9 @@ fn decode_approval_event(log: &Log) -> Result<()> {
         println!("  🤝 Spender: {}", format!("0x{spender:x}").cyan());
         println!("  💰 Allowance: {} tokens", amount.to_string().green());
     }
-    Ok(())
 }
 
-fn decode_bridge_event(log: &Log) -> Result<()> {
+fn decode_bridge_event(log: &Log) {
     println!("  🌉 Bridge Event Details:");
     if !log.data.is_empty() && log.data.len() >= 256 {
         // Decode the bridge event parameters
@@ -425,10 +454,9 @@ fn decode_bridge_event(log: &Log) -> Result<()> {
         println!("  ⚠️  Complex bridge event - showing raw data");
         println!("  📊 Data length: {} bytes", log.data.len());
     }
-    Ok(())
 }
 
-fn decode_ownership_transferred_event(log: &Log) -> Result<()> {
+fn decode_ownership_transferred_event(log: &Log) {
     println!("  👑 Ownership Transfer:");
     if log.topics.len() >= 3 {
         let previous_owner = format!("0x{}", hex::encode(&log.topics[1][12..]));
@@ -436,10 +464,9 @@ fn decode_ownership_transferred_event(log: &Log) -> Result<()> {
         println!("  📤 Previous Owner: {}", previous_owner.dimmed());
         println!("  📥 New Owner: {}", new_owner.green());
     }
-    Ok(())
 }
 
-fn decode_claim_event(log: &Log) -> Result<()> {
+fn decode_claim_event(log: &Log) {
     println!("  🎯 Claim Event:");
     if !log.data.is_empty() && log.data.len() >= 160 {
         // Decode ClaimEvent(uint256,uint32,address,address,uint256)
@@ -457,19 +484,17 @@ fn decode_claim_event(log: &Log) -> Result<()> {
     } else {
         println!("  ⚠️  Complex claim event - showing raw data");
     }
-    Ok(())
 }
 
-fn decode_initialized_event(log: &Log) -> Result<()> {
+fn decode_initialized_event(log: &Log) {
     println!("  🚀 Contract Initialized:");
     if !log.data.is_empty() && log.data.len() >= 32 {
         let version = U256::from(&log.data[0..32]);
         println!("  📊 Version: {}", version.to_string().cyan());
     }
-    Ok(())
 }
 
-fn decode_role_granted_event(log: &Log) -> Result<()> {
+fn decode_role_granted_event(log: &Log) {
     println!("  🔐 Role Granted:");
     if log.topics.len() >= 4 {
         let role = format!("0x{}", hex::encode(log.topics[1]));
@@ -479,10 +504,9 @@ fn decode_role_granted_event(log: &Log) -> Result<()> {
         println!("  👤 Account: {}", account.green());
         println!("  📤 Granted by: {}", sender.dimmed());
     }
-    Ok(())
 }
 
-fn decode_role_revoked_event(log: &Log) -> Result<()> {
+fn decode_role_revoked_event(log: &Log) {
     println!("  🚫 Role Revoked:");
     if log.topics.len() >= 4 {
         let role = format!("0x{}", hex::encode(log.topics[1]));
@@ -492,10 +516,9 @@ fn decode_role_revoked_event(log: &Log) -> Result<()> {
         println!("  👤 Account: {}", account.red());
         println!("  📤 Revoked by: {}", sender.dimmed());
     }
-    Ok(())
 }
 
-fn decode_add_existing_rollup_event(log: &Log) -> Result<()> {
+fn decode_add_existing_rollup_event(log: &Log) {
     println!("  🔄 Add Existing Rollup:");
     if log.topics.len() >= 2 {
         let rollup_id = U256::from(log.topics[1].as_bytes());
@@ -504,19 +527,17 @@ fn decode_add_existing_rollup_event(log: &Log) -> Result<()> {
     if !log.data.is_empty() {
         println!("  ⚠️  Complex rollup data - showing summary only");
     }
-    Ok(())
 }
 
-fn decode_update_rollup_manager_version_event(log: &Log) -> Result<()> {
+fn decode_update_rollup_manager_version_event(log: &Log) {
     println!("  📦 Rollup Manager Version Update:");
     if !log.data.is_empty() && log.data.len() >= 64 {
         // Try to decode string from data
         println!("  📊 New version updated");
     }
-    Ok(())
 }
 
-fn decode_min_delay_change_event(log: &Log) -> Result<()> {
+fn decode_min_delay_change_event(log: &Log) {
     println!("  ⏱️  Min Delay Change:");
     if !log.data.is_empty() && log.data.len() >= 64 {
         let old_delay = U256::from(&log.data[0..32]);
@@ -524,37 +545,33 @@ fn decode_min_delay_change_event(log: &Log) -> Result<()> {
         println!("  📤 Old Delay: {} seconds", old_delay.to_string().dimmed());
         println!("  📥 New Delay: {} seconds", new_delay.to_string().green());
     }
-    Ok(())
 }
 
-fn decode_set_trusted_sequencer_event(log: &Log) -> Result<()> {
+fn decode_set_trusted_sequencer_event(log: &Log) {
     println!("  🔗 Set Trusted Sequencer:");
     if log.topics.len() >= 2 {
         let sequencer = format!("0x{}", hex::encode(&log.topics[1][12..]));
         println!("  👤 New Sequencer: {}", sequencer.green());
     }
-    Ok(())
 }
 
-fn decode_set_trusted_aggregator_event(log: &Log) -> Result<()> {
+fn decode_set_trusted_aggregator_event(log: &Log) {
     println!("  🔗 Set Trusted Aggregator:");
     if log.topics.len() >= 2 {
         let aggregator = format!("0x{}", hex::encode(&log.topics[1][12..]));
         println!("  👤 New Aggregator: {}", aggregator.green());
     }
-    Ok(())
 }
 
-fn decode_sequence_batches_event(log: &Log) -> Result<()> {
+fn decode_sequence_batches_event(log: &Log) {
     println!("  📦 Sequence Batches:");
     if log.topics.len() >= 2 {
         let batch_num = U256::from(log.topics[1].as_bytes());
         println!("  🔢 Batch Number: {}", batch_num.to_string().cyan());
     }
-    Ok(())
 }
 
-fn decode_verify_batches_event(log: &Log) -> Result<()> {
+fn decode_verify_batches_event(log: &Log) {
     println!("  ✅ Verify Batches:");
     if log.topics.len() >= 2 {
         let batch_num = U256::from(log.topics[1].as_bytes());
@@ -564,10 +581,9 @@ fn decode_verify_batches_event(log: &Log) -> Result<()> {
         let aggregator = format!("0x{}", hex::encode(&log.topics[3][12..]));
         println!("  👤 Aggregator: {}", aggregator.green());
     }
-    Ok(())
 }
 
-fn decode_update_l1_info_tree_event(log: &Log) -> Result<()> {
+fn decode_update_l1_info_tree_event(log: &Log) {
     println!("  🌳 Update L1 Info Tree:");
     if log.topics.len() >= 3 {
         let main_exit_root = format!("0x{}", hex::encode(log.topics[1]));
@@ -575,10 +591,9 @@ fn decode_update_l1_info_tree_event(log: &Log) -> Result<()> {
         println!("  🔗 Main Exit Root: {}", main_exit_root.cyan());
         println!("  🔗 Rollup Exit Root: {}", rollup_exit_root.yellow());
     }
-    Ok(())
 }
 
-fn decode_update_l1_info_tree_v2_event(log: &Log) -> Result<()> {
+fn decode_update_l1_info_tree_v2_event(log: &Log) {
     println!("  🌳 Update L1 Info Tree V2:");
     if log.topics.len() >= 2 {
         let current_l1_info_root = format!("0x{}", hex::encode(log.topics[1]));
@@ -592,19 +607,17 @@ fn decode_update_l1_info_tree_v2_event(log: &Log) -> Result<()> {
         println!("  🧱 Block Hash: {}", block_hash.yellow());
         println!("  ⏰ Timestamp: {}", timestamp.to_string().dimmed());
     }
-    Ok(())
 }
 
-fn decode_insert_global_exit_root_event(log: &Log) -> Result<()> {
+fn decode_insert_global_exit_root_event(log: &Log) {
     println!("  🌍 Insert Global Exit Root:");
     if log.topics.len() >= 2 {
         let global_exit_root = format!("0x{}", hex::encode(log.topics[1]));
         println!("  🔗 Global Exit Root: {}", global_exit_root.cyan());
     }
-    Ok(())
 }
 
-fn decode_new_wrapped_token_event(log: &Log) -> Result<()> {
+fn decode_new_wrapped_token_event(log: &Log) {
     println!("  🪙 New Wrapped Token:");
     if !log.data.is_empty() && log.data.len() >= 128 {
         let origin_network = U256::from(&log.data[0..32]);
@@ -625,7 +638,6 @@ fn decode_new_wrapped_token_event(log: &Log) -> Result<()> {
             }
         }
     }
-    Ok(())
 }
 
 fn get_rpc_url(chain: &str) -> Result<String> {

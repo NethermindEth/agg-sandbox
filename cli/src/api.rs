@@ -20,6 +20,12 @@ pub struct ClaimProofResponse {
     pub data: serde_json::Value,
 }
 
+#[derive(Debug, Deserialize)]
+pub struct L1InfoTreeIndexResponse {
+    #[serde(flatten)]
+    pub data: serde_json::Value,
+}
+
 const BASE_URL: &str = "http://localhost:5577";
 
 pub async fn get_bridges(network_id: u64) -> Result<BridgeResponse> {
@@ -122,6 +128,45 @@ pub async fn get_claim_proof(
         .context("Failed to parse claim-proof response as JSON")?;
 
     Ok(ClaimProofResponse { data: proof_data })
+}
+
+pub async fn get_l1_info_tree_index(
+    network_id: u64,
+    deposit_count: u64,
+) -> Result<L1InfoTreeIndexResponse> {
+    let client = reqwest::Client::new();
+    let url = format!(
+        "{BASE_URL}/bridge/v1/l1-info-tree-index?network_id={network_id}&deposit_count={deposit_count}"
+    );
+
+    println!(
+        "{}",
+        format!(
+            "🔍 Fetching L1 info tree index for network_id: {network_id}, deposit_count: {deposit_count}"
+        )
+        .cyan()
+    );
+    println!("{}", format!("📡 URL: {url}").dimmed());
+
+    let response = client
+        .get(&url)
+        .send()
+        .await
+        .context("Failed to send request to l1-info-tree-index endpoint")?;
+
+    if !response.status().is_success() {
+        return Err(anyhow::anyhow!(
+            "API request failed with status: {}",
+            response.status()
+        ));
+    }
+
+    let info_data: serde_json::Value = response
+        .json()
+        .await
+        .context("Failed to parse l1-info-tree-index response as JSON")?;
+
+    Ok(L1InfoTreeIndexResponse { data: info_data })
 }
 
 pub fn print_json_response(title: &str, data: &serde_json::Value) {

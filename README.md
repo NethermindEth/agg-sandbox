@@ -159,6 +159,10 @@ aggsandbox show claims --network-id 1
 # Show claim proof (default: network_id=1, leaf_index=0, deposit_count=1)
 aggsandbox show claim-proof
 aggsandbox show claim-proof --network-id 1 --leaf-index 5 --deposit-count 10
+
+# Show L1 info tree index (default: network_id=1, deposit_count=0)
+aggsandbox show l1-info-tree-index
+aggsandbox show l1-info-tree-index --network-id 1 --deposit-count 5
 ```
 
 These commands query the bridge service at `http://localhost:5577` and display:
@@ -166,6 +170,7 @@ These commands query the bridge service at `http://localhost:5577` and display:
 - **bridges**: Available bridges for the specified network
 - **claims**: Claims information for the specified network  
 - **claim-proof**: Claim proof data with configurable parameters
+- **l1-info-tree-index**: L1 info tree index data with configurable network and deposit count
 
 #### Event Monitoring Commands
 

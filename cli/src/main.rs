@@ -99,6 +99,15 @@ enum ShowCommands {
         #[arg(short, long, default_value = "1")]
         deposit_count: u64,
     },
+    /// Show L1 info tree index
+    L1InfoTreeIndex {
+        /// Network ID
+        #[arg(short, long, default_value = "1")]
+        network_id: u64,
+        /// Deposit count
+        #[arg(short, long, default_value = "0")]
+        deposit_count: u64,
+    },
 }
 
 #[tokio::main]
@@ -495,6 +504,13 @@ async fn show_bridge_info(subcommand: ShowCommands) -> Result<()> {
         } => {
             let response = api::get_claim_proof(network_id, leaf_index, deposit_count).await?;
             api::print_json_response("Claim Proof Information", &response.data);
+        }
+        ShowCommands::L1InfoTreeIndex {
+            network_id,
+            deposit_count,
+        } => {
+            let response = api::get_l1_info_tree_index(network_id, deposit_count).await?;
+            api::print_json_response("L1 Info Tree Index", &response.data);
         }
     }
     Ok(())

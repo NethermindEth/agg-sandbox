@@ -1,0 +1,143 @@
+# syntax=docker/dockerfile:1.4
+# Multi-stage build to reduce final image size
+
+# Build stage - use Ubuntu for compatibility with Foundry and git submodules
+FROM ubuntu:22.04 AS builder
+
+# Set environment variables
+ENV DEBIAN_FRONTEND=noninteractive
+ENV PATH="/root/.foundry/bin:$PATH"
+
+# Install system dependencies in a single layer
+RUN apt-get update && apt-get install -y \
+    curl \
+    git \
+    build-essential \
+    ca-certificates \
+    && rm -rf /var/lib/apt/lists/* \
+    && apt-get clean
+
+# Install Foundry
+RUN curl -L https://foundry.paradigm.xyz | bash && \
+    /bin/bash -c "source /root/.bashrc && foundryup"
+
+# Set working directory
+WORKDIR /app
+
+# Copy only necessary files for git submodule initialization
+COPY .gitmodules agglayer-contracts/ ./agglayer-contracts/
+COPY agglayer-contracts/lib ./agglayer-contracts/lib/
+COPY agglayer-contracts/foundry.toml ./agglayer-contracts/foundry.toml
+COPY agglayer-contracts/remappings.txt ./agglayer-contracts/remappings.txt
+
+# Initialize git and submodules in a single layer
+RUN cd agglayer-contracts && \
+    git init && \
+    git config user.email "deploy@example.com" && \
+    git config user.name "Deployer" && \
+    git add . && \
+    git commit -m "Initial commit" && \
+    git submodule update --init --recursive --depth 1
+
+# Copy source files
+COPY agglayer-contracts/src ./agglayer-contracts/src/
+COPY agglayer-contracts/script ./agglayer-contracts/script/
+
+# Build contracts and clean up build artifacts
+RUN cd agglayer-contracts && \
+    FOUNDRY_AUTO_DETECT_SOLC=true forge build && \
+    # Remove test files and docs but keep essential sol files like Script.sol
+    find . -path "*/lib/*/test*" -type d -exec rm -rf {} + 2>/dev/null || true && \
+    find . -path "*/lib/*/docs*" -type d -exec rm -rf {} + 2>/dev/null || true && \
+    find . -path "*/lib/*/audits*" -type d -exec rm -rf {} + 2>/dev/null || true && \
+    find . -path "*/lib/*/certora*" -type d -exec rm -rf {} + 2>/dev/null || true && \
+    find . -path "*/lib/*/scripts*" -type d -exec rm -rf {} + 2>/dev/null || true && \
+    find . -path "*/lib/*/hardhat*" -type d -exec rm -rf {} + 2>/dev/null || true && \
+    rm -rf cache/build-info && \
+    rm -rf .git && \
+    # Copy foundry binaries to a persistent location
+    mkdir -p /usr/local/bin && \
+    cp /root/.foundry/bin/forge /usr/local/bin/ && \
+    cp /root/.foundry/bin/cast /usr/local/bin/ && \
+    chmod +x /usr/local/bin/forge /usr/local/bin/cast
+
+# Copy deployment scripts
+COPY scripts/deploy-contracts.sh ./scripts/
+
+# Runtime stage - use minimal Ubuntu for better compatibility
+FROM ubuntu:22.04 AS runtime
+
+# Install minimal runtime dependencies and clean up aggressively
+RUN apt-get update && apt-get install -y \
+    bash \
+    curl \
+    ca-certificates \
+    git \
+    && rm -rf /var/lib/apt/lists/* \
+    && apt-get clean \
+    && rm -rf /var/cache/apt/* \
+    && rm -rf /tmp/* \
+    && rm -rf /var/tmp/*
+
+# Copy Foundry binaries from builder stage
+COPY --from=builder /usr/local/bin/forge /usr/local/bin/forge
+COPY --from=builder /usr/local/bin/cast /usr/local/bin/cast
+
+# Set working directory
+WORKDIR /app
+
+# Copy built contracts and scripts from builder stage
+COPY --from=builder /app/agglayer-contracts/out ./agglayer-contracts/out/
+COPY --from=builder /app/agglayer-contracts/src ./agglayer-contracts/src/
+COPY --from=builder /app/agglayer-contracts/script ./agglayer-contracts/script/
+COPY --from=builder /app/agglayer-contracts/foundry.toml ./agglayer-contracts/foundry.toml
+COPY --from=builder /app/agglayer-contracts/remappings.txt ./agglayer-contracts/remappings.txt
+COPY --from=builder /app/scripts/deploy-contracts.sh ./scripts/
+
+# Copy essential lib files needed for deployment
+COPY --from=builder /app/agglayer-contracts/lib ./agglayer-contracts/lib/
+
+# Make scripts executable
+RUN chmod +x ./scripts/deploy-contracts.sh
+
+# Create optimized wait and deploy script
+RUN echo '#!/bin/bash' > /app/wait-and-deploy.sh && \
+    echo 'echo "Waiting for Anvil instances to be ready..."' >> /app/wait-and-deploy.sh && \
+    echo 'until curl -s http://anvil-l1:8545 > /dev/null 2>&1; do' >> /app/wait-and-deploy.sh && \
+    echo '    echo "Waiting for anvil-l1..."' >> /app/wait-and-deploy.sh && \
+    echo '    sleep 2' >> /app/wait-and-deploy.sh && \
+    echo 'done' >> /app/wait-and-deploy.sh && \
+    echo 'until curl -s http://anvil-l2:8545 > /dev/null 2>&1; do' >> /app/wait-and-deploy.sh && \
+    echo '    echo "Waiting for anvil-l2..."' >> /app/wait-and-deploy.sh && \
+    echo '    sleep 2' >> /app/wait-and-deploy.sh && \
+    echo 'done' >> /app/wait-and-deploy.sh && \
+    echo 'echo "Both Anvil instances are ready!"' >> /app/wait-and-deploy.sh && \
+    echo 'sleep 5' >> /app/wait-and-deploy.sh && \
+    echo 'echo "Preparing environment..."' >> /app/wait-and-deploy.sh && \
+    echo 'if [ -f "/app/output/deployed-contracts.env" ]; then' >> /app/wait-and-deploy.sh && \
+    echo '    cp /app/output/deployed-contracts.env /app/.env' >> /app/wait-and-deploy.sh && \
+    echo '    echo "Using existing .env from host"' >> /app/wait-and-deploy.sh && \
+    echo 'else' >> /app/wait-and-deploy.sh && \
+    echo '    echo "Creating minimal .env"' >> /app/wait-and-deploy.sh && \
+    echo '    cat > /app/.env << EOF' >> /app/wait-and-deploy.sh && \
+    echo 'RPC_URL_1=http://anvil-l1:8545' >> /app/wait-and-deploy.sh && \
+    echo 'RPC_URL_2=http://anvil-l2:8545' >> /app/wait-and-deploy.sh && \
+    echo 'PRIVATE_KEY_1=0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80' >> /app/wait-and-deploy.sh && \
+    echo 'PRIVATE_KEY_2=0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80' >> /app/wait-and-deploy.sh && \
+    echo 'EOF' >> /app/wait-and-deploy.sh && \
+    echo 'fi' >> /app/wait-and-deploy.sh && \
+    echo 'export RPC_URL_1="${RPC_URL_1:-http://anvil-l1:8545}"' >> /app/wait-and-deploy.sh && \
+    echo 'export RPC_URL_2="${RPC_URL_2:-http://anvil-l2:8545}"' >> /app/wait-and-deploy.sh && \
+    echo 'echo "Starting contract deployment..."' >> /app/wait-and-deploy.sh && \
+    echo 'cd /app' >> /app/wait-and-deploy.sh && \
+    echo './scripts/deploy-contracts.sh /app/.env' >> /app/wait-and-deploy.sh && \
+    echo 'echo "Contract deployment completed!"' >> /app/wait-and-deploy.sh && \
+    echo 'echo "Copying result to output..."' >> /app/wait-and-deploy.sh && \
+    echo 'mkdir -p /app/output' >> /app/wait-and-deploy.sh && \
+    echo 'cp /app/.env /app/output/deployed-contracts.env' >> /app/wait-and-deploy.sh && \
+    echo 'echo "✅ Contract addresses saved to output"' >> /app/wait-and-deploy.sh && \
+    echo 'echo "🎉 Deployment process finished successfully!"' >> /app/wait-and-deploy.sh && \
+    chmod +x /app/wait-and-deploy.sh
+
+# Set the entrypoint
+ENTRYPOINT ["/app/wait-and-deploy.sh"] 

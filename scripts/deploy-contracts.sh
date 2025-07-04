@@ -200,6 +200,44 @@ while read -r line; do
     fi
 done < <(echo "$output")
 
+# === NEW SECTION: Deploy L3 contracts if RPC_URL_3 is provided ===
+if [[ ! -z "$RPC_URL_3" ]]; then
+    echo_ts "Deploying L3 contracts..."
+    rpc_url="$RPC_URL_3"
+    # Re-use PRIVATE_KEY_2 unless a specific key is provided
+    private_key="${PRIVATE_KEY_3:-$PRIVATE_KEY_2}"
+    suffix="L3"
+
+    # Deploy contracts on the third chain (re-using the L2 deployment script)
+    output=$(forge script script/deployL3.s.sol:DeployContractsL2 --rpc-url "$rpc_url" --broadcast --private-key "$private_key" 2>&1)
+    echo "$output" > deploy_output_$suffix.log
+
+    echo_ts "L3 deployment output:"
+    echo "$output"
+
+    # Parse and update env file for L3
+    while read -r line; do
+        if [[ $line =~ PolygonZkEVMBridgeV2:[[:space:]]+([0-9a-fA-Fx]+) ]]; then
+            addr="${BASH_REMATCH[1]}"
+            update_env_file "$ENV_FILE" "POLYGON_ZKEVM_BRIDGE_$suffix" "$addr"
+        elif [[ $line =~ PolygonZkEVMTimelock:[[:space:]]+([0-9a-fA-Fx]+) ]]; then
+            addr="${BASH_REMATCH[1]}"
+            update_env_file "$ENV_FILE" "POLYGON_ZKEVM_TIMELOCK_$suffix" "$addr"
+        elif [[ $line =~ GlobalExitRootManagerL2SovereignChain:[[:space:]]+([0-9a-fA-Fx]+) ]]; then
+            addr="${BASH_REMATCH[1]}"
+            update_env_file "$ENV_FILE" "GLOBAL_EXIT_ROOT_MANAGER_$suffix" "$addr"
+        elif [[ $line =~ AggERC20:[[:space:]]+([0-9a-fA-Fx]+) ]]; then
+            addr="${BASH_REMATCH[1]}"
+            update_env_file "$ENV_FILE" "AGG_ERC20_$suffix" "$addr"
+        elif [[ $line =~ BridgeExtension:[[:space:]]+([0-9a-fA-Fx]+) ]]; then
+            addr="${BASH_REMATCH[1]}"
+            update_env_file "$ENV_FILE" "BRIDGE_EXTENSION_$suffix" "$addr"
+        fi
+    done < <(echo "$output")
+
+    echo_ts "L3 contract deployment complete. Addresses stored with *_L3 suffix in $ENV_FILE"
+fi
+
 # Return to the original directory
 cd "$SCRIPT_DIR"
 

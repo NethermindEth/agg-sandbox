@@ -54,8 +54,15 @@ until curl -s http://anvil-l2:8545 > /dev/null; do\n\
     echo "Waiting for anvil-l2..."\n\
     sleep 2\n\
 done\n\
-echo "Both Anvil instances are ready!"\n\
-sleep 5\n\
+if [ -n "${RPC_URL_3}" ]; then\n\
+    until curl -s "${RPC_URL_3}" > /dev/null; do\n\
+        echo "Waiting for anvil-l3..."\n\
+        sleep 2\n\
+    done\n\
+    echo "All Anvil instances (L1, L2, L3) are ready!"\n\
+else\n\
+    echo "Anvil L1 and L2 are ready! (L3 not requested)"\n\
+fi\n\
 echo "Preparing environment..."\n\
 # Use existing .env from host if available, otherwise use template\n\
 if [ -f "/app/output/deployed-contracts.env" ]; then\n\
@@ -67,6 +74,9 @@ fi\n\
 # Set RPC URLs from environment variables\n\
 export RPC_URL_1="${RPC_URL_1:-http://anvil-l1:8545}"\n\
 export RPC_URL_2="${RPC_URL_2:-http://anvil-l2:8545}"\n\
+if [ -n "${RPC_URL_3}" ]; then\n\
+    export RPC_URL_3\n\
+fi\n\
 echo "Starting contract deployment..."\n\
 cd /app/agglayer-contracts\n\
 FOUNDRY_AUTO_DETECT_SOLC=true forge build\n\

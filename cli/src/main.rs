@@ -210,9 +210,11 @@ fn start_sandbox(detach: bool, build: bool, fork: bool, multi_l2: bool) -> Resul
 
     let mut cmd = Command::new("docker-compose");
 
-    // Add compose files based on mode
+    // Select the correct compose file(s)
+    //  • default mode  : rely on implicit docker-compose.yml
+    //  • --multi-l2    : use ONLY docker-compose.multi-l2.yml so we don't
+    //    start duplicate services that conflict on ports
     if multi_l2 {
-        cmd.arg("-f").arg("docker-compose.yml");
         cmd.arg("-f").arg("docker-compose.multi-l2.yml");
     }
 

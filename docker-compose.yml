@@ -1,8 +1,6 @@
 services:
   anvil-l1:
-    build:
-      context: ./images
-      dockerfile: Dockerfile.anvil
+    image: ametelnethermind/aggsandbox-anvil
     ports:
       - "8545:8545"
     networks:
@@ -19,9 +17,7 @@ services:
       start_period: 10s
 
   anvil-l2:
-    build:
-      context: ./images
-      dockerfile: Dockerfile.anvil
+    image: ametelnethermind/aggsandbox-anvil
     ports:
       - "8546:8545"
     networks:

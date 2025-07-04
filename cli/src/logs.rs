@@ -80,9 +80,18 @@ fn print_contract_addresses() {
         "  PolygonRollupManager: {}",
         get_env_var("POLYGON_ROLLUP_MANAGER_L1", "Not deployed").white()
     );
-    println!("  AggERC20: {}", get_env_var("AGG_ERC20_L1", "Not deployed").white());
-    println!("  BridgeExtension: {}", get_env_var("BRIDGE_EXTENSION_L1", "Not deployed").white());
-    println!("  GlobalExitRootManager: {}", get_env_var("GLOBAL_EXIT_ROOT_MANAGER_L1", "Not deployed").white());
+    println!(
+        "  AggERC20: {}",
+        get_env_var("AGG_ERC20_L1", "Not deployed").white()
+    );
+    println!(
+        "  BridgeExtension: {}",
+        get_env_var("BRIDGE_EXTENSION_L1", "Not deployed").white()
+    );
+    println!(
+        "  GlobalExitRootManager: {}",
+        get_env_var("GLOBAL_EXIT_ROOT_MANAGER_L1", "Not deployed").white()
+    );
 
     println!("{}", "L2 Contracts:".green());
     println!(
@@ -93,11 +102,18 @@ fn print_contract_addresses() {
         "  PolygonZkEVMTimelock: {}",
         get_env_var("POLYGON_ZKEVM_TIMELOCK_L2", "Not deployed").white()
     );
-    println!("  AggERC20: {}", get_env_var("AGG_ERC20_L2", "Not deployed").white());
-    println!("  BridgeExtension: {}", get_env_var("BRIDGE_EXTENSION_L2", "Not deployed").white());
-    println!("  GlobalExitRootManager: {}", get_env_var("GLOBAL_EXIT_ROOT_MANAGER_L2", "Not deployed").white());
-
-  
+    println!(
+        "  AggERC20: {}",
+        get_env_var("AGG_ERC20_L2", "Not deployed").white()
+    );
+    println!(
+        "  BridgeExtension: {}",
+        get_env_var("BRIDGE_EXTENSION_L2", "Not deployed").white()
+    );
+    println!(
+        "  GlobalExitRootManager: {}",
+        get_env_var("GLOBAL_EXIT_ROOT_MANAGER_L2", "Not deployed").white()
+    );
 }
 
 /// Print sandbox information for local mode

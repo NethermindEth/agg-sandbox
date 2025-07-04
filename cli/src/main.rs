@@ -143,7 +143,10 @@ async fn main() -> Result<()> {
         Commands::Status => show_status(),
         Commands::Logs { follow, service } => show_logs(follow, service),
         Commands::Restart => restart_sandbox(),
-        Commands::Info => show_info(),
+        Commands::Info => {
+            show_info();
+            Ok(())
+        }
         Commands::Show { subcommand } => show_bridge_info(subcommand).await,
         Commands::Events {
             chain,
@@ -481,10 +484,9 @@ fn restart_sandbox() -> Result<()> {
     Ok(())
 }
 
-fn show_info() -> Result<()> {
+fn show_info() {
     println!("{}", "📋 AggLayer Sandbox Information".blue().bold());
     logs::print_sandbox_info();
-    Ok(())
 }
 
 async fn show_bridge_info(subcommand: ShowCommands) -> Result<()> {

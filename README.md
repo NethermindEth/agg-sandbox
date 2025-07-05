@@ -35,11 +35,6 @@ A development sandbox environment for the AggLayer with support for local blockc
    make install
    ```
 
-   Both methods will:
-   - Build the CLI in release mode
-   - Install it to `~/.local/bin/aggsandbox`
-   - Make it available system-wide (ensure `~/.local/bin` is in your PATH)
-
 3. Verify installation:
 
    ```bash

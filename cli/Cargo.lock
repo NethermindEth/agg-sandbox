@@ -50,10 +50,12 @@ dependencies = [
  "ethers",
  "hex",
  "lazy_static",
+ "regex",
  "reqwest",
  "serde",
  "serde_json",
  "tokio",
+ "url",
 ]
 
 [[package]]

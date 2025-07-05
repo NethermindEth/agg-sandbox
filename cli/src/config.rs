@@ -1,4 +1,5 @@
 use crate::error::{ConfigError, Result};
+use crate::validation::Validator;
 use std::collections::HashMap;
 use std::path::Path;
 use std::time::Duration;
@@ -117,7 +118,9 @@ impl Config {
 
 impl ApiConfig {
     fn load() -> Result<Self> {
-        let base_url = get_env_var("API_BASE_URL", "http://localhost:5577");
+        let base_url_str = get_env_var("API_BASE_URL", "http://localhost:5577");
+        let base_url = Validator::validate_rpc_url(&base_url_str)?;
+
         let timeout_ms_str = get_env_var("API_TIMEOUT_MS", "30000");
         let timeout_ms = timeout_ms_str.parse::<u64>().map_err(|_| {
             ConfigError::invalid_value(
@@ -126,6 +129,7 @@ impl ApiConfig {
                 "must be a valid number in milliseconds",
             )
         })?;
+        let validated_timeout_ms = Validator::validate_timeout_ms(timeout_ms)?;
 
         let retry_attempts_str = get_env_var("API_RETRY_ATTEMPTS", "3");
         let retry_attempts = retry_attempts_str.parse::<u32>().map_err(|_| {
@@ -135,11 +139,12 @@ impl ApiConfig {
                 "must be a valid positive number",
             )
         })?;
+        let validated_retry_attempts = Validator::validate_retry_attempts(retry_attempts)?;
 
         Ok(ApiConfig {
             base_url,
-            timeout: Duration::from_millis(timeout_ms),
-            retry_attempts,
+            timeout: Duration::from_millis(validated_timeout_ms),
+            retry_attempts: validated_retry_attempts,
         })
     }
 }

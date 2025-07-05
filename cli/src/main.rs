@@ -8,9 +8,11 @@ mod docker;
 mod error;
 mod events;
 mod logs;
+mod validation;
 
 use config::Config;
 use error::Result;
+use validation::Validator;
 
 #[derive(Parser)]
 #[command(name = "aggsandbox")]
@@ -373,7 +375,14 @@ fn show_logs(follow: bool, service: Option<String>) -> Result<()> {
         create_auto_docker_builder, execute_docker_command, execute_docker_command_with_output,
     };
 
-    let service_name = service.as_deref().unwrap_or("all services");
+    // Validate service name if provided
+    let validated_service = if let Some(svc) = service {
+        Some(Validator::validate_service_name(&svc)?)
+    } else {
+        None
+    };
+
+    let service_name = validated_service.as_deref().unwrap_or("all services");
     println!(
         "{} {}",
         "📋 Showing logs for:".blue().bold(),
@@ -384,7 +393,7 @@ fn show_logs(follow: bool, service: Option<String>) -> Result<()> {
     let mut docker_builder = create_auto_docker_builder();
 
     // Add service if specified
-    if let Some(svc) = service {
+    if let Some(svc) = validated_service {
         docker_builder.add_service(svc);
     }
 

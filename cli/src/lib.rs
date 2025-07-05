@@ -4,3 +4,4 @@ pub mod docker;
 pub mod error;
 pub mod events;
 pub mod logs;
+pub mod validation;

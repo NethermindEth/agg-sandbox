@@ -1,4 +1,5 @@
 use crate::error::{ApiError, Result};
+use crate::validation::Validator;
 use colored::*;
 use serde::Deserialize;
 
@@ -29,15 +30,18 @@ pub struct L1InfoTreeIndexResponse {
 }
 
 pub async fn get_bridges(config: &Config, network_id: u64) -> Result<BridgeResponse> {
+    // Validate network ID
+    let validated_network_id = Validator::validate_network_id(network_id)?;
+
     let client = reqwest::Client::new();
     let url = format!(
-        "{}/bridge/v1/bridges?network_id={network_id}",
+        "{}/bridge/v1/bridges?network_id={validated_network_id}",
         config.api.base_url
     );
 
     println!(
         "{}",
-        format!("🔍 Fetching bridges for network_id: {network_id}").cyan()
+        format!("🔍 Fetching bridges for network_id: {validated_network_id}").cyan()
     );
     println!("{}", format!("📡 URL: {url}").dimmed());
 
@@ -65,15 +69,18 @@ pub async fn get_bridges(config: &Config, network_id: u64) -> Result<BridgeRespo
 }
 
 pub async fn get_claims(config: &Config, network_id: u64) -> Result<ClaimResponse> {
+    // Validate network ID
+    let validated_network_id = Validator::validate_network_id(network_id)?;
+
     let client = reqwest::Client::new();
     let url = format!(
-        "{}/bridge/v1/claims?network_id={network_id}",
+        "{}/bridge/v1/claims?network_id={validated_network_id}",
         config.api.base_url
     );
 
     println!(
         "{}",
-        format!("🔍 Fetching claims for network_id: {network_id}").cyan()
+        format!("🔍 Fetching claims for network_id: {validated_network_id}").cyan()
     );
     println!("{}", format!("📡 URL: {url}").dimmed());
 
@@ -106,16 +113,19 @@ pub async fn get_claim_proof(
     leaf_index: u64,
     deposit_count: u64,
 ) -> Result<ClaimProofResponse> {
+    // Validate network ID
+    let validated_network_id = Validator::validate_network_id(network_id)?;
+
     let client = reqwest::Client::new();
     let url = format!(
-        "{}/bridge/v1/claim-proof?network_id={network_id}&leaf_index={leaf_index}&deposit_count={deposit_count}",
+        "{}/bridge/v1/claim-proof?network_id={validated_network_id}&leaf_index={leaf_index}&deposit_count={deposit_count}",
         config.api.base_url
     );
 
     println!(
         "{}",
         format!(
-            "🔍 Fetching claim proof for network_id: {network_id}, leaf_index: {leaf_index}, deposit_count: {deposit_count}"
+            "🔍 Fetching claim proof for network_id: {validated_network_id}, leaf_index: {leaf_index}, deposit_count: {deposit_count}"
         )
         .cyan()
     );
@@ -149,16 +159,19 @@ pub async fn get_l1_info_tree_index(
     network_id: u64,
     deposit_count: u64,
 ) -> Result<L1InfoTreeIndexResponse> {
+    // Validate network ID
+    let validated_network_id = Validator::validate_network_id(network_id)?;
+
     let client = reqwest::Client::new();
     let url = format!(
-        "{}/bridge/v1/l1-info-tree-index?network_id={network_id}&deposit_count={deposit_count}",
+        "{}/bridge/v1/l1-info-tree-index?network_id={validated_network_id}&deposit_count={deposit_count}",
         config.api.base_url
     );
 
     println!(
         "{}",
         format!(
-            "🔍 Fetching L1 info tree index for network_id: {network_id}, deposit_count: {deposit_count}"
+            "🔍 Fetching L1 info tree index for network_id: {validated_network_id}, deposit_count: {deposit_count}"
         )
         .cyan()
     );

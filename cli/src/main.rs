@@ -3,6 +3,7 @@ use colored::*;
 use std::path::Path;
 
 mod api;
+mod commands;
 mod config;
 mod docker;
 mod error;
@@ -10,9 +11,8 @@ mod events;
 mod logs;
 mod validation;
 
-use config::Config;
+use commands::ShowCommands;
 use error::Result;
-use validation::Validator;
 
 #[derive(Parser)]
 #[command(name = "aggsandbox")]
@@ -79,43 +79,6 @@ enum Commands {
     },
 }
 
-#[derive(Subcommand)]
-enum ShowCommands {
-    /// Show bridges for a network
-    Bridges {
-        /// Network ID to query bridges for
-        #[arg(short, long, default_value = "1")]
-        network_id: u64,
-    },
-    /// Show claims for a network
-    Claims {
-        /// Network ID to query claims for
-        #[arg(short, long, default_value = "1101")]
-        network_id: u64,
-    },
-    /// Show claim proof
-    ClaimProof {
-        /// Network ID
-        #[arg(short, long, default_value = "1")]
-        network_id: u64,
-        /// Leaf index
-        #[arg(short, long, default_value = "0")]
-        leaf_index: u64,
-        /// Deposit count
-        #[arg(short, long, default_value = "1")]
-        deposit_count: u64,
-    },
-    /// Show L1 info tree index
-    L1InfoTreeIndex {
-        /// Network ID
-        #[arg(short, long, default_value = "1")]
-        network_id: u64,
-        /// Deposit count
-        #[arg(short, long, default_value = "0")]
-        deposit_count: u64,
-    },
-}
-
 #[tokio::main]
 async fn main() {
     if let Err(e) = run().await {
@@ -151,18 +114,18 @@ async fn run() -> Result<()> {
             build,
             fork,
             multi_l2,
-        } => start_sandbox(detach, build, fork, multi_l2),
-        Commands::Stop { volumes } => stop_sandbox(volumes),
-        Commands::Status => show_status(),
-        Commands::Logs { follow, service } => show_logs(follow, service),
-        Commands::Restart => restart_sandbox(),
-        Commands::Info => show_info().await,
-        Commands::Show { subcommand } => show_bridge_info(subcommand).await,
+        } => commands::handle_start(detach, build, fork, multi_l2),
+        Commands::Stop { volumes } => commands::handle_stop(volumes),
+        Commands::Status => commands::handle_status(),
+        Commands::Logs { follow, service } => commands::handle_logs(follow, service),
+        Commands::Restart => commands::handle_restart(),
+        Commands::Info => commands::handle_info().await,
+        Commands::Show { subcommand } => commands::handle_show(subcommand).await,
         Commands::Events {
             chain,
             blocks,
             address,
-        } => events::fetch_and_display_events(&chain, blocks, address).await,
+        } => commands::handle_events(chain, blocks, address).await,
     }
 }
 
@@ -229,255 +192,4 @@ fn print_error(error: &error::AggSandboxError) {
         },
         _ => {}
     }
-}
-
-fn start_sandbox(detach: bool, build: bool, fork: bool, multi_l2: bool) -> Result<()> {
-    use docker::{execute_docker_command, SandboxConfig};
-
-    // Create sandbox configuration
-    let config = SandboxConfig::new(fork, multi_l2);
-
-    println!(
-        "{}",
-        format!(
-            "🚀 Starting AggLayer sandbox environment in {}...",
-            config.mode_description()
-        )
-        .green()
-        .bold()
-    );
-
-    // Validate fork mode configuration
-    if let Err(e) = config.validate_fork_config() {
-        eprintln!("{}", format!("❌ {e}").red());
-        eprintln!("{}", "Please set the fork URLs in your .env file".yellow());
-        std::process::exit(1);
-    }
-
-    // Display fork URLs if in fork mode
-    if fork {
-        display_fork_urls(multi_l2);
-    }
-
-    // Create Docker builder with proper configuration
-    let docker_builder = config.create_docker_builder()?;
-
-    // Build and execute Docker command
-    let cmd = docker_builder.build_up_command(detach, build);
-
-    if detach {
-        // Execute in detached mode
-        if execute_docker_command(cmd, true).is_err() {
-            eprintln!("{}", "❌ Failed to start sandbox".red());
-            std::process::exit(1);
-        }
-
-        // Display success message
-        let success_msg = match (fork, multi_l2) {
-            (true, true) => "✅ Multi-L2 sandbox started in fork mode (detached)",
-            (true, false) => "✅ Sandbox started in fork mode (detached)",
-            (false, true) => "✅ Multi-L2 sandbox started (detached)",
-            (false, false) => "✅ Sandbox started in detached mode",
-        };
-        println!("{}", success_msg.green());
-
-        // Load config and print appropriate info
-        if let Ok(config) = Config::load() {
-            match (fork, multi_l2) {
-                (_, true) => logs::print_multi_l2_info(&config, fork),
-                (true, false) => logs::print_sandbox_fork_info(&config),
-                (false, false) => logs::print_sandbox_info(&config),
-            }
-        }
-    } else {
-        // Run in foreground mode
-        println!("{}", "Starting services in foreground mode...".cyan());
-        println!("{}", "Press Ctrl+C to stop the sandbox".yellow());
-
-        if execute_docker_command(cmd, false).is_err() {
-            eprintln!("{}", "❌ Failed to start sandbox".red());
-            std::process::exit(1);
-        } else {
-            println!("{}", "✅ Sandbox stopped".green());
-        }
-    }
-
-    Ok(())
-}
-
-fn display_fork_urls(multi_l2: bool) {
-    let fork_mainnet = std::env::var("FORK_URL_MAINNET").unwrap_or_default();
-    let fork_agglayer_1 = std::env::var("FORK_URL_AGGLAYER_1").unwrap_or_default();
-
-    if multi_l2 {
-        let fork_agglayer_2 = std::env::var("FORK_URL_AGGLAYER_2").unwrap_or_default();
-        println!("{}", "Fork URLs detected:".cyan());
-        println!("  Mainnet: {}", fork_mainnet.yellow());
-        println!("  AggLayer 1: {}", fork_agglayer_1.yellow());
-        println!("  AggLayer 2: {}", fork_agglayer_2.yellow());
-    } else {
-        println!("{}", "Fork URLs detected:".cyan());
-        println!("  Mainnet: {}", fork_mainnet.yellow());
-        println!("  AggLayer 1: {}", fork_agglayer_1.yellow());
-    }
-}
-
-fn stop_sandbox(volumes: bool) -> Result<()> {
-    use docker::{create_auto_docker_builder, execute_docker_command};
-
-    println!(
-        "{}",
-        "🛑 Stopping AggLayer sandbox environment..."
-            .yellow()
-            .bold()
-    );
-
-    // Create Docker builder that auto-detects configuration
-    let docker_builder = create_auto_docker_builder();
-    let cmd = docker_builder.build_down_command(volumes);
-
-    // Execute the stop command
-    if execute_docker_command(cmd, true).is_err() {
-        eprintln!("{}", "❌ Failed to stop sandbox".red());
-        std::process::exit(1);
-    } else {
-        println!("{}", "✅ Sandbox stopped successfully".green());
-    }
-
-    Ok(())
-}
-
-fn show_status() -> Result<()> {
-    use docker::{create_auto_docker_builder, execute_docker_command_with_output};
-
-    println!("{}", "📊 Sandbox service status:".blue().bold());
-
-    // Create Docker builder that auto-detects configuration
-    let docker_builder = create_auto_docker_builder();
-    let cmd = docker_builder.build_ps_command();
-
-    // Execute the status command and display output
-    match execute_docker_command_with_output(cmd) {
-        Ok(output) => {
-            print!("{output}");
-        }
-        Err(_) => {
-            eprintln!("{}", "❌ Failed to get service status".red());
-            std::process::exit(1);
-        }
-    }
-
-    Ok(())
-}
-
-fn show_logs(follow: bool, service: Option<String>) -> Result<()> {
-    use docker::{
-        create_auto_docker_builder, execute_docker_command, execute_docker_command_with_output,
-    };
-
-    // Validate service name if provided
-    let validated_service = if let Some(svc) = service {
-        Some(Validator::validate_service_name(&svc)?)
-    } else {
-        None
-    };
-
-    let service_name = validated_service.as_deref().unwrap_or("all services");
-    println!(
-        "{} {}",
-        "📋 Showing logs for:".blue().bold(),
-        service_name.cyan()
-    );
-
-    // Create Docker builder that auto-detects configuration
-    let mut docker_builder = create_auto_docker_builder();
-
-    // Add service if specified
-    if let Some(svc) = validated_service {
-        docker_builder.add_service(svc);
-    }
-
-    let cmd = docker_builder.build_logs_command(follow);
-
-    // Handle follow vs non-follow modes differently
-    if follow {
-        // For follow mode, we need real-time output
-        if execute_docker_command(cmd, false).is_err() {
-            eprintln!("{}", "❌ Failed to show logs".red());
-            std::process::exit(1);
-        }
-    } else {
-        // For non-follow mode, capture and display output
-        match execute_docker_command_with_output(cmd) {
-            Ok(output) => {
-                print!("{output}");
-            }
-            Err(_) => {
-                eprintln!("{}", "❌ Failed to show logs".red());
-                std::process::exit(1);
-            }
-        }
-    }
-
-    Ok(())
-}
-
-fn restart_sandbox() -> Result<()> {
-    println!(
-        "{}",
-        "🔄 Restarting AggLayer sandbox environment..."
-            .yellow()
-            .bold()
-    );
-
-    // First stop
-    stop_sandbox(false)?;
-
-    // Then start in basic local mode
-    start_sandbox(true, false, false, false)?;
-
-    println!("{}", "✅ Sandbox restarted successfully".green());
-
-    Ok(())
-}
-
-async fn show_info() -> Result<()> {
-    let config = Config::load()?;
-
-    println!("{}", "📋 AggLayer Sandbox Information".blue().bold());
-    logs::print_sandbox_info(&config);
-
-    Ok(())
-}
-
-async fn show_bridge_info(subcommand: ShowCommands) -> Result<()> {
-    let config = Config::load()?;
-
-    match subcommand {
-        ShowCommands::Bridges { network_id } => {
-            let response = api::get_bridges(&config, network_id).await?;
-            api::print_json_response("Bridge Information", &response.data);
-        }
-        ShowCommands::Claims { network_id } => {
-            let response = api::get_claims(&config, network_id).await?;
-            api::print_json_response("Claims Information", &response.data);
-        }
-        ShowCommands::ClaimProof {
-            network_id,
-            leaf_index,
-            deposit_count,
-        } => {
-            let response =
-                api::get_claim_proof(&config, network_id, leaf_index, deposit_count).await?;
-            api::print_json_response("Claim Proof Information", &response.data);
-        }
-        ShowCommands::L1InfoTreeIndex {
-            network_id,
-            deposit_count,
-        } => {
-            let response = api::get_l1_info_tree_index(&config, network_id, deposit_count).await?;
-            api::print_json_response("L1 Info Tree Index", &response.data);
-        }
-    }
-    Ok(())
 }

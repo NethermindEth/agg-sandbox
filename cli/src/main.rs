@@ -1,4 +1,3 @@
-use anyhow::{Context, Result};
 use clap::{Parser, Subcommand};
 use colored::*;
 use std::path::Path;
@@ -6,10 +5,12 @@ use std::path::Path;
 mod api;
 mod config;
 mod docker;
+mod error;
 mod events;
 mod logs;
 
 use config::Config;
+use error::Result;
 
 #[derive(Parser)]
 #[command(name = "aggsandbox")]
@@ -114,7 +115,14 @@ enum ShowCommands {
 }
 
 #[tokio::main]
-async fn main() -> Result<()> {
+async fn main() {
+    if let Err(e) = run().await {
+        print_error(&e);
+        std::process::exit(1);
+    }
+}
+
+async fn run() -> Result<()> {
     let cli = Cli::parse();
 
     // Ensure we're in the right directory (where docker-compose.yml exists)
@@ -156,6 +164,71 @@ async fn main() -> Result<()> {
     }
 }
 
+/// Print user-friendly error messages
+fn print_error(error: &error::AggSandboxError) {
+    eprintln!("{} {error}", "❌ Error:".red().bold());
+
+    // Provide additional context and suggestions based on error type
+    match error {
+        error::AggSandboxError::Config(config_err) => match config_err {
+            error::ConfigError::EnvVarNotFound(var) => {
+                eprintln!("{}", "💡 Suggestion:".yellow().bold());
+                eprintln!("   Set the environment variable in your .env file:");
+                eprintln!("   echo '{}=your_value' >> .env", var.cyan());
+            }
+            error::ConfigError::InvalidValue { key, .. } => {
+                eprintln!("{}", "💡 Suggestion:".yellow().bold());
+                eprintln!(
+                    "   Check the value for '{}' in your configuration",
+                    key.cyan()
+                );
+            }
+            _ => {}
+        },
+        error::AggSandboxError::Docker(docker_err) => match docker_err {
+            error::DockerError::ComposeFileNotFound(_) => {
+                eprintln!("{}", "💡 Suggestion:".yellow().bold());
+                eprintln!("   Make sure you're in the project root directory");
+                eprintln!("   Run: cd /path/to/agg-sandbox");
+            }
+            error::DockerError::CommandFailed { .. } => {
+                eprintln!("{}", "💡 Suggestion:".yellow().bold());
+                eprintln!("   • Check if Docker is running: docker --version");
+                eprintln!("   • Verify Docker Compose is installed: docker-compose --version");
+                eprintln!("   • Try stopping existing containers: aggsandbox stop");
+            }
+            _ => {}
+        },
+        error::AggSandboxError::Api(api_err) => match api_err {
+            error::ApiError::NetworkError(_) => {
+                eprintln!("{}", "💡 Suggestion:".yellow().bold());
+                eprintln!("   • Check if the sandbox is running: aggsandbox status");
+                eprintln!("   • Verify network connectivity");
+                eprintln!("   • Try starting the sandbox: aggsandbox start --detach");
+            }
+            error::ApiError::EndpointUnavailable(_) => {
+                eprintln!("{}", "💡 Suggestion:".yellow().bold());
+                eprintln!("   The API service may not be ready yet. Wait a moment and try again.");
+            }
+            _ => {}
+        },
+        error::AggSandboxError::Events(event_err) => match event_err {
+            error::EventError::InvalidChain(_chain) => {
+                eprintln!("{}", "💡 Suggestion:".yellow().bold());
+                eprintln!("   Valid chains: {}", "anvil-l1, anvil-l2, anvil-l3".cyan());
+                eprintln!("   Try: aggsandbox events --chain anvil-l1 --blocks 5");
+            }
+            error::EventError::RpcConnectionFailed(_) => {
+                eprintln!("{}", "💡 Suggestion:".yellow().bold());
+                eprintln!("   • Make sure the sandbox is running: aggsandbox status");
+                eprintln!("   • Check if the specified chain is available");
+            }
+            _ => {}
+        },
+        _ => {}
+    }
+}
+
 fn start_sandbox(detach: bool, build: bool, fork: bool, multi_l2: bool) -> Result<()> {
     use docker::{execute_docker_command, SandboxConfig};
 
@@ -185,9 +258,7 @@ fn start_sandbox(detach: bool, build: bool, fork: bool, multi_l2: bool) -> Resul
     }
 
     // Create Docker builder with proper configuration
-    let docker_builder = config
-        .create_docker_builder()
-        .context("Failed to create Docker configuration")?;
+    let docker_builder = config.create_docker_builder()?;
 
     // Build and execute Docker command
     let cmd = docker_builder.build_up_command(detach, build);

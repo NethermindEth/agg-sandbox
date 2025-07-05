@@ -1,4 +1,4 @@
-use anyhow::{Context, Result};
+use crate::error::{EventError, Result};
 use colored::*;
 use ethers::prelude::*;
 use std::collections::HashMap;
@@ -220,16 +220,15 @@ pub async fn fetch_and_display_events(
     }
 
     // Connect to the chain
-    let provider =
-        Provider::<Http>::try_from(&rpc_url).context("Failed to connect to RPC endpoint")?;
+    let provider = Provider::<Http>::try_from(&rpc_url)
+        .map_err(|e| EventError::rpc_connection_failed(&e.to_string()))?;
 
     let client = Arc::new(provider);
 
     // Get the latest block number
-    let latest_block = client
-        .get_block_number()
-        .await
-        .context("Failed to get latest block number")?;
+    let latest_block = client.get_block_number().await.map_err(|e| {
+        EventError::rpc_connection_failed(&format!("Failed to get latest block: {e}"))
+    })?;
 
     let from_block = if latest_block.as_u64() >= blocks {
         U64::from(latest_block.as_u64() - blocks + 1)
@@ -249,7 +248,7 @@ pub async fn fetch_and_display_events(
     if let Some(addr) = address {
         let address = addr
             .parse::<Address>()
-            .context("Invalid contract address format")?;
+            .map_err(|_| EventError::invalid_address(&addr))?;
         filter = filter.address(address);
     }
 
@@ -257,7 +256,7 @@ pub async fn fetch_and_display_events(
     let logs = client
         .get_logs(&filter)
         .await
-        .context("Failed to fetch logs from chain")?;
+        .map_err(|e| EventError::rpc_connection_failed(&format!("Failed to fetch events: {e}")))?;
 
     if logs.is_empty() {
         println!("{}", "📭 No events found in the specified range".yellow());
@@ -652,10 +651,7 @@ fn get_rpc_url(chain: &str) -> Result<String> {
             std::env::var("RPC_3").unwrap_or_else(|_| "http://localhost:8547".to_string())
         }
         _ => {
-            return Err(anyhow::anyhow!(
-                "Invalid chain '{}'. Supported chains: anvil-l1, anvil-l2, anvil-l3",
-                chain
-            ));
+            return Err(EventError::invalid_chain(chain).into());
         }
     };
 

@@ -1,4 +1,4 @@
-use anyhow::{Context, Result};
+use crate::error::{DockerError, Result};
 use std::collections::HashMap;
 use std::path::Path;
 use std::process::Command;
@@ -180,24 +180,27 @@ impl SandboxConfig {
         let fork_agglayer_1 = std::env::var("FORK_URL_AGGLAYER_1").unwrap_or_default();
 
         if fork_mainnet.is_empty() {
-            return Err(anyhow::anyhow!(
-                "FORK_URL_MAINNET environment variable is not set"
-            ));
+            return Err(DockerError::compose_validation_failed(
+                "FORK_URL_MAINNET environment variable is not set",
+            )
+            .into());
         }
 
         if fork_agglayer_1.is_empty() {
-            return Err(anyhow::anyhow!(
-                "FORK_URL_AGGLAYER_1 environment variable is not set"
-            ));
+            return Err(DockerError::compose_validation_failed(
+                "FORK_URL_AGGLAYER_1 environment variable is not set",
+            )
+            .into());
         }
 
         // Additional validation for multi-L2 fork mode
         if self.multi_l2_mode {
             let fork_agglayer_2 = std::env::var("FORK_URL_AGGLAYER_2").unwrap_or_default();
             if fork_agglayer_2.is_empty() {
-                return Err(anyhow::anyhow!(
-                    "FORK_URL_AGGLAYER_2 environment variable is not set for multi-L2 fork mode"
-                ));
+                return Err(DockerError::compose_validation_failed(
+                    "FORK_URL_AGGLAYER_2 environment variable is not set for multi-L2 fork mode",
+                )
+                .into());
             }
         }
 
@@ -270,25 +273,30 @@ pub fn execute_docker_command(mut command: Command, capture_output: bool) -> Res
         // Capture output for detached operations
         let output = command
             .output()
-            .context("Failed to execute docker-compose command")?;
+            .map_err(|e| DockerError::command_failed("docker-compose", &e.to_string()))?;
 
         if !output.status.success() {
+            let stderr_output = String::from_utf8_lossy(&output.stderr);
             if !output.stdout.is_empty() {
                 print!("{}", String::from_utf8_lossy(&output.stdout));
             }
-            if !output.stderr.is_empty() {
-                eprint!("{}", String::from_utf8_lossy(&output.stderr));
+            if !stderr_output.is_empty() {
+                eprint!("{stderr_output}");
             }
-            return Err(anyhow::anyhow!("Docker command failed"));
+            return Err(DockerError::command_failed("docker-compose", &stderr_output).into());
         }
     } else {
         // Run in foreground with real-time output
         let status = command
             .status()
-            .context("Failed to execute docker-compose command")?;
+            .map_err(|e| DockerError::command_failed("docker-compose", &e.to_string()))?;
 
         if !status.success() {
-            return Err(anyhow::anyhow!("Docker command failed"));
+            return Err(DockerError::command_failed(
+                "docker-compose",
+                "Command exited with non-zero status",
+            )
+            .into());
         }
     }
 
@@ -299,13 +307,14 @@ pub fn execute_docker_command(mut command: Command, capture_output: bool) -> Res
 pub fn execute_docker_command_with_output(mut command: Command) -> Result<String> {
     let output = command
         .output()
-        .context("Failed to execute docker-compose command")?;
+        .map_err(|e| DockerError::command_failed("docker-compose", &e.to_string()))?;
 
     if !output.status.success() {
-        if !output.stderr.is_empty() {
-            eprint!("{}", String::from_utf8_lossy(&output.stderr));
+        let stderr_output = String::from_utf8_lossy(&output.stderr);
+        if !stderr_output.is_empty() {
+            eprint!("{stderr_output}");
         }
-        return Err(anyhow::anyhow!("Docker command failed"));
+        return Err(DockerError::command_failed("docker-compose", &stderr_output).into());
     }
 
     Ok(String::from_utf8_lossy(&output.stdout).to_string())

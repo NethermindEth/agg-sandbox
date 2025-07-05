@@ -1,4 +1,4 @@
-use anyhow::{Context, Result};
+use crate::error::{ConfigError, Result};
 use std::collections::HashMap;
 use std::path::Path;
 use std::time::Duration;
@@ -96,13 +96,15 @@ impl Config {
                 if let Some(l3) = &self.networks.l3 {
                     Ok(l3.rpc_url.clone())
                 } else {
-                    Err(anyhow::anyhow!("L3 chain not configured"))
+                    Err(ConfigError::missing_required("L3 chain configuration").into())
                 }
             }
-            _ => Err(anyhow::anyhow!(
-                "Invalid chain '{}'. Supported chains: anvil-l1, anvil-l2, anvil-l3",
-                chain
-            )),
+            _ => Err(ConfigError::invalid_value(
+                "chain",
+                chain,
+                "Supported chains: anvil-l1, anvil-l2, anvil-l3",
+            )
+            .into()),
         }
     }
 
@@ -116,12 +118,23 @@ impl Config {
 impl ApiConfig {
     fn load() -> Result<Self> {
         let base_url = get_env_var("API_BASE_URL", "http://localhost:5577");
-        let timeout_ms = get_env_var("API_TIMEOUT_MS", "30000")
-            .parse::<u64>()
-            .context("Invalid API_TIMEOUT_MS value")?;
-        let retry_attempts = get_env_var("API_RETRY_ATTEMPTS", "3")
-            .parse::<u32>()
-            .context("Invalid API_RETRY_ATTEMPTS value")?;
+        let timeout_ms_str = get_env_var("API_TIMEOUT_MS", "30000");
+        let timeout_ms = timeout_ms_str.parse::<u64>().map_err(|_| {
+            ConfigError::invalid_value(
+                "API_TIMEOUT_MS",
+                &timeout_ms_str,
+                "must be a valid number in milliseconds",
+            )
+        })?;
+
+        let retry_attempts_str = get_env_var("API_RETRY_ATTEMPTS", "3");
+        let retry_attempts = retry_attempts_str.parse::<u32>().map_err(|_| {
+            ConfigError::invalid_value(
+                "API_RETRY_ATTEMPTS",
+                &retry_attempts_str,
+                "must be a valid positive number",
+            )
+        })?;
 
         Ok(ApiConfig {
             base_url,
@@ -285,28 +298,23 @@ impl Config {
     #[allow(dead_code)]
     pub fn validate_fork_mode(&self, multi_l2: bool) -> Result<()> {
         if self.networks.l1.fork_url.is_none() {
-            return Err(anyhow::anyhow!(
-                "FORK_URL_MAINNET environment variable is not set"
-            ));
+            return Err(ConfigError::env_var_not_found("FORK_URL_MAINNET").into());
         }
 
         if self.networks.l2.fork_url.is_none() {
-            return Err(anyhow::anyhow!(
-                "FORK_URL_AGGLAYER_1 environment variable is not set"
-            ));
+            return Err(ConfigError::env_var_not_found("FORK_URL_AGGLAYER_1").into());
         }
 
         if multi_l2 {
             if let Some(l3) = &self.networks.l3 {
                 if l3.fork_url.is_none() {
-                    return Err(anyhow::anyhow!(
-                        "FORK_URL_AGGLAYER_2 environment variable is not set for multi-L2 fork mode"
-                    ));
+                    return Err(ConfigError::env_var_not_found("FORK_URL_AGGLAYER_2").into());
                 }
             } else {
-                return Err(anyhow::anyhow!(
-                    "Multi-L2 mode requested but L3 configuration not available"
-                ));
+                return Err(ConfigError::validation_failed(
+                    "Multi-L2 mode requested but L3 configuration not available",
+                )
+                .into());
             }
         }
 

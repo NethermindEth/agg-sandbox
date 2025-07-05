@@ -1,4 +1,4 @@
-use anyhow::{Context, Result};
+use crate::error::{ApiError, Result};
 use colored::*;
 use serde::Deserialize;
 
@@ -45,19 +45,21 @@ pub async fn get_bridges(config: &Config, network_id: u64) -> Result<BridgeRespo
         .get(&url)
         .send()
         .await
-        .context("Failed to send request to bridges endpoint")?;
+        .map_err(|e| ApiError::network_error(&e.to_string()))?;
 
     if !response.status().is_success() {
-        return Err(anyhow::anyhow!(
-            "API request failed with status: {}",
-            response.status()
-        ));
+        return Err(ApiError::request_failed(
+            &url,
+            response.status().as_u16(),
+            "Bridges endpoint request failed",
+        )
+        .into());
     }
 
     let bridge_data: serde_json::Value = response
         .json()
         .await
-        .context("Failed to parse bridges response as JSON")?;
+        .map_err(|e| ApiError::json_parse_error(&e.to_string()))?;
 
     Ok(BridgeResponse { data: bridge_data })
 }
@@ -79,19 +81,21 @@ pub async fn get_claims(config: &Config, network_id: u64) -> Result<ClaimRespons
         .get(&url)
         .send()
         .await
-        .context("Failed to send request to claims endpoint")?;
+        .map_err(|e| ApiError::network_error(&e.to_string()))?;
 
     if !response.status().is_success() {
-        return Err(anyhow::anyhow!(
-            "API request failed with status: {}",
-            response.status()
-        ));
+        return Err(ApiError::request_failed(
+            &url,
+            response.status().as_u16(),
+            "Claims endpoint request failed",
+        )
+        .into());
     }
 
     let claim_data: serde_json::Value = response
         .json()
         .await
-        .context("Failed to parse claims response as JSON")?;
+        .map_err(|e| ApiError::json_parse_error(&e.to_string()))?;
 
     Ok(ClaimResponse { data: claim_data })
 }
@@ -121,19 +125,21 @@ pub async fn get_claim_proof(
         .get(&url)
         .send()
         .await
-        .context("Failed to send request to claim-proof endpoint")?;
+        .map_err(|e| ApiError::network_error(&e.to_string()))?;
 
     if !response.status().is_success() {
-        return Err(anyhow::anyhow!(
-            "API request failed with status: {}",
-            response.status()
-        ));
+        return Err(ApiError::request_failed(
+            &url,
+            response.status().as_u16(),
+            "Claim-proof endpoint request failed",
+        )
+        .into());
     }
 
     let proof_data: serde_json::Value = response
         .json()
         .await
-        .context("Failed to parse claim-proof response as JSON")?;
+        .map_err(|e| ApiError::json_parse_error(&e.to_string()))?;
 
     Ok(ClaimProofResponse { data: proof_data })
 }
@@ -162,19 +168,21 @@ pub async fn get_l1_info_tree_index(
         .get(&url)
         .send()
         .await
-        .context("Failed to send request to l1-info-tree-index endpoint")?;
+        .map_err(|e| ApiError::network_error(&e.to_string()))?;
 
     if !response.status().is_success() {
-        return Err(anyhow::anyhow!(
-            "API request failed with status: {}",
-            response.status()
-        ));
+        return Err(ApiError::request_failed(
+            &url,
+            response.status().as_u16(),
+            "L1-info-tree-index endpoint request failed",
+        )
+        .into());
     }
 
     let info_data: serde_json::Value = response
         .json()
         .await
-        .context("Failed to parse l1-info-tree-index response as JSON")?;
+        .map_err(|e| ApiError::json_parse_error(&e.to_string()))?;
 
     Ok(L1InfoTreeIndexResponse { data: info_data })
 }

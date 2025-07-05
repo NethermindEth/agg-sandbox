@@ -5,3 +5,7 @@
 *.log
 
 cli/target/
+
+# Claude Code configuration files
+CLAUDE.md
+.claude/

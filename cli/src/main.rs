@@ -2,9 +2,9 @@ use anyhow::{Context, Result};
 use clap::{Parser, Subcommand};
 use colored::*;
 use std::path::Path;
-use std::process::Command;
 
 mod api;
+mod docker;
 mod events;
 mod logs;
 
@@ -157,143 +157,49 @@ async fn main() -> Result<()> {
 }
 
 fn start_sandbox(detach: bool, build: bool, fork: bool, multi_l2: bool) -> Result<()> {
-    // Determine mode for messaging
-    let mode_str = match (fork, multi_l2) {
-        (true, true) => "multi-L2 fork mode",
-        (true, false) => "fork mode",
-        (false, true) => "multi-L2 mode",
-        (false, false) => "local mode",
-    };
+    use docker::{execute_docker_command, SandboxConfig};
+
+    // Create sandbox configuration
+    let config = SandboxConfig::new(fork, multi_l2);
 
     println!(
         "{}",
-        format!("🚀 Starting AggLayer sandbox environment in {mode_str}...")
-            .green()
-            .bold()
+        format!(
+            "🚀 Starting AggLayer sandbox environment in {}...",
+            config.mode_description()
+        )
+        .green()
+        .bold()
     );
 
-    // Fork mode validation
+    // Validate fork mode configuration
+    if let Err(e) = config.validate_fork_config() {
+        eprintln!("{}", format!("❌ {e}").red());
+        eprintln!("{}", "Please set the fork URLs in your .env file".yellow());
+        std::process::exit(1);
+    }
+
+    // Display fork URLs if in fork mode
     if fork {
-        let fork_mainnet = std::env::var("FORK_URL_MAINNET").unwrap_or_default();
-        let fork_agglayer_1 = std::env::var("FORK_URL_AGGLAYER_1").unwrap_or_default();
-
-        if fork_mainnet.is_empty() {
-            eprintln!(
-                "{}",
-                "❌ FORK_URL_MAINNET environment variable is not set".red()
-            );
-            eprintln!("{}", "Please set the fork URLs in your .env file".yellow());
-            std::process::exit(1);
-        }
-
-        if fork_agglayer_1.is_empty() {
-            eprintln!(
-                "{}",
-                "❌ FORK_URL_AGGLAYER_1 environment variable is not set".red()
-            );
-            eprintln!("{}", "Please set the fork URLs in your .env file".yellow());
-            std::process::exit(1);
-        }
-
-        // Additional validation for multi-L2 fork mode
-        if multi_l2 {
-            let fork_agglayer_2 = std::env::var("FORK_URL_AGGLAYER_2").unwrap_or_default();
-            if fork_agglayer_2.is_empty() {
-                eprintln!(
-                    "{}",
-                    "❌ FORK_URL_AGGLAYER_2 environment variable is not set".red()
-                );
-                eprintln!(
-                    "{}",
-                    "Please set the fork URLs in your .env file for the second L2 chain".yellow()
-                );
-                std::process::exit(1);
-            }
-            println!("{}", "Fork URLs detected:".cyan());
-            println!("  Mainnet: {}", fork_mainnet.yellow());
-            println!("  AggLayer 1: {}", fork_agglayer_1.yellow());
-            println!("  AggLayer 2: {}", fork_agglayer_2.yellow());
-        } else {
-            println!("{}", "Fork URLs detected:".cyan());
-            println!("  Mainnet: {}", fork_mainnet.yellow());
-            println!("  AggLayer 1: {}", fork_agglayer_1.yellow());
-        }
+        display_fork_urls(multi_l2);
     }
 
-    let mut cmd = Command::new("docker-compose");
+    // Create Docker builder with proper configuration
+    let docker_builder = config
+        .create_docker_builder()
+        .context("Failed to create Docker configuration")?;
 
-    // Add compose files based on mode
-    if multi_l2 {
-        cmd.arg("-f").arg("docker-compose.yml");
-        cmd.arg("-f").arg("docker-compose.multi-l2.yml");
-    }
-
-    cmd.arg("up");
+    // Build and execute Docker command
+    let cmd = docker_builder.build_up_command(detach, build);
 
     if detach {
-        cmd.arg("-d");
-    }
-
-    if build {
-        cmd.arg("--build");
-    }
-
-    // Set environment variables based on mode
-    if fork {
-        cmd.env("ENABLE_FORK_MODE", "true");
-        cmd.env(
-            "FORK_URL_MAINNET",
-            std::env::var("FORK_URL_MAINNET").unwrap_or_default(),
-        );
-        cmd.env(
-            "FORK_URL_AGGLAYER_1",
-            std::env::var("FORK_URL_AGGLAYER_1").unwrap_or_default(),
-        );
-        if multi_l2 {
-            cmd.env(
-                "FORK_URL_AGGLAYER_2",
-                std::env::var("FORK_URL_AGGLAYER_2").unwrap_or_default(),
-            );
-        }
-    } else {
-        cmd.env("ENABLE_FORK_MODE", "false");
-    }
-
-    // Set chain IDs
-    cmd.env(
-        "CHAIN_ID_MAINNET",
-        std::env::var("CHAIN_ID_MAINNET").unwrap_or_else(|_| "1".to_string()),
-    );
-    cmd.env(
-        "CHAIN_ID_AGGLAYER_1",
-        std::env::var("CHAIN_ID_AGGLAYER_1").unwrap_or_else(|_| "1101".to_string()),
-    );
-    if multi_l2 {
-        cmd.env(
-            "CHAIN_ID_AGGLAYER_2",
-            std::env::var("CHAIN_ID_AGGLAYER_2").unwrap_or_else(|_| "1102".to_string()),
-        );
-    }
-
-    // Handle detached vs non-detached mode differently
-    if detach {
-        // In detached mode, capture output to ensure consistent behavior across platforms
-        let output = cmd
-            .output()
-            .context("Failed to execute docker-compose up")?;
-
-        // Only show output if there's an error
-        if !output.status.success() {
-            if !output.stdout.is_empty() {
-                print!("{}", String::from_utf8_lossy(&output.stdout));
-            }
-            if !output.stderr.is_empty() {
-                eprint!("{}", String::from_utf8_lossy(&output.stderr));
-            }
+        // Execute in detached mode
+        if execute_docker_command(cmd, true).is_err() {
             eprintln!("{}", "❌ Failed to start sandbox".red());
             std::process::exit(1);
         }
 
+        // Display success message
         let success_msg = match (fork, multi_l2) {
             (true, true) => "✅ Multi-L2 sandbox started in fork mode (detached)",
             (true, false) => "✅ Sandbox started in fork mode (detached)",
@@ -309,26 +215,41 @@ fn start_sandbox(detach: bool, build: bool, fork: bool, multi_l2: bool) -> Resul
             (false, false) => logs::print_sandbox_info(),
         }
     } else {
-        // In non-detached mode, run in foreground with real-time output
+        // Run in foreground mode
         println!("{}", "Starting services in foreground mode...".cyan());
         println!("{}", "Press Ctrl+C to stop the sandbox".yellow());
 
-        let status = cmd
-            .status()
-            .context("Failed to execute docker-compose up")?;
-
-        if status.success() {
-            println!("{}", "✅ Sandbox stopped".green());
-        } else {
+        if execute_docker_command(cmd, false).is_err() {
             eprintln!("{}", "❌ Failed to start sandbox".red());
             std::process::exit(1);
+        } else {
+            println!("{}", "✅ Sandbox stopped".green());
         }
     }
 
     Ok(())
 }
 
+fn display_fork_urls(multi_l2: bool) {
+    let fork_mainnet = std::env::var("FORK_URL_MAINNET").unwrap_or_default();
+    let fork_agglayer_1 = std::env::var("FORK_URL_AGGLAYER_1").unwrap_or_default();
+
+    if multi_l2 {
+        let fork_agglayer_2 = std::env::var("FORK_URL_AGGLAYER_2").unwrap_or_default();
+        println!("{}", "Fork URLs detected:".cyan());
+        println!("  Mainnet: {}", fork_mainnet.yellow());
+        println!("  AggLayer 1: {}", fork_agglayer_1.yellow());
+        println!("  AggLayer 2: {}", fork_agglayer_2.yellow());
+    } else {
+        println!("{}", "Fork URLs detected:".cyan());
+        println!("  Mainnet: {}", fork_mainnet.yellow());
+        println!("  AggLayer 1: {}", fork_agglayer_1.yellow());
+    }
+}
+
 fn stop_sandbox(volumes: bool) -> Result<()> {
+    use docker::{create_auto_docker_builder, execute_docker_command};
+
     println!(
         "{}",
         "🛑 Stopping AggLayer sandbox environment..."
@@ -336,34 +257,12 @@ fn stop_sandbox(volumes: bool) -> Result<()> {
             .bold()
     );
 
-    // Try to stop both regular and multi-L2 configurations
-    let mut cmd = Command::new("docker-compose");
-    cmd.arg("-f").arg("docker-compose.yml");
+    // Create Docker builder that auto-detects configuration
+    let docker_builder = create_auto_docker_builder();
+    let cmd = docker_builder.build_down_command(volumes);
 
-    // Check if multi-L2 compose file exists and add it
-    if Path::new("docker-compose.multi-l2.yml").exists() {
-        cmd.arg("-f").arg("docker-compose.multi-l2.yml");
-    }
-
-    cmd.arg("down");
-
-    if volumes {
-        cmd.arg("-v");
-    }
-
-    // Capture output to ensure consistent behavior across platforms
-    let output = cmd
-        .output()
-        .context("Failed to execute docker-compose down")?;
-
-    // Only show output if there's an error (suppress verbose success logs)
-    if !output.status.success() {
-        if !output.stdout.is_empty() {
-            print!("{}", String::from_utf8_lossy(&output.stdout));
-        }
-        if !output.stderr.is_empty() {
-            eprint!("{}", String::from_utf8_lossy(&output.stderr));
-        }
+    // Execute the stop command
+    if execute_docker_command(cmd, true).is_err() {
         eprintln!("{}", "❌ Failed to stop sandbox".red());
         std::process::exit(1);
     } else {
@@ -374,39 +273,33 @@ fn stop_sandbox(volumes: bool) -> Result<()> {
 }
 
 fn show_status() -> Result<()> {
+    use docker::{create_auto_docker_builder, execute_docker_command_with_output};
+
     println!("{}", "📊 Sandbox service status:".blue().bold());
 
-    let mut cmd = Command::new("docker-compose");
-    cmd.arg("-f").arg("docker-compose.yml");
+    // Create Docker builder that auto-detects configuration
+    let docker_builder = create_auto_docker_builder();
+    let cmd = docker_builder.build_ps_command();
 
-    // Check if multi-L2 compose file exists and add it
-    if Path::new("docker-compose.multi-l2.yml").exists() {
-        cmd.arg("-f").arg("docker-compose.multi-l2.yml");
-    }
-
-    cmd.arg("ps");
-
-    let output = cmd
-        .output()
-        .context("Failed to execute docker-compose ps")?;
-
-    // Print stdout and stderr to ensure Docker output is shown
-    if !output.stdout.is_empty() {
-        print!("{}", String::from_utf8_lossy(&output.stdout));
-    }
-    if !output.stderr.is_empty() {
-        eprint!("{}", String::from_utf8_lossy(&output.stderr));
-    }
-
-    if !output.status.success() {
-        eprintln!("{}", "❌ Failed to get service status".red());
-        std::process::exit(1);
+    // Execute the status command and display output
+    match execute_docker_command_with_output(cmd) {
+        Ok(output) => {
+            print!("{output}");
+        }
+        Err(_) => {
+            eprintln!("{}", "❌ Failed to get service status".red());
+            std::process::exit(1);
+        }
     }
 
     Ok(())
 }
 
 fn show_logs(follow: bool, service: Option<String>) -> Result<()> {
+    use docker::{
+        create_auto_docker_builder, execute_docker_command, execute_docker_command_with_output,
+    };
+
     let service_name = service.as_deref().unwrap_or("all services");
     println!(
         "{} {}",
@@ -414,51 +307,33 @@ fn show_logs(follow: bool, service: Option<String>) -> Result<()> {
         service_name.cyan()
     );
 
-    let mut cmd = Command::new("docker-compose");
-    cmd.arg("-f").arg("docker-compose.yml");
+    // Create Docker builder that auto-detects configuration
+    let mut docker_builder = create_auto_docker_builder();
 
-    // Check if multi-L2 compose file exists and add it
-    if Path::new("docker-compose.multi-l2.yml").exists() {
-        cmd.arg("-f").arg("docker-compose.multi-l2.yml");
-    }
-
-    cmd.arg("logs");
-
-    if follow {
-        cmd.arg("-f");
-    }
-
+    // Add service if specified
     if let Some(svc) = service {
-        cmd.arg(svc);
+        docker_builder.add_service(svc);
     }
 
-    // For logs command, especially with --follow, we need to inherit stdio for real-time output
-    if follow {
-        let status = cmd
-            .status()
-            .context("Failed to execute docker-compose logs")?;
+    let cmd = docker_builder.build_logs_command(follow);
 
-        if !status.success() {
+    // Handle follow vs non-follow modes differently
+    if follow {
+        // For follow mode, we need real-time output
+        if execute_docker_command(cmd, false).is_err() {
             eprintln!("{}", "❌ Failed to show logs".red());
             std::process::exit(1);
         }
     } else {
-        // For non-follow logs, capture output for consistent behavior
-        let output = cmd
-            .output()
-            .context("Failed to execute docker-compose logs")?;
-
-        // Print stdout and stderr to ensure Docker output is shown
-        if !output.stdout.is_empty() {
-            print!("{}", String::from_utf8_lossy(&output.stdout));
-        }
-        if !output.stderr.is_empty() {
-            eprint!("{}", String::from_utf8_lossy(&output.stderr));
-        }
-
-        if !output.status.success() {
-            eprintln!("{}", "❌ Failed to show logs".red());
-            std::process::exit(1);
+        // For non-follow mode, capture and display output
+        match execute_docker_command_with_output(cmd) {
+            Ok(output) => {
+                print!("{output}");
+            }
+            Err(_) => {
+                eprintln!("{}", "❌ Failed to show logs".red());
+                std::process::exit(1);
+            }
         }
     }
 

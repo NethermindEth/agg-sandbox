@@ -275,7 +275,7 @@ aggsandbox show claim-proof --network-id 1101 --leaf-index 0 --deposit-count 1
 Claim the bridged tokens back on L1:
 
 ```bash
-cast send $POLYGON_ZKEVM_BRIDGE_L1 "claimAsset(uint256,bytes32,bytes32,uint32,address,uint32,address,uint256,bytes)" 1 0x50b0cc5cad7791d8f04f43e13c74b4849b42497b1b17185e6641265c98daa686 0x0000000000000000000000000000000000000000000000000000000000000000 1101 $AGG_ERC20_L1 1 $ACCOUNT_ADDRESS_1 10 0x --private-key $PRIVATE_KEY_1 --rpc-url $RPC_1 --gas-limit 3000000
+cast send $POLYGON_ZKEVM_BRIDGE_L1 "claimAsset(uint256,bytes32,bytes32,uint32,address,uint32,address,uint256,bytes)" 0 0x50b0cc5cad7791d8f04f43e13c74b4849b42497b1b17185e6641265c98daa686 0x0000000000000000000000000000000000000000000000000000000000000000 1 $AGG_ERC20_L1 1 $ACCOUNT_ADDRESS_1 10 0x --private-key $PRIVATE_KEY_1 --rpc-url $RPC_1 --gas-limit 3000000
 ```
 
 **Explanation**: This claims the tokens back on L1. Note the parameter changes:

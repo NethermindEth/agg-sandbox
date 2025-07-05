@@ -2,6 +2,8 @@ use anyhow::{Context, Result};
 use colored::*;
 use serde::Deserialize;
 
+use super::config::Config;
+
 #[derive(Debug, Deserialize)]
 pub struct BridgeResponse {
     #[serde(flatten)]
@@ -26,11 +28,12 @@ pub struct L1InfoTreeIndexResponse {
     pub data: serde_json::Value,
 }
 
-const BASE_URL: &str = "http://localhost:5577";
-
-pub async fn get_bridges(network_id: u64) -> Result<BridgeResponse> {
+pub async fn get_bridges(config: &Config, network_id: u64) -> Result<BridgeResponse> {
     let client = reqwest::Client::new();
-    let url = format!("{BASE_URL}/bridge/v1/bridges?network_id={network_id}");
+    let url = format!(
+        "{}/bridge/v1/bridges?network_id={network_id}",
+        config.api.base_url
+    );
 
     println!(
         "{}",
@@ -59,9 +62,12 @@ pub async fn get_bridges(network_id: u64) -> Result<BridgeResponse> {
     Ok(BridgeResponse { data: bridge_data })
 }
 
-pub async fn get_claims(network_id: u64) -> Result<ClaimResponse> {
+pub async fn get_claims(config: &Config, network_id: u64) -> Result<ClaimResponse> {
     let client = reqwest::Client::new();
-    let url = format!("{BASE_URL}/bridge/v1/claims?network_id={network_id}");
+    let url = format!(
+        "{}/bridge/v1/claims?network_id={network_id}",
+        config.api.base_url
+    );
 
     println!(
         "{}",
@@ -91,13 +97,15 @@ pub async fn get_claims(network_id: u64) -> Result<ClaimResponse> {
 }
 
 pub async fn get_claim_proof(
+    config: &Config,
     network_id: u64,
     leaf_index: u64,
     deposit_count: u64,
 ) -> Result<ClaimProofResponse> {
     let client = reqwest::Client::new();
     let url = format!(
-        "{BASE_URL}/bridge/v1/claim-proof?network_id={network_id}&leaf_index={leaf_index}&deposit_count={deposit_count}"
+        "{}/bridge/v1/claim-proof?network_id={network_id}&leaf_index={leaf_index}&deposit_count={deposit_count}",
+        config.api.base_url
     );
 
     println!(
@@ -131,12 +139,14 @@ pub async fn get_claim_proof(
 }
 
 pub async fn get_l1_info_tree_index(
+    config: &Config,
     network_id: u64,
     deposit_count: u64,
 ) -> Result<L1InfoTreeIndexResponse> {
     let client = reqwest::Client::new();
     let url = format!(
-        "{BASE_URL}/bridge/v1/l1-info-tree-index?network_id={network_id}&deposit_count={deposit_count}"
+        "{}/bridge/v1/l1-info-tree-index?network_id={network_id}&deposit_count={deposit_count}",
+        config.api.base_url
     );
 
     println!(

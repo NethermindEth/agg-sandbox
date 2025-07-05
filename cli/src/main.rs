@@ -4,9 +4,12 @@ use colored::*;
 use std::path::Path;
 
 mod api;
+mod config;
 mod docker;
 mod events;
 mod logs;
+
+use config::Config;
 
 #[derive(Parser)]
 #[command(name = "aggsandbox")]
@@ -143,10 +146,7 @@ async fn main() -> Result<()> {
         Commands::Status => show_status(),
         Commands::Logs { follow, service } => show_logs(follow, service),
         Commands::Restart => restart_sandbox(),
-        Commands::Info => {
-            show_info();
-            Ok(())
-        }
+        Commands::Info => show_info().await,
         Commands::Show { subcommand } => show_bridge_info(subcommand).await,
         Commands::Events {
             chain,
@@ -208,11 +208,13 @@ fn start_sandbox(detach: bool, build: bool, fork: bool, multi_l2: bool) -> Resul
         };
         println!("{}", success_msg.green());
 
-        // Print appropriate info
-        match (fork, multi_l2) {
-            (_, true) => logs::print_multi_l2_info(fork),
-            (true, false) => logs::print_sandbox_fork_info(),
-            (false, false) => logs::print_sandbox_info(),
+        // Load config and print appropriate info
+        if let Ok(config) = Config::load() {
+            match (fork, multi_l2) {
+                (_, true) => logs::print_multi_l2_info(&config, fork),
+                (true, false) => logs::print_sandbox_fork_info(&config),
+                (false, false) => logs::print_sandbox_info(&config),
+            }
         }
     } else {
         // Run in foreground mode
@@ -359,19 +361,25 @@ fn restart_sandbox() -> Result<()> {
     Ok(())
 }
 
-fn show_info() {
+async fn show_info() -> Result<()> {
+    let config = Config::load()?;
+
     println!("{}", "📋 AggLayer Sandbox Information".blue().bold());
-    logs::print_sandbox_info();
+    logs::print_sandbox_info(&config);
+
+    Ok(())
 }
 
 async fn show_bridge_info(subcommand: ShowCommands) -> Result<()> {
+    let config = Config::load()?;
+
     match subcommand {
         ShowCommands::Bridges { network_id } => {
-            let response = api::get_bridges(network_id).await?;
+            let response = api::get_bridges(&config, network_id).await?;
             api::print_json_response("Bridge Information", &response.data);
         }
         ShowCommands::Claims { network_id } => {
-            let response = api::get_claims(network_id).await?;
+            let response = api::get_claims(&config, network_id).await?;
             api::print_json_response("Claims Information", &response.data);
         }
         ShowCommands::ClaimProof {
@@ -379,14 +387,15 @@ async fn show_bridge_info(subcommand: ShowCommands) -> Result<()> {
             leaf_index,
             deposit_count,
         } => {
-            let response = api::get_claim_proof(network_id, leaf_index, deposit_count).await?;
+            let response =
+                api::get_claim_proof(&config, network_id, leaf_index, deposit_count).await?;
             api::print_json_response("Claim Proof Information", &response.data);
         }
         ShowCommands::L1InfoTreeIndex {
             network_id,
             deposit_count,
         } => {
-            let response = api::get_l1_info_tree_index(network_id, deposit_count).await?;
+            let response = api::get_l1_info_tree_index(&config, network_id, deposit_count).await?;
             api::print_json_response("L1 Info Tree Index", &response.data);
         }
     }

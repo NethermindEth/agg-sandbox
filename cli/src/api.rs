@@ -1,8 +1,9 @@
-use crate::error::{ApiError, Result};
+use crate::api_client::OptimizedApiClient;
+use crate::error::Result;
 use crate::validation::Validator;
 use colored::*;
 use serde::Deserialize;
-use tracing::{debug, error, info, instrument};
+use tracing::{debug, info, instrument};
 
 use super::config::Config;
 
@@ -36,52 +37,19 @@ pub async fn get_bridges(config: &Config, network_id: u64) -> Result<BridgeRespo
     debug!(network_id = network_id, "Validating network ID");
     let validated_network_id = Validator::validate_network_id(network_id)?;
 
-    let client = reqwest::Client::new();
-    let url = format!(
-        "{}/bridge/v1/bridges?network_id={validated_network_id}",
-        config.api.base_url
-    );
-
     info!(
         network_id = validated_network_id,
-        url = %url,
-        "Fetching bridges from API"
+        "Fetching bridges from API with caching"
     );
 
     println!(
         "{}",
         format!("🔍 Fetching bridges for network_id: {validated_network_id}").cyan()
     );
-    println!("{}", format!("📡 URL: {url}").dimmed());
 
-    debug!("Sending HTTP GET request");
-    let response = client.get(&url).send().await.map_err(|e| {
-        error!(error = %e, url = %url, "HTTP request failed");
-        ApiError::network_error(&e.to_string())
-    })?;
-
-    let status = response.status();
-    debug!(status = %status, "Received HTTP response");
-
-    if !status.is_success() {
-        error!(
-            status = %status,
-            url = %url,
-            "API request failed with non-success status"
-        );
-        return Err(ApiError::request_failed(
-            &url,
-            status.as_u16(),
-            "Bridges endpoint request failed",
-        )
-        .into());
-    }
-
-    debug!("Parsing JSON response");
-    let bridge_data: serde_json::Value = response.json().await.map_err(|e| {
-        error!(error = %e, "Failed to parse JSON response");
-        ApiError::json_parse_error(&e.to_string())
-    })?;
+    // Use the optimized client with caching and connection pooling
+    let client = OptimizedApiClient::global();
+    let bridge_data = client.get_bridges(config, validated_network_id).await?;
 
     info!(
         bridges_count = bridge_data.as_object().map(|o| o.len()).unwrap_or(0),
@@ -95,37 +63,14 @@ pub async fn get_claims(config: &Config, network_id: u64) -> Result<ClaimRespons
     // Validate network ID
     let validated_network_id = Validator::validate_network_id(network_id)?;
 
-    let client = reqwest::Client::new();
-    let url = format!(
-        "{}/bridge/v1/claims?network_id={validated_network_id}",
-        config.api.base_url
-    );
-
     println!(
         "{}",
         format!("🔍 Fetching claims for network_id: {validated_network_id}").cyan()
     );
-    println!("{}", format!("📡 URL: {url}").dimmed());
 
-    let response = client
-        .get(&url)
-        .send()
-        .await
-        .map_err(|e| ApiError::network_error(&e.to_string()))?;
-
-    if !response.status().is_success() {
-        return Err(ApiError::request_failed(
-            &url,
-            response.status().as_u16(),
-            "Claims endpoint request failed",
-        )
-        .into());
-    }
-
-    let claim_data: serde_json::Value = response
-        .json()
-        .await
-        .map_err(|e| ApiError::json_parse_error(&e.to_string()))?;
+    // Use the optimized client with caching and connection pooling
+    let client = OptimizedApiClient::global();
+    let claim_data = client.get_claims(config, validated_network_id).await?;
 
     Ok(ClaimResponse { data: claim_data })
 }
@@ -139,12 +84,6 @@ pub async fn get_claim_proof(
     // Validate network ID
     let validated_network_id = Validator::validate_network_id(network_id)?;
 
-    let client = reqwest::Client::new();
-    let url = format!(
-        "{}/bridge/v1/claim-proof?network_id={validated_network_id}&leaf_index={leaf_index}&deposit_count={deposit_count}",
-        config.api.base_url
-    );
-
     println!(
         "{}",
         format!(
@@ -152,27 +91,12 @@ pub async fn get_claim_proof(
         )
         .cyan()
     );
-    println!("{}", format!("📡 URL: {url}").dimmed());
 
-    let response = client
-        .get(&url)
-        .send()
-        .await
-        .map_err(|e| ApiError::network_error(&e.to_string()))?;
-
-    if !response.status().is_success() {
-        return Err(ApiError::request_failed(
-            &url,
-            response.status().as_u16(),
-            "Claim-proof endpoint request failed",
-        )
-        .into());
-    }
-
-    let proof_data: serde_json::Value = response
-        .json()
-        .await
-        .map_err(|e| ApiError::json_parse_error(&e.to_string()))?;
+    // Use the optimized client with caching and connection pooling
+    let client = OptimizedApiClient::global();
+    let proof_data = client
+        .get_claim_proof(config, validated_network_id, leaf_index, deposit_count)
+        .await?;
 
     Ok(ClaimProofResponse { data: proof_data })
 }
@@ -185,12 +109,6 @@ pub async fn get_l1_info_tree_index(
     // Validate network ID
     let validated_network_id = Validator::validate_network_id(network_id)?;
 
-    let client = reqwest::Client::new();
-    let url = format!(
-        "{}/bridge/v1/l1-info-tree-index?network_id={validated_network_id}&deposit_count={deposit_count}",
-        config.api.base_url
-    );
-
     println!(
         "{}",
         format!(
@@ -198,27 +116,12 @@ pub async fn get_l1_info_tree_index(
         )
         .cyan()
     );
-    println!("{}", format!("📡 URL: {url}").dimmed());
 
-    let response = client
-        .get(&url)
-        .send()
-        .await
-        .map_err(|e| ApiError::network_error(&e.to_string()))?;
-
-    if !response.status().is_success() {
-        return Err(ApiError::request_failed(
-            &url,
-            response.status().as_u16(),
-            "L1-info-tree-index endpoint request failed",
-        )
-        .into());
-    }
-
-    let info_data: serde_json::Value = response
-        .json()
-        .await
-        .map_err(|e| ApiError::json_parse_error(&e.to_string()))?;
+    // Use the optimized client with caching and connection pooling
+    let client = OptimizedApiClient::global();
+    let info_data = client
+        .get_l1_info_tree_index(config, validated_network_id, deposit_count)
+        .await?;
 
     Ok(L1InfoTreeIndexResponse { data: info_data })
 }
@@ -230,6 +133,34 @@ pub fn print_json_response(title: &str, data: &serde_json::Value) {
     let pretty_json = serde_json::to_string_pretty(data).unwrap_or_else(|_| format!("{data:?}"));
 
     println!("{pretty_json}");
+    println!("{}", "═".repeat(60).dimmed());
+}
+
+/// Display cache performance statistics
+#[allow(dead_code)]
+pub fn print_cache_stats() {
+    let client = OptimizedApiClient::global();
+    let endpoints = ["bridges", "claims", "claim-proof", "l1-info-tree-index"];
+
+    println!("\n{}", "📊 API Cache Performance".green().bold());
+    println!("{}", "═".repeat(60).dimmed());
+
+    for endpoint in &endpoints {
+        let stats = client.get_cache_stats(endpoint);
+        let total_requests = stats.hits + stats.misses;
+
+        if total_requests > 0 {
+            println!(
+                "{endpoint}: {total_requests} requests, {:.1}% hit rate ({} hits, {} misses, {} expired, {} evictions)",
+                stats.hit_rate() * 100.0,
+                stats.hits,
+                stats.misses,
+                stats.expired,
+                stats.evictions,
+                endpoint = endpoint.cyan(),
+            );
+        }
+    }
     println!("{}", "═".repeat(60).dimmed());
 }
 

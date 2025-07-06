@@ -1,7 +1,10 @@
 pub mod api;
+pub mod api_client;
+pub mod batch_processor;
 pub mod config;
 pub mod docker;
 pub mod error;
 pub mod events;
 pub mod logs;
+pub mod performance;
 pub mod validation;

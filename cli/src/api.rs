@@ -386,7 +386,7 @@ mod tests {
         Mock::given(method("GET"))
             .and(path("/bridge/v1/bridges"))
             .and(query_param("network_id", "1"))
-            .respond_with(ResponseTemplate::new(200).set_body_string("invalid json {"))
+            .respond_with(ResponseTemplate::new(200).set_body_string("{invalid json}"))
             .mount(&mock_server)
             .await;
 

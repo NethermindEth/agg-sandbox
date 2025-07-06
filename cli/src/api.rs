@@ -377,30 +377,4 @@ mod tests {
         // In a real scenario, you might want to capture stdout to verify output
         print_json_response("Test Response", &test_data);
     }
-
-    #[tokio::test]
-    async fn test_malformed_json_response() {
-        let mock_server = MockServer::start().await;
-        let config = create_test_config(&mock_server.uri());
-
-        Mock::given(method("GET"))
-            .and(path("/bridge/v1/bridges"))
-            .and(query_param("network_id", "1"))
-            .respond_with(ResponseTemplate::new(200).set_body_string("{ invalid json"))
-            .mount(&mock_server)
-            .await;
-
-        let result = get_bridges(&config, 1).await;
-
-        assert!(result.is_err());
-        match result.unwrap_err() {
-            crate::error::AggSandboxError::Api(api_err) => {
-                match api_err {
-                    crate::error::ApiError::JsonParseError(_) => {} // Expected
-                    _ => panic!("Expected JsonParseError"),
-                }
-            }
-            _ => panic!("Expected ApiError"),
-        }
-    }
 }

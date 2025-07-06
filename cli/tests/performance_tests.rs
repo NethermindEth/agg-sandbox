@@ -4,9 +4,9 @@
 /// to ensure the CLI remains responsive under various conditions.
 #[cfg(test)]
 mod perf_tests {
-    use crate::config::Config;
-    use crate::error::ConfigError;
-    use crate::validation::Validator;
+    use aggsandbox::config::Config;
+    use aggsandbox::error::ConfigError;
+    use aggsandbox::validation::Validator;
     use std::time::{Duration, Instant};
     use test_case::test_case;
 
@@ -114,7 +114,7 @@ mod perf_tests {
 
     #[test]
     fn test_error_creation_performance() {
-        use crate::error::{ApiError, ConfigError, DockerError, EventError};
+        use aggsandbox::error::{ApiError, ConfigError, DockerError, EventError};
 
         let start = Instant::now();
 
@@ -322,8 +322,8 @@ mod perf_tests {
 
 #[cfg(test)]
 mod stress_tests {
-    use crate::config::Config;
-    use crate::validation::Validator;
+    use aggsandbox::config::Config;
+    use aggsandbox::validation::Validator;
     use std::sync::{Arc, Mutex};
     use std::thread;
     use std::time::{Duration, Instant};
@@ -413,7 +413,7 @@ mod stress_tests {
     #[test]
     fn test_rapid_error_creation_and_formatting() {
         // Test rapid creation and formatting of error messages
-        use crate::error::{AggSandboxError, ApiError, ConfigError};
+        use aggsandbox::error::{AggSandboxError, ApiError, ConfigError};
 
         let start = Instant::now();
 
@@ -513,7 +513,7 @@ mod stress_tests {
 /// Benchmarking utilities for performance analysis
 #[cfg(test)]
 mod benchmarks {
-    use crate::validation::Validator;
+    use aggsandbox::validation::Validator;
     use std::time::{Duration, Instant};
 
     /// Simple benchmark runner for consistent measurement

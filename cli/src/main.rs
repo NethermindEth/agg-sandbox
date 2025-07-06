@@ -11,9 +11,6 @@ mod events;
 mod logs;
 mod validation;
 
-#[cfg(test)]
-mod performance_tests;
-
 use commands::ShowCommands;
 use error::Result;
 

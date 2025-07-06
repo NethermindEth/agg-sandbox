@@ -67,9 +67,14 @@ mod perf_tests {
         let elapsed = start.elapsed();
 
         // Address validation should be very fast
+        let max_expected_duration = if std::env::var("CI").is_ok() {
+            Duration::from_millis(150)
+        } else {
+            Duration::from_millis(50)
+        };
         assert!(
-            elapsed < Duration::from_millis(50),
-            "Address validation too slow: {elapsed:?}"
+            elapsed < max_expected_duration,
+            "Address validation too slow: {elapsed:?} (max: {max_expected_duration:?})"
         );
     }
 
@@ -86,9 +91,14 @@ mod perf_tests {
         let elapsed = start.elapsed();
 
         // 600 network ID validations should complete very quickly
+        let max_expected_duration = if std::env::var("CI").is_ok() {
+            Duration::from_millis(50)
+        } else {
+            Duration::from_millis(10)
+        };
         assert!(
-            elapsed < Duration::from_millis(10),
-            "Network ID validation too slow: {elapsed:?}"
+            elapsed < max_expected_duration,
+            "Network ID validation too slow: {elapsed:?} (max: {max_expected_duration:?})"
         );
     }
 
@@ -129,9 +139,14 @@ mod perf_tests {
         let elapsed = start.elapsed();
 
         // Error creation should be fast
+        let max_expected_duration = if std::env::var("CI").is_ok() {
+            Duration::from_millis(150)
+        } else {
+            Duration::from_millis(50)
+        };
         assert!(
-            elapsed < Duration::from_millis(50),
-            "Error creation too slow: {elapsed:?}"
+            elapsed < max_expected_duration,
+            "Error creation too slow: {elapsed:?} (max: {max_expected_duration:?})"
         );
     }
 
@@ -183,9 +198,15 @@ mod perf_tests {
         let elapsed = start.elapsed();
 
         // Service name validation should be reasonably fast (regex compilation can be slow)
+        // Adjust expectations for CI environments which may be slower
+        let max_expected_duration = if std::env::var("CI").is_ok() {
+            Duration::from_millis(500)
+        } else {
+            Duration::from_millis(200)
+        };
         assert!(
-            elapsed < Duration::from_millis(200),
-            "Service name validation too slow: {elapsed:?}"
+            elapsed < max_expected_duration,
+            "Service name validation too slow: {elapsed:?} (max: {max_expected_duration:?})"
         );
     }
 

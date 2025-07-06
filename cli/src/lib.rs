@@ -7,4 +7,5 @@ pub mod error;
 pub mod events;
 pub mod logs;
 pub mod performance;
+pub mod progress;
 pub mod validation;

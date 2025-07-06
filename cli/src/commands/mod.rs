@@ -11,6 +11,9 @@ pub mod start;
 pub mod status;
 pub mod stop;
 
+#[cfg(test)]
+mod tests;
+
 // Re-export command handlers for easier access
 pub use events::handle_events;
 pub use info::handle_info;

@@ -262,12 +262,6 @@ Follow the same process as before to get the claim proof:
 ```bash
 # Get bridge details
 aggsandbox show bridges --network-id 1101
-
-# Get L1 info tree index (use deposit_count from bridge details)
-aggsandbox show l1-info-tree-index --network-id 1101 --deposit-count 1
-
-# Get claim proof (use l1_info_tree_index as leaf_index)
-aggsandbox show claim-proof --network-id 1101 --leaf-index 0 --deposit-count 1
 ```
 
 ### Step 7d: Claim Assets on L1

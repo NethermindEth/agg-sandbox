@@ -41,14 +41,11 @@ pub fn handle_logs(follow: bool, service: Option<String>) -> Result<()> {
         }
     } else {
         // For non-follow mode, capture and display output
-        match execute_docker_command_with_output(cmd) {
-            Ok(output) => {
-                print!("{output}");
-            }
-            Err(_) => {
-                eprintln!("{}", "❌ Failed to show logs".red());
-                std::process::exit(1);
-            }
+        if let Ok(output) = execute_docker_command_with_output(cmd) {
+            print!("{output}");
+        } else {
+            eprintln!("{}", "❌ Failed to show logs".red());
+            std::process::exit(1);
         }
     }
 

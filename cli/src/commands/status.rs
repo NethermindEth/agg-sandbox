@@ -1,8 +1,7 @@
-use crate::error::Result;
 use colored::*;
 
 /// Handle the status command
-pub fn handle_status() -> Result<()> {
+pub fn handle_status() {
     use crate::docker::{create_auto_docker_builder, execute_docker_command_with_output};
 
     println!("{}", "📊 Sandbox service status:".blue().bold());
@@ -12,15 +11,10 @@ pub fn handle_status() -> Result<()> {
     let cmd = docker_builder.build_ps_command();
 
     // Execute the status command and display output
-    match execute_docker_command_with_output(cmd) {
-        Ok(output) => {
-            print!("{output}");
-        }
-        Err(_) => {
-            eprintln!("{}", "❌ Failed to get service status".red());
-            std::process::exit(1);
-        }
+    if let Ok(output) = execute_docker_command_with_output(cmd) {
+        print!("{output}");
+    } else {
+        eprintln!("{}", "❌ Failed to get service status".red());
+        std::process::exit(1);
     }
-
-    Ok(())
 }

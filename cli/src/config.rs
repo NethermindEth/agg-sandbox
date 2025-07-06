@@ -64,7 +64,7 @@ impl Config {
         }
 
         let api = ApiConfig::load()?;
-        let networks = NetworkConfig::load()?;
+        let networks = NetworkConfig::load();
         let accounts = AccountConfig::load();
         let contracts = ContractConfig::load();
 
@@ -150,7 +150,7 @@ impl ApiConfig {
 }
 
 impl NetworkConfig {
-    fn load() -> Result<Self> {
+    fn load() -> Self {
         let l1 = ChainConfig {
             name: "Ethereum-L1".to_string(),
             chain_id: get_env_var("CHAIN_ID_MAINNET", "1"),
@@ -177,7 +177,7 @@ impl NetworkConfig {
             None
         };
 
-        Ok(NetworkConfig { l1, l2, l3 })
+        NetworkConfig { l1, l2, l3 }
     }
 }
 

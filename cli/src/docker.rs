@@ -208,7 +208,7 @@ impl SandboxConfig {
     }
 
     /// Create a DockerComposeBuilder configured for this sandbox mode
-    pub fn create_docker_builder(&self) -> Result<DockerComposeBuilder> {
+    pub fn create_docker_builder(&self) -> DockerComposeBuilder {
         let mut builder = DockerComposeBuilder::new();
 
         // Add multi-L2 compose file if needed
@@ -251,7 +251,7 @@ impl SandboxConfig {
             builder.add_env("CHAIN_ID_AGGLAYER_2", chain_id_agglayer_2);
         }
 
-        Ok(builder)
+        builder
     }
 }
 

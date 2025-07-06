@@ -174,11 +174,11 @@ mod integration_tests {
         };
 
         // All functions should be importable (compile-time check)
-        let _start_fn: fn(bool, bool, bool, bool) -> crate::error::Result<()> = handle_start;
-        let _stop_fn: fn(bool) -> crate::error::Result<()> = handle_stop;
-        let _status_fn: fn() -> crate::error::Result<()> = handle_status;
+        let _start_fn: fn(bool, bool, bool, bool) = handle_start;
+        let _stop_fn: fn(bool) = handle_stop;
+        let _status_fn: fn() = handle_status;
         let _logs_fn: fn(bool, Option<String>) -> crate::error::Result<()> = handle_logs;
-        let _restart_fn: fn() -> crate::error::Result<()> = handle_restart;
+        let _restart_fn: fn() = handle_restart;
 
         // Note: These type annotations verify the function signatures exist and are correct
     }

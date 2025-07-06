@@ -143,15 +143,18 @@ async fn run(cli: Cli) -> Result<()> {
                 multi_l2 = multi_l2,
                 "Executing start command"
             );
-            commands::handle_start(detach, build, fork, multi_l2)
+            commands::handle_start(detach, build, fork, multi_l2);
+            Ok(())
         }
         Commands::Stop { volumes } => {
             info!(remove_volumes = volumes, "Executing stop command");
-            commands::handle_stop(volumes)
+            commands::handle_stop(volumes);
+            Ok(())
         }
         Commands::Status => {
             info!("Executing status command");
-            commands::handle_status()
+            commands::handle_status();
+            Ok(())
         }
         Commands::Logs { follow, service } => {
             info!(follow = follow, service = ?service, "Executing logs command");
@@ -159,7 +162,8 @@ async fn run(cli: Cli) -> Result<()> {
         }
         Commands::Restart => {
             info!("Executing restart command");
-            commands::handle_restart()
+            commands::handle_restart();
+            Ok(())
         }
         Commands::Info => {
             info!("Executing info command");

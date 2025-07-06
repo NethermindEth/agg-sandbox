@@ -375,9 +375,9 @@ mod memory_leak_detection_tests {
             // Periodic memory pressure to detect leaks
             if iteration % 1000 == 0 {
                 // Force potential garbage collection
-                let _temp_data: Vec<String> =
+                let temp_data: Vec<String> =
                     (0..100).map(|i| format!("temp_string_{i}")).collect();
-                std::hint::black_box(_temp_data);
+                std::hint::black_box(temp_data);
             }
         }
 
@@ -419,8 +419,8 @@ mod memory_leak_detection_tests {
 
             // Periodic cleanup pressure
             if iteration % 1000 == 0 {
-                let _temp: Vec<u8> = vec![0; 10000];
-                std::hint::black_box(_temp);
+                let temp: Vec<u8> = vec![0; 10000];
+                std::hint::black_box(temp);
             }
         }
 
@@ -465,8 +465,8 @@ mod memory_leak_detection_tests {
 
                         // Occasional memory pressure
                         if i % 500 == 0 {
-                            let _pressure: Vec<u8> = vec![0; 50000];
-                            std::hint::black_box(_pressure);
+                            let pressure: Vec<u8> = vec![0; 50000];
+                            std::hint::black_box(pressure);
                         }
                     }
                 })
@@ -507,8 +507,8 @@ mod memory_leak_detection_tests {
             // Apply memory pressure periodically
             memory_pressure_cycles += 1;
             let pressure_size = 100000 * memory_pressure_cycles; // Increasing pressure
-            let _pressure: Vec<u8> = vec![0; pressure_size];
-            std::hint::black_box(_pressure);
+            let pressure: Vec<u8> = vec![0; pressure_size];
+            std::hint::black_box(pressure);
 
             // Brief pause to allow potential garbage collection
             thread::sleep(Duration::from_millis(10));

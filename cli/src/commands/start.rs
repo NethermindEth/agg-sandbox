@@ -1,11 +1,10 @@
 use crate::config::Config;
-use crate::error::Result;
 use crate::logs;
 use colored::*;
 use tracing::{error, info};
 
 /// Handle the start command
-pub fn handle_start(detach: bool, build: bool, fork: bool, multi_l2: bool) -> Result<()> {
+pub fn handle_start(detach: bool, build: bool, fork: bool, multi_l2: bool) {
     use crate::docker::{execute_docker_command, SandboxConfig};
 
     // Create sandbox configuration
@@ -46,7 +45,7 @@ pub fn handle_start(detach: bool, build: bool, fork: bool, multi_l2: bool) -> Re
 
     // Create Docker builder with proper configuration
     info!("Creating Docker configuration");
-    let docker_builder = config.create_docker_builder()?;
+    let docker_builder = config.create_docker_builder();
 
     // Build and execute Docker command
     info!(detach = detach, build = build, "Building Docker command");
@@ -109,7 +108,6 @@ pub fn handle_start(detach: bool, build: bool, fork: bool, multi_l2: bool) -> Re
         }
     }
 
-    Ok(())
 }
 
 fn display_fork_urls(multi_l2: bool) {

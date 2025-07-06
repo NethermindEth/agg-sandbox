@@ -1,8 +1,7 @@
-use crate::error::Result;
 use colored::*;
 
 /// Handle the stop command
-pub fn handle_stop(volumes: bool) -> Result<()> {
+pub fn handle_stop(volumes: bool) {
     use crate::docker::{create_auto_docker_builder, execute_docker_command};
 
     println!(
@@ -23,6 +22,4 @@ pub fn handle_stop(volumes: bool) -> Result<()> {
     } else {
         println!("{}", "✅ Sandbox stopped successfully".green());
     }
-
-    Ok(())
 }

@@ -335,8 +335,8 @@ mod api_performance_benchmarks {
 
             // Force garbage collection pressure periodically
             if i % 10 == 0 {
-                let _pressure: Vec<u8> = vec![0; 1024 * 1024]; // 1MB
-                std::hint::black_box(_pressure);
+                let pressure: Vec<u8> = vec![0; 1024 * 1024]; // 1MB
+                std::hint::black_box(pressure);
             }
         }
 

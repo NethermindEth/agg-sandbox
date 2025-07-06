@@ -512,8 +512,8 @@ mod resource_exhaustion_tests {
             // Check every 1000 iterations
             if iterations % 1000 == 0 {
                 // Force garbage collection by creating and dropping large allocations
-                let _large_vec: Vec<u8> = vec![0; 1024 * 1024]; // 1MB
-                std::hint::black_box(_large_vec); // Prevent optimization
+                let large_vec: Vec<u8> = vec![0; 1024 * 1024]; // 1MB
+                std::hint::black_box(large_vec); // Prevent optimization
             }
         }
 

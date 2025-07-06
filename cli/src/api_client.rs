@@ -262,13 +262,19 @@ impl OptimizedApiClient {
 
     /// Make an HTTP GET request with proper error handling
     #[instrument(fields(url = %url), skip(self))]
-    pub async fn get(&self, url: &str) -> Result<serde_json::Value> {
+    pub async fn get(&self, url: &str, config: &Config) -> Result<serde_json::Value> {
         debug!(url = %url, "Making HTTP GET request");
 
-        let response = self.client.get(url).send().await.map_err(|e| {
-            warn!(url = %url, error = %e, "HTTP request failed");
-            ApiError::network_error(&e.to_string())
-        })?;
+        let response = self
+            .client
+            .get(url)
+            .timeout(config.api.timeout)
+            .send()
+            .await
+            .map_err(|e| {
+                warn!(url = %url, error = %e, "HTTP request failed");
+                ApiError::network_error(&e.to_string())
+            })?;
 
         let status = response.status();
         debug!(url = %url, status = %status, "Received HTTP response");
@@ -308,7 +314,7 @@ impl OptimizedApiClient {
             config.api.base_url
         );
 
-        self.get_cached_or_fetch(cache_key, || async { self.get(&url).await })
+        self.get_cached_or_fetch(cache_key, || async { self.get(&url, config).await })
             .await
     }
 
@@ -322,7 +328,7 @@ impl OptimizedApiClient {
             config.api.base_url
         );
 
-        self.get_cached_or_fetch(cache_key, || async { self.get(&url).await })
+        self.get_cached_or_fetch(cache_key, || async { self.get(&url, config).await })
             .await
     }
 
@@ -348,7 +354,7 @@ impl OptimizedApiClient {
             config.api.base_url
         );
 
-        self.get_cached_or_fetch(cache_key, || async { self.get(&url).await })
+        self.get_cached_or_fetch(cache_key, || async { self.get(&url, config).await })
             .await
     }
 
@@ -372,7 +378,7 @@ impl OptimizedApiClient {
             config.api.base_url
         );
 
-        self.get_cached_or_fetch(cache_key, || async { self.get(&url).await })
+        self.get_cached_or_fetch(cache_key, || async { self.get(&url, config).await })
             .await
     }
 }

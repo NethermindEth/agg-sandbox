@@ -5,12 +5,8 @@ use colored::*;
 use tracing::{error, info};
 
 /// Handle the start command
-pub fn handle_start(detach: bool, build: bool, fork: bool, multi_l2: bool) {
-    // Use async runtime for progress tracking
-    let rt = tokio::runtime::Runtime::new().unwrap();
-    rt.block_on(async {
-        handle_start_async(detach, build, fork, multi_l2).await;
-    });
+pub async fn handle_start(detach: bool, build: bool, fork: bool, multi_l2: bool) {
+    handle_start_async(detach, build, fork, multi_l2).await;
 }
 
 /// Async implementation of start command with progress tracking

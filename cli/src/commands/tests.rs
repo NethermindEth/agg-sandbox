@@ -174,11 +174,13 @@ mod integration_tests {
         };
 
         // All functions should be importable (compile-time check)
-        let _start_fn: fn(bool, bool, bool, bool) = handle_start;
+        // Note: async functions have different signatures, so we can't use simple function pointers
+        // Instead, we verify they exist by attempting to reference them
+        let _start_exists = handle_start;
         let _stop_fn: fn(bool) = handle_stop;
         let _status_fn: fn() = handle_status;
         let _logs_fn: fn(bool, Option<String>) -> crate::error::Result<()> = handle_logs;
-        let _restart_fn: fn() = handle_restart;
+        let _restart_exists = handle_restart;
 
         // Note: These type annotations verify the function signatures exist and are correct
     }

@@ -201,7 +201,7 @@ async fn run(cli: Cli) -> Result<()> {
                 multi_l2 = multi_l2,
                 "Executing start command"
             );
-            commands::handle_start(detach, build, fork, multi_l2);
+            commands::handle_start(detach, build, fork, multi_l2).await;
             Ok(())
         }
         Commands::Stop { volumes } => {
@@ -220,7 +220,7 @@ async fn run(cli: Cli) -> Result<()> {
         }
         Commands::Restart => {
             info!("Executing restart command");
-            commands::handle_restart();
+            commands::handle_restart().await;
             Ok(())
         }
         Commands::Info => {

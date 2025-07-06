@@ -261,14 +261,25 @@ impl OptimizedApiClient {
     }
 
     /// Make an HTTP GET request with proper error handling
+    #[allow(dead_code)]
     #[instrument(fields(url = %url), skip(self))]
     pub async fn get(&self, url: &str, config: &Config) -> Result<serde_json::Value> {
+        self.get_with_timeout(url, config.api.timeout).await
+    }
+
+    /// Make an HTTP GET request with specified timeout
+    #[instrument(fields(url = %url), skip(self))]
+    pub async fn get_with_timeout(
+        &self,
+        url: &str,
+        timeout: Duration,
+    ) -> Result<serde_json::Value> {
         debug!(url = %url, "Making HTTP GET request");
 
         let response = self
             .client
             .get(url)
-            .timeout(config.api.timeout)
+            .timeout(timeout)
             .send()
             .await
             .map_err(|e| {
@@ -314,8 +325,12 @@ impl OptimizedApiClient {
             config.api.base_url
         );
 
-        self.get_cached_or_fetch(cache_key, || async { self.get(&url, config).await })
-            .await
+        let timeout = config.api.timeout;
+
+        self.get_cached_or_fetch(cache_key, || async {
+            self.get_with_timeout(&url, timeout).await
+        })
+        .await
     }
 
     /// Get claims with caching
@@ -328,8 +343,12 @@ impl OptimizedApiClient {
             config.api.base_url
         );
 
-        self.get_cached_or_fetch(cache_key, || async { self.get(&url, config).await })
-            .await
+        let timeout = config.api.timeout;
+
+        self.get_cached_or_fetch(cache_key, || async {
+            self.get_with_timeout(&url, timeout).await
+        })
+        .await
     }
 
     /// Get claim proof with caching
@@ -354,8 +373,12 @@ impl OptimizedApiClient {
             config.api.base_url
         );
 
-        self.get_cached_or_fetch(cache_key, || async { self.get(&url, config).await })
-            .await
+        let timeout = config.api.timeout;
+
+        self.get_cached_or_fetch(cache_key, || async {
+            self.get_with_timeout(&url, timeout).await
+        })
+        .await
     }
 
     /// Get L1 info tree index with caching
@@ -378,8 +401,12 @@ impl OptimizedApiClient {
             config.api.base_url
         );
 
-        self.get_cached_or_fetch(cache_key, || async { self.get(&url, config).await })
-            .await
+        let timeout = config.api.timeout;
+
+        self.get_cached_or_fetch(cache_key, || async {
+            self.get_with_timeout(&url, timeout).await
+        })
+        .await
     }
 }
 

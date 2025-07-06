@@ -358,6 +358,7 @@ mod api_performance_benchmarks {
 #[cfg(test)]
 mod api_reliability_benchmarks {
     use aggsandbox::api;
+    use aggsandbox::api_client::OptimizedApiClient;
     use aggsandbox::config::{
         AccountConfig, ApiConfig, ChainConfig, Config, ContractConfig, NetworkConfig,
     };
@@ -519,6 +520,10 @@ mod api_reliability_benchmarks {
     /// Test API timeout handling performance characteristics
     #[tokio::test]
     async fn test_timeout_handling_performance() {
+        // Clear the cache to ensure we're not getting cached responses
+        let client = OptimizedApiClient::global();
+        client.clear_cache().await;
+
         // Test timeout behavior by connecting to a non-responsive endpoint
         let mut config = create_test_config("http://localhost:9999"); // Non-existent port
         config.api.timeout = Duration::from_millis(100); // Very short timeout

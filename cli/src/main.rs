@@ -4,7 +4,6 @@ use std::path::Path;
 
 mod api;
 mod api_client;
-mod batch_processor;
 mod commands;
 mod config;
 mod docker;
@@ -12,7 +11,6 @@ mod error;
 mod events;
 mod logging;
 mod logs;
-mod performance;
 mod progress;
 mod validation;
 

@@ -136,34 +136,6 @@ pub fn print_json_response(title: &str, data: &serde_json::Value) {
     println!("{}", "═".repeat(60).dimmed());
 }
 
-/// Display cache performance statistics
-#[allow(dead_code)]
-pub fn print_cache_stats() {
-    let client = OptimizedApiClient::global();
-    let endpoints = ["bridges", "claims", "claim-proof", "l1-info-tree-index"];
-
-    println!("\n{}", "📊 API Cache Performance".green().bold());
-    println!("{}", "═".repeat(60).dimmed());
-
-    for endpoint in &endpoints {
-        let stats = client.get_cache_stats(endpoint);
-        let total_requests = stats.hits + stats.misses;
-
-        if total_requests > 0 {
-            println!(
-                "{endpoint}: {total_requests} requests, {:.1}% hit rate ({} hits, {} misses, {} expired, {} evictions)",
-                stats.hit_rate() * 100.0,
-                stats.hits,
-                stats.misses,
-                stats.expired,
-                stats.evictions,
-                endpoint = endpoint.cyan(),
-            );
-        }
-    }
-    println!("{}", "═".repeat(60).dimmed());
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;

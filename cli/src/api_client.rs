@@ -256,13 +256,6 @@ impl OptimizedApiClient {
         Ok(data)
     }
 
-    /// Make an HTTP GET request with proper error handling
-    #[allow(dead_code)]
-    #[instrument(fields(url = %url), skip(self))]
-    pub async fn get(&self, url: &str, config: &Config) -> Result<serde_json::Value> {
-        self.get_with_timeout(url, config.api.timeout).await
-    }
-
     /// Make an HTTP GET request with specified timeout
     #[instrument(fields(url = %url), skip(self))]
     pub async fn get_with_timeout(

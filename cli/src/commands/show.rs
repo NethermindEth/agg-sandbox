@@ -3,7 +3,7 @@ use crate::config::Config;
 use crate::error::Result;
 
 /// Show subcommands enum (moved from main.rs)
-#[derive(clap::Subcommand)]
+#[derive(Debug, clap::Subcommand)]
 pub enum ShowCommands {
     /// Show bridges for a network
     Bridges {

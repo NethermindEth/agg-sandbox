@@ -2,7 +2,6 @@
 ///
 /// These tests validate error handling for Docker failures, network issues,
 /// configuration problems, and other edge cases users might encounter.
-
 #[cfg(test)]
 mod docker_failure_tests {
     use aggsandbox::docker::DockerComposeBuilder;

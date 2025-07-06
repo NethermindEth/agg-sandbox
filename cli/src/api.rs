@@ -2,6 +2,7 @@ use crate::error::{ApiError, Result};
 use crate::validation::Validator;
 use colored::*;
 use serde::Deserialize;
+use tracing::{debug, error, info, instrument};
 
 use super::config::Config;
 
@@ -29,8 +30,10 @@ pub struct L1InfoTreeIndexResponse {
     pub data: serde_json::Value,
 }
 
+#[instrument(fields(network_id = network_id))]
 pub async fn get_bridges(config: &Config, network_id: u64) -> Result<BridgeResponse> {
     // Validate network ID
+    debug!(network_id = network_id, "Validating network ID");
     let validated_network_id = Validator::validate_network_id(network_id)?;
 
     let client = reqwest::Client::new();
@@ -39,31 +42,51 @@ pub async fn get_bridges(config: &Config, network_id: u64) -> Result<BridgeRespo
         config.api.base_url
     );
 
+    info!(
+        network_id = validated_network_id,
+        url = %url,
+        "Fetching bridges from API"
+    );
+
     println!(
         "{}",
         format!("🔍 Fetching bridges for network_id: {validated_network_id}").cyan()
     );
     println!("{}", format!("📡 URL: {url}").dimmed());
 
-    let response = client
-        .get(&url)
-        .send()
-        .await
-        .map_err(|e| ApiError::network_error(&e.to_string()))?;
+    debug!("Sending HTTP GET request");
+    let response = client.get(&url).send().await.map_err(|e| {
+        error!(error = %e, url = %url, "HTTP request failed");
+        ApiError::network_error(&e.to_string())
+    })?;
 
-    if !response.status().is_success() {
+    let status = response.status();
+    debug!(status = %status, "Received HTTP response");
+
+    if !status.is_success() {
+        error!(
+            status = %status,
+            url = %url,
+            "API request failed with non-success status"
+        );
         return Err(ApiError::request_failed(
             &url,
-            response.status().as_u16(),
+            status.as_u16(),
             "Bridges endpoint request failed",
         )
         .into());
     }
 
-    let bridge_data: serde_json::Value = response
-        .json()
-        .await
-        .map_err(|e| ApiError::json_parse_error(&e.to_string()))?;
+    debug!("Parsing JSON response");
+    let bridge_data: serde_json::Value = response.json().await.map_err(|e| {
+        error!(error = %e, "Failed to parse JSON response");
+        ApiError::json_parse_error(&e.to_string())
+    })?;
+
+    info!(
+        bridges_count = bridge_data.as_object().map(|o| o.len()).unwrap_or(0),
+        "Successfully retrieved bridges"
+    );
 
     Ok(BridgeResponse { data: bridge_data })
 }

@@ -26,6 +26,8 @@ tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter", "json"] }
 tracing-appender = "0.2"
 atty = "0.2"
+toml = "0.8"
+serde_yaml = "0.9"
 
 [dev-dependencies]
 mockall = "0.12"

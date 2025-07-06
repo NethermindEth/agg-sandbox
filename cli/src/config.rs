@@ -1,11 +1,13 @@
 use crate::error::{ConfigError, Result};
 use crate::validation::Validator;
+use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
+use std::fs;
 use std::path::Path;
 use std::time::Duration;
 
 /// Main configuration structure for the CLI application
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Config {
     pub api: ApiConfig,
     pub networks: NetworkConfig,
@@ -14,9 +16,10 @@ pub struct Config {
 }
 
 /// API configuration settings
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ApiConfig {
     pub base_url: String,
+    #[serde(with = "duration_serde")]
     #[allow(dead_code)]
     pub timeout: Duration,
     #[allow(dead_code)]
@@ -24,7 +27,7 @@ pub struct ApiConfig {
 }
 
 /// Network configuration for all supported chains
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct NetworkConfig {
     pub l1: ChainConfig,
     pub l2: ChainConfig,
@@ -32,7 +35,7 @@ pub struct NetworkConfig {
 }
 
 /// Individual chain configuration
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ChainConfig {
     pub name: String,
     pub chain_id: String,
@@ -42,27 +45,90 @@ pub struct ChainConfig {
 }
 
 /// Account configuration with pre-configured test accounts
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AccountConfig {
     pub accounts: Vec<String>,
     pub private_keys: Vec<String>,
 }
 
 /// Contract addresses configuration
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ContractConfig {
     pub l1_contracts: HashMap<String, String>,
     pub l2_contracts: HashMap<String, String>,
 }
 
+/// Custom serialization for Duration to support TOML/YAML
+mod duration_serde {
+    use serde::{Deserialize, Deserializer, Serialize, Serializer};
+    use std::time::Duration;
+
+    pub fn serialize<S>(duration: &Duration, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        (duration.as_millis() as u64).serialize(serializer)
+    }
+
+    pub fn deserialize<'de, D>(deserializer: D) -> Result<Duration, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        let millis = u64::deserialize(deserializer)?;
+        Ok(Duration::from_millis(millis))
+    }
+}
+
+/// Configuration file format detection
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum ConfigFormat {
+    Toml,
+    Yaml,
+}
+
+impl ConfigFormat {
+    /// Detect format from file extension
+    pub fn from_path(path: &Path) -> Option<Self> {
+        match path.extension()?.to_str()? {
+            "toml" => Some(ConfigFormat::Toml),
+            "yaml" | "yml" => Some(ConfigFormat::Yaml),
+            _ => None,
+        }
+    }
+}
+
 impl Config {
-    /// Load configuration from environment variables and defaults
+    /// Load configuration with automatic source detection
+    /// Tries: config files → environment variables → defaults
     pub fn load() -> Result<Self> {
         // Load .env file if it exists
         if Path::new(".env").exists() {
             dotenv::dotenv().ok();
         }
 
+        // Try to load from configuration files first
+        let config_paths = [
+            "aggsandbox.toml",
+            "aggsandbox.yaml",
+            "aggsandbox.yml",
+            ".aggsandbox.toml",
+            ".aggsandbox.yaml",
+            ".aggsandbox.yml",
+        ];
+
+        for path_str in &config_paths {
+            let path = Path::new(path_str);
+            if path.exists() {
+                return Self::load_from_file(path);
+            }
+        }
+
+        // Fallback to environment variables and defaults
+        Self::load_from_env()
+    }
+
+    /// Load configuration from environment variables and defaults
+    pub fn load_from_env() -> Result<Self> {
         let api = ApiConfig::load()?;
         let networks = NetworkConfig::load();
         let accounts = AccountConfig::load();
@@ -74,6 +140,136 @@ impl Config {
             accounts,
             contracts,
         })
+    }
+
+    /// Load configuration from a specific file
+    pub fn load_from_file(path: &Path) -> Result<Self> {
+        let content = fs::read_to_string(path).map_err(|e| {
+            ConfigError::validation_failed(&format!(
+                "Failed to read config file {}: {e}",
+                path.display()
+            ))
+        })?;
+
+        let format = ConfigFormat::from_path(path).ok_or_else(|| {
+            ConfigError::validation_failed(&format!(
+                "Unsupported config file format: {}",
+                path.display()
+            ))
+        })?;
+
+        let mut config: Config = match format {
+            ConfigFormat::Toml => toml::from_str(&content).map_err(|e| {
+                ConfigError::validation_failed(&format!("Invalid TOML in {}: {e}", path.display()))
+            })?,
+            ConfigFormat::Yaml => serde_yaml::from_str(&content).map_err(|e| {
+                ConfigError::validation_failed(&format!("Invalid YAML in {}: {e}", path.display()))
+            })?,
+        };
+
+        // Merge with environment variables (env vars take precedence)
+        config.merge_from_env();
+        config.validate()?;
+
+        Ok(config)
+    }
+
+    /// Merge configuration with environment variables
+    fn merge_from_env(&mut self) {
+        // API configuration overrides
+        if let Ok(base_url) = std::env::var("API_BASE_URL") {
+            self.api.base_url = base_url;
+        }
+        if let Ok(timeout_str) = std::env::var("API_TIMEOUT_MS") {
+            if let Ok(timeout_ms) = timeout_str.parse::<u64>() {
+                self.api.timeout = Duration::from_millis(timeout_ms);
+            }
+        }
+        if let Ok(retry_str) = std::env::var("API_RETRY_ATTEMPTS") {
+            if let Ok(retry_attempts) = retry_str.parse::<u32>() {
+                self.api.retry_attempts = retry_attempts;
+            }
+        }
+
+        // Network configuration overrides
+        if let Ok(rpc_1) = std::env::var("RPC_1") {
+            self.networks.l1.rpc_url = rpc_1;
+        }
+        if let Ok(rpc_2) = std::env::var("RPC_2") {
+            self.networks.l2.rpc_url = rpc_2;
+        }
+        if let Ok(rpc_3) = std::env::var("RPC_3") {
+            if let Some(l3) = &mut self.networks.l3 {
+                l3.rpc_url = rpc_3;
+            }
+        }
+
+        // Chain ID overrides
+        if let Ok(chain_id) = std::env::var("CHAIN_ID_MAINNET") {
+            self.networks.l1.chain_id = chain_id;
+        }
+        if let Ok(chain_id) = std::env::var("CHAIN_ID_AGGLAYER_1") {
+            self.networks.l2.chain_id = chain_id;
+        }
+        if let Ok(chain_id) = std::env::var("CHAIN_ID_AGGLAYER_2") {
+            if let Some(l3) = &mut self.networks.l3 {
+                l3.chain_id = chain_id;
+            }
+        }
+    }
+
+    /// Validate configuration values
+    fn validate(&self) -> Result<()> {
+        // Validate API configuration
+        Validator::validate_rpc_url(&self.api.base_url)?;
+
+        if self.api.timeout.as_millis() == 0 {
+            return Err(ConfigError::validation_failed("API timeout cannot be zero").into());
+        }
+
+        // Validate network configurations
+        Validator::validate_rpc_url(&self.networks.l1.rpc_url)?;
+        Validator::validate_rpc_url(&self.networks.l2.rpc_url)?;
+
+        if let Some(l3) = &self.networks.l3 {
+            Validator::validate_rpc_url(&l3.rpc_url)?;
+        }
+
+        // Validate accounts
+        for account in &self.accounts.accounts {
+            Validator::validate_ethereum_address(account)?;
+        }
+
+        Ok(())
+    }
+
+    /// Save configuration to a file
+    #[allow(dead_code)]
+    pub fn save_to_file(&self, path: &Path) -> Result<()> {
+        let format = ConfigFormat::from_path(path).ok_or_else(|| {
+            ConfigError::validation_failed(&format!(
+                "Unsupported config file format: {}",
+                path.display()
+            ))
+        })?;
+
+        let content = match format {
+            ConfigFormat::Toml => toml::to_string_pretty(self).map_err(|e| {
+                ConfigError::validation_failed(&format!("Failed to serialize TOML: {e}"))
+            })?,
+            ConfigFormat::Yaml => serde_yaml::to_string(self).map_err(|e| {
+                ConfigError::validation_failed(&format!("Failed to serialize YAML: {e}"))
+            })?,
+        };
+
+        fs::write(path, content).map_err(|e| {
+            ConfigError::validation_failed(&format!(
+                "Failed to write config file {}: {e}",
+                path.display()
+            ))
+        })?;
+
+        Ok(())
     }
 
     /// Get chain configuration by name
@@ -113,6 +309,16 @@ impl Config {
     #[allow(dead_code)]
     pub fn has_multi_l2(&self) -> bool {
         self.networks.l3.is_some()
+    }
+}
+
+impl Default for ApiConfig {
+    fn default() -> Self {
+        ApiConfig {
+            base_url: "http://localhost:5577".to_string(),
+            timeout: Duration::from_millis(30000),
+            retry_attempts: 3,
+        }
     }
 }
 
@@ -351,6 +557,17 @@ impl Config {
     }
 }
 
+impl Default for Config {
+    fn default() -> Self {
+        Config {
+            api: ApiConfig::default(),
+            networks: NetworkConfig::load(),
+            accounts: AccountConfig::load(),
+            contracts: ContractConfig::load(),
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -407,5 +624,82 @@ mod tests {
         assert_eq!(api.base_url, "http://localhost:5577");
         assert_eq!(api.timeout, Duration::from_millis(30000));
         assert_eq!(api.retry_attempts, 3);
+    }
+
+    #[test]
+    fn test_config_format_detection() {
+        use std::path::Path;
+
+        assert_eq!(
+            ConfigFormat::from_path(Path::new("config.toml")),
+            Some(ConfigFormat::Toml)
+        );
+        assert_eq!(
+            ConfigFormat::from_path(Path::new("config.yaml")),
+            Some(ConfigFormat::Yaml)
+        );
+        assert_eq!(
+            ConfigFormat::from_path(Path::new("config.yml")),
+            Some(ConfigFormat::Yaml)
+        );
+        assert_eq!(ConfigFormat::from_path(Path::new("config.json")), None);
+    }
+
+    #[test]
+    fn test_toml_serialization() {
+        let config = Config::default();
+        let toml_str = toml::to_string(&config).unwrap();
+        assert!(toml_str.contains("[api]"));
+        assert!(toml_str.contains("[networks.l1]"));
+        assert!(toml_str.contains("base_url"));
+
+        let deserialized: Config = toml::from_str(&toml_str).unwrap();
+        assert_eq!(deserialized.api.base_url, config.api.base_url);
+    }
+
+    #[test]
+    fn test_yaml_serialization() {
+        let config = Config::default();
+        let yaml_str = serde_yaml::to_string(&config).unwrap();
+        assert!(yaml_str.contains("api:"));
+        assert!(yaml_str.contains("networks:"));
+        assert!(yaml_str.contains("base_url:"));
+
+        let deserialized: Config = serde_yaml::from_str(&yaml_str).unwrap();
+        assert_eq!(deserialized.api.base_url, config.api.base_url);
+    }
+
+    #[test]
+    fn test_duration_serialization() {
+        let config = Config::default();
+
+        // Test TOML serialization preserves duration
+        let toml_str = toml::to_string(&config).unwrap();
+        let toml_config: Config = toml::from_str(&toml_str).unwrap();
+        assert_eq!(toml_config.api.timeout, config.api.timeout);
+
+        // Test YAML serialization preserves duration
+        let yaml_str = serde_yaml::to_string(&config).unwrap();
+        let yaml_config: Config = serde_yaml::from_str(&yaml_str).unwrap();
+        assert_eq!(yaml_config.api.timeout, config.api.timeout);
+    }
+
+    #[test]
+    fn test_config_save_and_load() {
+        use tempfile::NamedTempFile;
+
+        let original_config = Config::default();
+
+        // Test TOML save/load
+        let toml_file = NamedTempFile::with_suffix(".toml").unwrap();
+        original_config.save_to_file(toml_file.path()).unwrap();
+        let loaded_toml = Config::load_from_file(toml_file.path()).unwrap();
+        assert_eq!(loaded_toml.api.base_url, original_config.api.base_url);
+
+        // Test YAML save/load
+        let yaml_file = NamedTempFile::with_suffix(".yaml").unwrap();
+        original_config.save_to_file(yaml_file.path()).unwrap();
+        let loaded_yaml = Config::load_from_file(yaml_file.path()).unwrap();
+        assert_eq!(loaded_yaml.api.base_url, original_config.api.base_url);
     }
 }

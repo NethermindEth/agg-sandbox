@@ -1,4 +1,5 @@
-use anyhow::{Context, Result};
+use crate::error::{EventError, Result};
+use crate::validation::Validator;
 use colored::*;
 use ethers::prelude::*;
 use std::collections::HashMap;
@@ -204,35 +205,48 @@ pub async fn fetch_and_display_events(
     blocks: u64,
     address: Option<String>,
 ) -> Result<()> {
-    let rpc_url = get_rpc_url(chain)?;
+    // Validate inputs
+    let validated_chain = Validator::validate_chain(chain)?;
+    let validated_blocks = Validator::validate_block_count(blocks)?;
+
+    // Validate address if provided
+    let validated_address = if let Some(addr) = address {
+        Some(Validator::validate_ethereum_address(&addr)?)
+    } else {
+        None
+    };
+
+    let rpc_url = get_rpc_url(validated_chain.as_str())?;
 
     println!(
         "{}",
-        format!("🔍 Fetching events from {chain} chain")
+        format!("🔍 Fetching events from {} chain", validated_chain.as_str())
             .cyan()
             .bold()
     );
     println!("{}", format!("📡 RPC URL: {rpc_url}").dimmed());
-    println!("{}", format!("📊 Scanning last {blocks} blocks").dimmed());
+    println!(
+        "{}",
+        format!("📊 Scanning last {validated_blocks} blocks").dimmed()
+    );
 
-    if let Some(addr) = &address {
+    if let Some(addr) = &validated_address {
         println!("{}", format!("🎯 Filtering by contract: {addr}").dimmed());
     }
 
     // Connect to the chain
-    let provider =
-        Provider::<Http>::try_from(&rpc_url).context("Failed to connect to RPC endpoint")?;
+    let provider = Provider::<Http>::try_from(&rpc_url)
+        .map_err(|e| EventError::rpc_connection_failed(&e.to_string()))?;
 
     let client = Arc::new(provider);
 
     // Get the latest block number
-    let latest_block = client
-        .get_block_number()
-        .await
-        .context("Failed to get latest block number")?;
+    let latest_block = client.get_block_number().await.map_err(|e| {
+        EventError::rpc_connection_failed(&format!("Failed to get latest block: {e}"))
+    })?;
 
-    let from_block = if latest_block.as_u64() >= blocks {
-        U64::from(latest_block.as_u64() - blocks + 1)
+    let from_block = if latest_block.as_u64() >= validated_blocks {
+        U64::from(latest_block.as_u64() - validated_blocks + 1)
     } else {
         U64::zero()
     };
@@ -246,10 +260,10 @@ pub async fn fetch_and_display_events(
     let mut filter = Filter::new().from_block(from_block).to_block(latest_block);
 
     // Add address filter if provided
-    if let Some(addr) = address {
+    if let Some(addr) = validated_address {
         let address = addr
             .parse::<Address>()
-            .context("Invalid contract address format")?;
+            .map_err(|_| EventError::invalid_address(&addr))?;
         filter = filter.address(address);
     }
 
@@ -257,7 +271,7 @@ pub async fn fetch_and_display_events(
     let logs = client
         .get_logs(&filter)
         .await
-        .context("Failed to fetch logs from chain")?;
+        .map_err(|e| EventError::rpc_connection_failed(&format!("Failed to fetch events: {e}")))?;
 
     if logs.is_empty() {
         println!("{}", "📭 No events found in the specified range".yellow());
@@ -652,10 +666,7 @@ fn get_rpc_url(chain: &str) -> Result<String> {
             std::env::var("RPC_3").unwrap_or_else(|_| "http://localhost:8547".to_string())
         }
         _ => {
-            return Err(anyhow::anyhow!(
-                "Invalid chain '{}'. Supported chains: anvil-l1, anvil-l2, anvil-l3",
-                chain
-            ));
+            return Err(EventError::invalid_chain(chain).into());
         }
     };
 

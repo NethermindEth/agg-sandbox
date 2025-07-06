@@ -1,519 +1,453 @@
-use anyhow::{Context, Result};
 use clap::{Parser, Subcommand};
 use colored::*;
 use std::path::Path;
-use std::process::Command;
 
 mod api;
+mod api_client;
+mod commands;
+mod config;
+mod docker;
+mod error;
 mod events;
+mod logging;
 mod logs;
+mod progress;
+mod validation;
+
+use commands::ShowCommands;
+use error::Result;
+use logging::LogConfig;
+use tracing::{error, info, warn};
 
 #[derive(Parser)]
 #[command(name = "aggsandbox")]
-#[command(about = "CLI for managing AggLayer sandbox environment")]
+#[command(about = "🚀 CLI for managing AggLayer sandbox environment")]
+#[command(
+    long_about = "AggSandbox CLI provides comprehensive tools for managing your AggLayer sandbox environment.\n\nThis tool helps you start, stop, monitor, and interact with your sandbox infrastructure\nincluding L1/L2 chains, bridge services, and blockchain events.\n\nExamples:\n  aggsandbox start --detach           # Start sandbox in background\n  aggsandbox start --fork --multi-l2  # Start with real data and multiple L2s\n  aggsandbox logs -f bridge-service   # Follow bridge service logs\n  aggsandbox show bridges --network 1 # Show bridge information\n  aggsandbox events --chain anvil-l1  # Show recent blockchain events"
+)]
 #[command(version = "0.1.0")]
+#[command(author = "AggLayer Team")]
+#[command(
+    help_template = "{before-help}{name} {version}\n{about-with-newline}\n{usage-heading} {usage}\n\n{all-args}{after-help}"
+)]
 struct Cli {
     #[command(subcommand)]
     command: Commands,
+    /// Enable verbose output (-v for debug, -vv for trace)
+    #[arg(short, long, global = true, action = clap::ArgAction::Count, help = "Enable verbose output (-v debug, -vv trace)")]
+    verbose: u8,
+    /// Enable quiet mode (only errors and warnings)
+    #[arg(
+        short,
+        long,
+        global = true,
+        help = "Suppress all output except errors and warnings"
+    )]
+    quiet: bool,
+    /// Set log format style
+    #[arg(long, global = true, default_value = "pretty", value_parser = ["pretty", "compact", "json"], help = "Set log output format")]
+    log_format: String,
 }
 
 #[derive(Subcommand)]
 enum Commands {
-    /// Start the sandbox environment
+    /// 🚀 Start the sandbox environment
+    #[command(
+        long_about = "Start the AggLayer sandbox environment with Docker Compose.\n\nThis command initializes and starts all required services including:\n- L1 Ethereum node (Anvil)\n- L2 Polygon zkEVM node (Anvil)\n- Bridge service\n- Agglayer service\n\nExamples:\n  aggsandbox start                     # Start with default settings\n  aggsandbox start --detach            # Start in background\n  aggsandbox start --build             # Rebuild images before starting\n  aggsandbox start --fork              # Use real blockchain data\n  aggsandbox start --fork --multi-l2   # Fork mode with multiple L2 chains"
+    )]
     Start {
-        /// Run in detached mode
-        #[arg(short, long)]
+        /// Run services in detached mode (background)
+        #[arg(short, long, help = "Start services in background (detached mode)")]
         detach: bool,
-        /// Build images before starting
-        #[arg(short, long)]
+        /// Build Docker images before starting services
+        #[arg(short, long, help = "Rebuild Docker images before starting")]
         build: bool,
-        /// Enable fork mode (uses real blockchain data from FORK_URL environment variables)
-        #[arg(short, long)]
+        /// Enable fork mode using real blockchain data
+        #[arg(
+            short,
+            long,
+            help = "Use real blockchain data from FORK_URL environment variables"
+        )]
         fork: bool,
-        /// Enable multi-L2 mode (runs with a second L2 chain)
-        #[arg(short, long)]
+        /// Enable multi-L2 configuration with additional chains
+        #[arg(
+            short,
+            long,
+            help = "Start with a second L2 chain for multi-chain testing"
+        )]
         multi_l2: bool,
     },
-    /// Stop the sandbox environment (docker-compose down)
+    /// 🛑 Stop the sandbox environment
+    #[command(
+        long_about = "Stop all sandbox services using docker-compose down.\n\nThis command gracefully shuts down all running services and containers.\nOptionally, you can also remove associated Docker volumes.\n\nExamples:\n  aggsandbox stop          # Stop services, keep data\n  aggsandbox stop -v       # Stop services and remove volumes"
+    )]
     Stop {
-        /// Remove volumes when stopping
-        #[arg(short, long)]
+        /// Remove Docker volumes when stopping (⚠️  deletes all data)
+        #[arg(
+            short,
+            long,
+            help = "Remove Docker volumes and all persistent data (⚠️  destructive)"
+        )]
         volumes: bool,
     },
-    /// Show status of services
+    /// 📊 Show status of all services
+    #[command(
+        long_about = "Display the current status of all sandbox services.\n\nShows which containers are running, stopped, or have errors.\nIncludes health checks and port information for active services.\n\nExample:\n  aggsandbox status"
+    )]
     Status,
-    /// Show logs from services
+    /// 📋 Show logs from services
+    #[command(
+        long_about = "Display logs from sandbox services.\n\nView logs from all services or filter by specific service name.\nUse --follow to stream logs in real-time.\n\nExamples:\n  aggsandbox logs                    # Show all logs\n  aggsandbox logs bridge-service     # Show bridge service logs\n  aggsandbox logs -f                 # Follow all logs\n  aggsandbox logs -f anvil-l1        # Follow L1 node logs"
+    )]
     Logs {
-        /// Follow log output
-        #[arg(short, long)]
+        /// Follow log output in real-time
+        #[arg(short, long, help = "Stream logs continuously (like 'tail -f')")]
         follow: bool,
-        /// Service name to show logs for (optional)
+        /// Specific service name to show logs for
+        #[arg(help = "Service name (e.g., bridge-service, anvil-l1, anvil-l2, agglayer)")]
         service: Option<String>,
     },
-    /// Restart the sandbox environment
+    /// 🔄 Restart the sandbox environment
+    #[command(
+        long_about = "Restart all sandbox services.\n\nThis performs a stop followed by start operation,\npreserving volumes and configuration.\n\nExample:\n  aggsandbox restart"
+    )]
     Restart,
-    /// Show sandbox configuration and accounts
+    /// ℹ️  Show sandbox configuration and accounts
+    #[command(
+        long_about = "Display comprehensive sandbox configuration information.\n\nShows:\n- Network configuration (L1/L2 RPC URLs, Chain IDs)\n- Account addresses and balances\n- Contract deployment addresses\n- Bridge service endpoints\n\nExample:\n  aggsandbox info"
+    )]
     Info,
-    /// Show bridge information
+    /// 🌉 Show bridge and blockchain information
+    #[command(
+        long_about = "Access bridge data and blockchain information.\n\nQuery bridges, claims, proofs, and other bridge-related data\nfrom the AggLayer bridge service API.\n\nExamples:\n  aggsandbox show bridges --network 1     # List bridges for network 1\n  aggsandbox show claims --network 1101   # Show claims for L2\n  aggsandbox show proof --network 1 --leaf-index 0 --deposit-count 1"
+    )]
     Show {
         #[command(subcommand)]
         subcommand: ShowCommands,
     },
-    /// Fetch and display events from blockchain
+    /// 📡 Fetch and display blockchain events
+    #[command(
+        long_about = "Monitor blockchain events from L1 and L2 chains.\n\nFetch and display recent events from specified blockchain,\nwith options to filter by contract address and block range.\n\nExamples:\n  aggsandbox events --chain anvil-l1              # Recent L1 events\n  aggsandbox events --chain anvil-l2 --blocks 20  # Last 20 L2 blocks\n  aggsandbox events --chain anvil-l1 --address 0x123 # Events from specific contract"
+    )]
     Events {
-        /// Chain to fetch events from (anvil-l1 or anvil-l2)
-        #[arg(short, long)]
+        /// Blockchain to fetch events from
+        #[arg(short, long, value_parser = ["anvil-l1", "anvil-l2", "anvil-l3"], help = "Chain to query (anvil-l1, anvil-l2, or anvil-l3)")]
         chain: String,
-        /// Number of latest blocks to scan (default: 10)
-        #[arg(short, long, default_value = "10")]
+        /// Number of recent blocks to scan for events
+        #[arg(
+            short,
+            long,
+            default_value = "10",
+            help = "Number of recent blocks to scan (default: 10)"
+        )]
         blocks: u64,
-        /// Contract address to filter events (optional)
-        #[arg(short = 'a', long)]
+        /// Filter events by contract address
+        #[arg(short = 'a', long, help = "Contract address to filter events (0x...)")]
         address: Option<String>,
     },
 }
 
-#[derive(Subcommand)]
-enum ShowCommands {
-    /// Show bridges for a network
-    Bridges {
-        /// Network ID to query bridges for
-        #[arg(short, long, default_value = "1")]
-        network_id: u64,
-    },
-    /// Show claims for a network
-    Claims {
-        /// Network ID to query claims for
-        #[arg(short, long, default_value = "1101")]
-        network_id: u64,
-    },
-    /// Show claim proof
-    ClaimProof {
-        /// Network ID
-        #[arg(short, long, default_value = "1")]
-        network_id: u64,
-        /// Leaf index
-        #[arg(short, long, default_value = "0")]
-        leaf_index: u64,
-        /// Deposit count
-        #[arg(short, long, default_value = "1")]
-        deposit_count: u64,
-    },
-    /// Show L1 info tree index
-    L1InfoTreeIndex {
-        /// Network ID
-        #[arg(short, long, default_value = "1")]
-        network_id: u64,
-        /// Deposit count
-        #[arg(short, long, default_value = "0")]
-        deposit_count: u64,
-    },
-}
-
 #[tokio::main]
-async fn main() -> Result<()> {
+async fn main() {
     let cli = Cli::parse();
 
-    // Ensure we're in the right directory (where docker-compose.yml exists)
-    if !Path::new("docker-compose.yml").exists() {
-        eprintln!(
-            "{}",
-            "Error: docker-compose.yml not found in current directory".red()
-        );
-        eprintln!(
-            "{}",
-            "Please run this command from the project root directory".yellow()
-        );
+    // Initialize logging based on CLI flags
+    if let Err(e) = initialize_logging(&cli) {
+        eprintln!("Failed to initialize logging: {e}");
         std::process::exit(1);
     }
 
-    // Load environment variables from .env file if it exists
-    if Path::new(".env").exists() {
-        dotenv::dotenv().ok();
+    if let Err(e) = run(cli).await {
+        print_error(&e);
+        std::process::exit(1);
+    }
+}
+
+async fn run(cli: Cli) -> Result<()> {
+    info!("Starting AggSandbox CLI v0.1.0");
+
+    // Ensure we're in the right directory (where docker-compose.yml exists)
+    if !Path::new("docker-compose.yml").exists() {
+        error!("docker-compose.yml not found in current directory");
+        warn!("Please run this command from the project root directory");
+        return Err(error::AggSandboxError::Config(
+            error::ConfigError::missing_required("docker-compose.yml file in working directory"),
+        ));
     }
 
-    match cli.command {
+    info!("Found docker-compose.yml in current directory");
+
+    // Load environment variables from .env file if it exists
+    if Path::new(".env").exists() {
+        info!("Loading environment variables from .env file");
+        dotenv::dotenv().ok();
+    } else {
+        info!("No .env file found, using system environment variables");
+    }
+
+    let result = match cli.command {
         Commands::Start {
             detach,
             build,
             fork,
             multi_l2,
-        } => start_sandbox(detach, build, fork, multi_l2),
-        Commands::Stop { volumes } => stop_sandbox(volumes),
-        Commands::Status => show_status(),
-        Commands::Logs { follow, service } => show_logs(follow, service),
-        Commands::Restart => restart_sandbox(),
-        Commands::Info => {
-            show_info();
+        } => {
+            info!(
+                detach = detach,
+                build = build,
+                fork = fork,
+                multi_l2 = multi_l2,
+                "Executing start command"
+            );
+            commands::handle_start(detach, build, fork, multi_l2).await;
             Ok(())
         }
-        Commands::Show { subcommand } => show_bridge_info(subcommand).await,
+        Commands::Stop { volumes } => {
+            info!(remove_volumes = volumes, "Executing stop command");
+            commands::handle_stop(volumes);
+            Ok(())
+        }
+        Commands::Status => {
+            info!("Executing status command");
+            commands::handle_status();
+            Ok(())
+        }
+        Commands::Logs { follow, service } => {
+            info!(follow = follow, service = ?service, "Executing logs command");
+            commands::handle_logs(follow, service)
+        }
+        Commands::Restart => {
+            info!("Executing restart command");
+            commands::handle_restart().await;
+            Ok(())
+        }
+        Commands::Info => {
+            info!("Executing info command");
+            commands::handle_info().await
+        }
+        Commands::Show { subcommand } => {
+            info!(subcommand = ?subcommand, "Executing show command");
+            commands::handle_show(subcommand).await
+        }
         Commands::Events {
             chain,
             blocks,
             address,
-        } => events::fetch_and_display_events(&chain, blocks, address).await,
-    }
-}
-
-fn start_sandbox(detach: bool, build: bool, fork: bool, multi_l2: bool) -> Result<()> {
-    // Determine mode for messaging
-    let mode_str = match (fork, multi_l2) {
-        (true, true) => "multi-L2 fork mode",
-        (true, false) => "fork mode",
-        (false, true) => "multi-L2 mode",
-        (false, false) => "local mode",
+        } => {
+            info!(chain = %chain, blocks = blocks, address = ?address, "Executing events command");
+            commands::handle_events(chain, blocks, address).await
+        }
     };
 
-    println!(
-        "{}",
-        format!("🚀 Starting AggLayer sandbox environment in {mode_str}...")
-            .green()
-            .bold()
-    );
+    match &result {
+        Ok(_) => info!("Command completed successfully"),
+        Err(e) => error!(error = %e, "Command failed"),
+    }
 
-    // Fork mode validation
-    if fork {
-        let fork_mainnet = std::env::var("FORK_URL_MAINNET").unwrap_or_default();
-        let fork_agglayer_1 = std::env::var("FORK_URL_AGGLAYER_1").unwrap_or_default();
+    result
+}
 
-        if fork_mainnet.is_empty() {
-            eprintln!(
-                "{}",
-                "❌ FORK_URL_MAINNET environment variable is not set".red()
-            );
-            eprintln!("{}", "Please set the fork URLs in your .env file".yellow());
-            std::process::exit(1);
-        }
+/// Initialize logging based on CLI configuration
+fn initialize_logging(cli: &Cli) -> Result<()> {
+    let level = logging::level_from_verbosity(cli.verbose, cli.quiet);
+    let format = logging::format_from_str(&cli.log_format).map_err(|e| {
+        error::AggSandboxError::Config(error::ConfigError::invalid_value(
+            "log_format",
+            &cli.log_format,
+            &e,
+        ))
+    })?;
 
-        if fork_agglayer_1.is_empty() {
-            eprintln!(
-                "{}",
-                "❌ FORK_URL_AGGLAYER_1 environment variable is not set".red()
-            );
-            eprintln!("{}", "Please set the fork URLs in your .env file".yellow());
-            std::process::exit(1);
-        }
+    let config = LogConfig {
+        level,
+        format,
+        include_location: cli.verbose > 0,
+        include_target: cli.verbose > 1,
+        include_spans: cli.verbose > 1,
+    };
 
-        // Additional validation for multi-L2 fork mode
-        if multi_l2 {
-            let fork_agglayer_2 = std::env::var("FORK_URL_AGGLAYER_2").unwrap_or_default();
-            if fork_agglayer_2.is_empty() {
-                eprintln!(
-                    "{}",
-                    "❌ FORK_URL_AGGLAYER_2 environment variable is not set".red()
-                );
-                eprintln!(
-                    "{}",
-                    "Please set the fork URLs in your .env file for the second L2 chain".yellow()
-                );
-                std::process::exit(1);
+    logging::init_logging(&config).map_err(|e| {
+        error::AggSandboxError::Config(error::ConfigError::validation_failed(&format!(
+            "logging initialization: {e}"
+        )))
+    })?;
+
+    Ok(())
+}
+
+/// Print user-friendly error messages with enhanced suggestions
+fn print_error(error: &error::AggSandboxError) {
+    eprintln!("\n{} {error}", "❌ Error:".red().bold());
+
+    // Provide additional context and suggestions based on error type
+    match error {
+        error::AggSandboxError::Config(config_err) => {
+            eprintln!("\n{}", "🔧 Configuration Issue".yellow().bold());
+            match config_err {
+                error::ConfigError::EnvVarNotFound(var) => {
+                    eprintln!("{}", "💡 Quick Fix:".blue().bold());
+                    eprintln!("   1. Create or edit your .env file:");
+                    eprintln!(
+                        "      {}",
+                        format!("echo '{var}=your_value' >> .env").cyan()
+                    );
+                    eprintln!("   2. Or set it temporarily:");
+                    eprintln!("      {}", format!("export {var}=your_value").cyan());
+                    eprintln!("\n{}", "📚 Learn more:".dimmed());
+                    eprintln!("   Check the README for required environment variables");
+                }
+                error::ConfigError::InvalidValue { key, .. } => {
+                    eprintln!("{}", "💡 Quick Fix:".blue().bold());
+                    eprintln!("   1. Check the value for '{}'", key.cyan());
+                    eprintln!("   2. Refer to configuration documentation");
+                    eprintln!("   3. Use 'aggsandbox info' to see current config");
+                }
+                error::ConfigError::MissingRequired(item) => {
+                    eprintln!("{}", "💡 Quick Fix:".blue().bold());
+                    eprintln!("   The following is required: {}", item.cyan());
+                    eprintln!("   Make sure you're in the correct directory and all files exist");
+                }
+                _ => {
+                    eprintln!("{}", "💡 Suggestion:".blue().bold());
+                    eprintln!("   Check your configuration files and environment variables");
+                }
             }
-            println!("{}", "Fork URLs detected:".cyan());
-            println!("  Mainnet: {}", fork_mainnet.yellow());
-            println!("  AggLayer 1: {}", fork_agglayer_1.yellow());
-            println!("  AggLayer 2: {}", fork_agglayer_2.yellow());
-        } else {
-            println!("{}", "Fork URLs detected:".cyan());
-            println!("  Mainnet: {}", fork_mainnet.yellow());
-            println!("  AggLayer 1: {}", fork_agglayer_1.yellow());
         }
-    }
-
-    let mut cmd = Command::new("docker-compose");
-
-    // Add compose files based on mode
-    if multi_l2 {
-        cmd.arg("-f").arg("docker-compose.yml");
-        cmd.arg("-f").arg("docker-compose.multi-l2.yml");
-    }
-
-    cmd.arg("up");
-
-    if detach {
-        cmd.arg("-d");
-    }
-
-    if build {
-        cmd.arg("--build");
-    }
-
-    // Set environment variables based on mode
-    if fork {
-        cmd.env("ENABLE_FORK_MODE", "true");
-        cmd.env(
-            "FORK_URL_MAINNET",
-            std::env::var("FORK_URL_MAINNET").unwrap_or_default(),
-        );
-        cmd.env(
-            "FORK_URL_AGGLAYER_1",
-            std::env::var("FORK_URL_AGGLAYER_1").unwrap_or_default(),
-        );
-        if multi_l2 {
-            cmd.env(
-                "FORK_URL_AGGLAYER_2",
-                std::env::var("FORK_URL_AGGLAYER_2").unwrap_or_default(),
-            );
-        }
-    } else {
-        cmd.env("ENABLE_FORK_MODE", "false");
-    }
-
-    // Set chain IDs
-    cmd.env(
-        "CHAIN_ID_MAINNET",
-        std::env::var("CHAIN_ID_MAINNET").unwrap_or_else(|_| "1".to_string()),
-    );
-    cmd.env(
-        "CHAIN_ID_AGGLAYER_1",
-        std::env::var("CHAIN_ID_AGGLAYER_1").unwrap_or_else(|_| "1101".to_string()),
-    );
-    if multi_l2 {
-        cmd.env(
-            "CHAIN_ID_AGGLAYER_2",
-            std::env::var("CHAIN_ID_AGGLAYER_2").unwrap_or_else(|_| "1102".to_string()),
-        );
-    }
-
-    // Handle detached vs non-detached mode differently
-    if detach {
-        // In detached mode, capture output to ensure consistent behavior across platforms
-        let output = cmd
-            .output()
-            .context("Failed to execute docker-compose up")?;
-
-        // Only show output if there's an error
-        if !output.status.success() {
-            if !output.stdout.is_empty() {
-                print!("{}", String::from_utf8_lossy(&output.stdout));
+        error::AggSandboxError::Docker(docker_err) => {
+            eprintln!("\n{}", "🐳 Docker Issue".yellow().bold());
+            match docker_err {
+                error::DockerError::ComposeFileNotFound(_) => {
+                    eprintln!("{}", "💡 Quick Fix:".blue().bold());
+                    eprintln!("   1. Navigate to the project root directory:");
+                    eprintln!("      {}", "cd /path/to/agg-sandbox".cyan());
+                    eprintln!("   2. Verify docker-compose.yml exists:");
+                    eprintln!("      {}", "ls docker-compose.yml".cyan());
+                    eprintln!("\n{}", "🎯 Current directory should contain:".dimmed());
+                    eprintln!("   • docker-compose.yml");
+                    eprintln!("   • .env (optional)");
+                    eprintln!("   • contracts/ directory");
+                }
+                error::DockerError::CommandFailed { .. } => {
+                    eprintln!("{}", "💡 Troubleshooting Steps:".blue().bold());
+                    eprintln!("   1. Check Docker is running:");
+                    eprintln!("      {}", "docker --version".cyan());
+                    eprintln!("   2. Verify Docker Compose:");
+                    eprintln!("      {}", "docker-compose --version".cyan());
+                    eprintln!("   3. Stop any existing containers:");
+                    eprintln!("      {}", "aggsandbox stop".cyan());
+                    eprintln!("   4. Check for port conflicts:");
+                    eprintln!("      {}", "aggsandbox status".cyan());
+                    eprintln!("\n{}", "🔍 If ports 8545, 8546 are in use:".dimmed());
+                    eprintln!(
+                        "   Stop other blockchain nodes or change ports in docker-compose.yml"
+                    );
+                }
+                _ => {
+                    eprintln!("{}", "💡 General Docker Help:".blue().bold());
+                    eprintln!("   • Ensure Docker Desktop is running");
+                    eprintln!("   • Check Docker has sufficient resources");
+                    eprintln!("   • Try: docker system prune (removes unused data)");
+                }
             }
-            if !output.stderr.is_empty() {
-                eprint!("{}", String::from_utf8_lossy(&output.stderr));
+        }
+        error::AggSandboxError::Api(api_err) => {
+            eprintln!("\n{}", "🌐 API Connection Issue".yellow().bold());
+            match api_err {
+                error::ApiError::NetworkError(_) => {
+                    eprintln!("{}", "💡 Troubleshooting Steps:".blue().bold());
+                    eprintln!("   1. Check sandbox status:");
+                    eprintln!("      {}", "aggsandbox status".cyan());
+                    eprintln!("   2. Start if not running:");
+                    eprintln!("      {}", "aggsandbox start --detach".cyan());
+                    eprintln!("   3. Wait for services to be ready (30-60s)");
+                    eprintln!("   4. Check logs for errors:");
+                    eprintln!("      {}", "aggsandbox logs".cyan());
+                    eprintln!("\n{}", "⏱️  Services need time to start up".dimmed());
+                }
+                error::ApiError::EndpointUnavailable(_) => {
+                    eprintln!("{}", "💡 Wait and Retry:".blue().bold());
+                    eprintln!("   • API service is starting up");
+                    eprintln!("   • Wait 30-60 seconds and try again");
+                    eprintln!("   • Check service health:");
+                    eprintln!("     {}", "aggsandbox logs bridge-service".cyan());
+                }
+                error::ApiError::RequestFailed { status, .. } => {
+                    eprintln!("{}", "💡 HTTP Error Help:".blue().bold());
+                    match *status {
+                        404 => eprintln!("   • Endpoint not found - check API version"),
+                        500 => eprintln!("   • Server error - check service logs"),
+                        503 => eprintln!("   • Service unavailable - wait and retry"),
+                        _ => eprintln!("   • Check service logs for details"),
+                    }
+                    eprintln!("     {}", "aggsandbox logs".cyan());
+                }
+                _ => {
+                    eprintln!("{}", "💡 General API Help:".blue().bold());
+                    eprintln!("   • Verify all services are running");
+                    eprintln!("   • Check network connectivity");
+                    eprintln!("   • Review service logs for errors");
+                }
             }
-            eprintln!("{}", "❌ Failed to start sandbox".red());
-            std::process::exit(1);
         }
-
-        let success_msg = match (fork, multi_l2) {
-            (true, true) => "✅ Multi-L2 sandbox started in fork mode (detached)",
-            (true, false) => "✅ Sandbox started in fork mode (detached)",
-            (false, true) => "✅ Multi-L2 sandbox started (detached)",
-            (false, false) => "✅ Sandbox started in detached mode",
-        };
-        println!("{}", success_msg.green());
-
-        // Print appropriate info
-        match (fork, multi_l2) {
-            (_, true) => logs::print_multi_l2_info(fork),
-            (true, false) => logs::print_sandbox_fork_info(),
-            (false, false) => logs::print_sandbox_info(),
+        error::AggSandboxError::Events(event_err) => {
+            eprintln!("\n{}", "📡 Blockchain Events Issue".yellow().bold());
+            match event_err {
+                error::EventError::InvalidChain(_chain) => {
+                    eprintln!("{}", "💡 Valid Chains:".blue().bold());
+                    eprintln!("   • {} - Ethereum L1 chain", "anvil-l1".green());
+                    eprintln!("   • {} - Polygon zkEVM L2 chain", "anvil-l2".green());
+                    eprintln!(
+                        "   • {} - Additional L2 chain (if enabled)",
+                        "anvil-l3".green()
+                    );
+                    eprintln!("\n{}", "📝 Example usage:".dimmed());
+                    eprintln!(
+                        "   {}",
+                        "aggsandbox events --chain anvil-l1 --blocks 5".cyan()
+                    );
+                    eprintln!(
+                        "   {}",
+                        "aggsandbox events --chain anvil-l2 --blocks 10".cyan()
+                    );
+                }
+                error::EventError::RpcConnectionFailed(_) => {
+                    eprintln!("{}", "💡 RPC Connection Fix:".blue().bold());
+                    eprintln!("   1. Ensure sandbox is running:");
+                    eprintln!("      {}", "aggsandbox status".cyan());
+                    eprintln!("   2. Check if chain is available:");
+                    eprintln!("      {}", "aggsandbox info".cyan());
+                    eprintln!("   3. Verify RPC endpoints are responding");
+                    eprintln!("\n{}", "🔍 Multi-L2 mode:".dimmed());
+                    eprintln!("   anvil-l3 is only available with --multi-l2 flag");
+                }
+                _ => {
+                    eprintln!("{}", "💡 Events Troubleshooting:".blue().bold());
+                    eprintln!("   • Check if the specified chain is running");
+                    eprintln!("   • Verify block range is valid");
+                    eprintln!("   • Ensure contract address format is correct");
+                }
+            }
         }
-    } else {
-        // In non-detached mode, run in foreground with real-time output
-        println!("{}", "Starting services in foreground mode...".cyan());
-        println!("{}", "Press Ctrl+C to stop the sandbox".yellow());
-
-        let status = cmd
-            .status()
-            .context("Failed to execute docker-compose up")?;
-
-        if status.success() {
-            println!("{}", "✅ Sandbox stopped".green());
-        } else {
-            eprintln!("{}", "❌ Failed to start sandbox".red());
-            std::process::exit(1);
+        _ => {
+            eprintln!("\n{}", "🆘 General Help".yellow().bold());
+            eprintln!("{}", "💡 Common Solutions:".blue().bold());
+            eprintln!("   • Check if you're in the project root directory");
+            eprintln!("   • Ensure Docker Desktop is running");
+            eprintln!("   • Try restarting the sandbox:");
+            eprintln!("     {}", "aggsandbox restart".cyan());
+            eprintln!("   • Check the documentation or README");
         }
     }
 
-    Ok(())
-}
-
-fn stop_sandbox(volumes: bool) -> Result<()> {
-    println!(
-        "{}",
-        "🛑 Stopping AggLayer sandbox environment..."
-            .yellow()
-            .bold()
+    eprintln!("\n{}", "🔗 Need more help?".bright_blue().bold());
+    eprintln!(
+        "   • Run {} for detailed information",
+        "aggsandbox --help".cyan()
     );
-
-    // Try to stop both regular and multi-L2 configurations
-    let mut cmd = Command::new("docker-compose");
-    cmd.arg("-f").arg("docker-compose.yml");
-
-    // Check if multi-L2 compose file exists and add it
-    if Path::new("docker-compose.multi-l2.yml").exists() {
-        cmd.arg("-f").arg("docker-compose.multi-l2.yml");
-    }
-
-    cmd.arg("down");
-
-    if volumes {
-        cmd.arg("-v");
-    }
-
-    // Capture output to ensure consistent behavior across platforms
-    let output = cmd
-        .output()
-        .context("Failed to execute docker-compose down")?;
-
-    // Only show output if there's an error (suppress verbose success logs)
-    if !output.status.success() {
-        if !output.stdout.is_empty() {
-            print!("{}", String::from_utf8_lossy(&output.stdout));
-        }
-        if !output.stderr.is_empty() {
-            eprint!("{}", String::from_utf8_lossy(&output.stderr));
-        }
-        eprintln!("{}", "❌ Failed to stop sandbox".red());
-        std::process::exit(1);
-    } else {
-        println!("{}", "✅ Sandbox stopped successfully".green());
-    }
-
-    Ok(())
-}
-
-fn show_status() -> Result<()> {
-    println!("{}", "📊 Sandbox service status:".blue().bold());
-
-    let mut cmd = Command::new("docker-compose");
-    cmd.arg("-f").arg("docker-compose.yml");
-
-    // Check if multi-L2 compose file exists and add it
-    if Path::new("docker-compose.multi-l2.yml").exists() {
-        cmd.arg("-f").arg("docker-compose.multi-l2.yml");
-    }
-
-    cmd.arg("ps");
-
-    let output = cmd
-        .output()
-        .context("Failed to execute docker-compose ps")?;
-
-    // Print stdout and stderr to ensure Docker output is shown
-    if !output.stdout.is_empty() {
-        print!("{}", String::from_utf8_lossy(&output.stdout));
-    }
-    if !output.stderr.is_empty() {
-        eprint!("{}", String::from_utf8_lossy(&output.stderr));
-    }
-
-    if !output.status.success() {
-        eprintln!("{}", "❌ Failed to get service status".red());
-        std::process::exit(1);
-    }
-
-    Ok(())
-}
-
-fn show_logs(follow: bool, service: Option<String>) -> Result<()> {
-    let service_name = service.as_deref().unwrap_or("all services");
-    println!(
-        "{} {}",
-        "📋 Showing logs for:".blue().bold(),
-        service_name.cyan()
+    eprintln!(
+        "   • Use {} for command-specific help",
+        "aggsandbox <command> --help".cyan()
     );
-
-    let mut cmd = Command::new("docker-compose");
-    cmd.arg("-f").arg("docker-compose.yml");
-
-    // Check if multi-L2 compose file exists and add it
-    if Path::new("docker-compose.multi-l2.yml").exists() {
-        cmd.arg("-f").arg("docker-compose.multi-l2.yml");
-    }
-
-    cmd.arg("logs");
-
-    if follow {
-        cmd.arg("-f");
-    }
-
-    if let Some(svc) = service {
-        cmd.arg(svc);
-    }
-
-    // For logs command, especially with --follow, we need to inherit stdio for real-time output
-    if follow {
-        let status = cmd
-            .status()
-            .context("Failed to execute docker-compose logs")?;
-
-        if !status.success() {
-            eprintln!("{}", "❌ Failed to show logs".red());
-            std::process::exit(1);
-        }
-    } else {
-        // For non-follow logs, capture output for consistent behavior
-        let output = cmd
-            .output()
-            .context("Failed to execute docker-compose logs")?;
-
-        // Print stdout and stderr to ensure Docker output is shown
-        if !output.stdout.is_empty() {
-            print!("{}", String::from_utf8_lossy(&output.stdout));
-        }
-        if !output.stderr.is_empty() {
-            eprint!("{}", String::from_utf8_lossy(&output.stderr));
-        }
-
-        if !output.status.success() {
-            eprintln!("{}", "❌ Failed to show logs".red());
-            std::process::exit(1);
-        }
-    }
-
-    Ok(())
-}
-
-fn restart_sandbox() -> Result<()> {
-    println!(
-        "{}",
-        "🔄 Restarting AggLayer sandbox environment..."
-            .yellow()
-            .bold()
-    );
-
-    // First stop
-    stop_sandbox(false)?;
-
-    // Then start in basic local mode
-    start_sandbox(true, false, false, false)?;
-
-    println!("{}", "✅ Sandbox restarted successfully".green());
-
-    Ok(())
-}
-
-fn show_info() {
-    println!("{}", "📋 AggLayer Sandbox Information".blue().bold());
-    logs::print_sandbox_info();
-}
-
-async fn show_bridge_info(subcommand: ShowCommands) -> Result<()> {
-    match subcommand {
-        ShowCommands::Bridges { network_id } => {
-            let response = api::get_bridges(network_id).await?;
-            api::print_json_response("Bridge Information", &response.data);
-        }
-        ShowCommands::Claims { network_id } => {
-            let response = api::get_claims(network_id).await?;
-            api::print_json_response("Claims Information", &response.data);
-        }
-        ShowCommands::ClaimProof {
-            network_id,
-            leaf_index,
-            deposit_count,
-        } => {
-            let response = api::get_claim_proof(network_id, leaf_index, deposit_count).await?;
-            api::print_json_response("Claim Proof Information", &response.data);
-        }
-        ShowCommands::L1InfoTreeIndex {
-            network_id,
-            deposit_count,
-        } => {
-            let response = api::get_l1_info_tree_index(network_id, deposit_count).await?;
-            api::print_json_response("L1 Info Tree Index", &response.data);
-        }
-    }
-    Ok(())
+    eprintln!("   • Check logs with {}", "aggsandbox logs".cyan());
+    eprintln!();
 }

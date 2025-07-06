@@ -1,3 +1,9 @@
 pub mod api;
+pub mod api_client;
+pub mod config;
+pub mod docker;
+pub mod error;
 pub mod events;
 pub mod logs;
+pub mod progress;
+pub mod validation;

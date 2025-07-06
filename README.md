@@ -7,7 +7,10 @@ A development sandbox environment for the AggLayer with support for local blockc
 - **Local Mode**: Run completely local blockchain nodes for development
 - **Fork Mode**: Fork existing blockchains to test against real network state
 - **Multi-L2 Mode**: Run with a second L2 chain for multi-chain testing (supports both local and fork modes)
-- Easy CLI management of the sandbox environment
+- **Enhanced CLI** with rich help messages, progress tracking, and intelligent error handling
+- **Advanced Configuration** with TOML/YAML file support and environment variable management
+- **Performance Optimizations** with HTTP connection pooling and response caching
+- **Comprehensive Monitoring** with structured logging and detailed troubleshooting guides
 - Pre-configured accounts and private keys
 - Docker-based deployment for consistent environments
 
@@ -41,6 +44,8 @@ A development sandbox environment for the AggLayer with support for local blockc
    aggsandbox --help
    ```
 
+   You should see comprehensive help with examples and rich formatting.
+
 4. Uninstall (if needed):
 
    ```bash
@@ -49,15 +54,17 @@ A development sandbox environment for the AggLayer with support for local blockc
 
 ### Usage
 
-The CLI provides a single `start` command with different flags for various modes:
+The CLI provides comprehensive commands with enhanced user experience including progress tracking, detailed help, and intelligent error messages:
 
 #### Local Mode (Default)
 
-Start with completely local blockchain simulation:
+Start with completely local blockchain simulation (shows progress tracking):
 
 ```bash
 aggsandbox start --detach
 ```
+
+The CLI will display a progress bar with step-by-step feedback during startup.
 
 #### Available Flags
 
@@ -124,40 +131,54 @@ aggsandbox start --multi-l2 --fork --detach
 
 #### Other Commands
 
+All commands now include enhanced help and error handling:
+
 ```bash
 # Check status (works for all modes)
 aggsandbox status
 
-# View logs (works for all modes)
+# View logs with improved filtering and real-time following
 aggsandbox logs --follow
+aggsandbox logs bridge-service  # Specific service logs
+aggsandbox logs -f anvil-l1     # Follow L1 node logs
 
 # Stop the sandbox (automatically detects and stops all configurations)
 aggsandbox stop
+aggsandbox stop --volumes  # ⚠️  Also remove volumes (destructive)
 
-# Show configuration info
+# Show comprehensive configuration info
 aggsandbox info
+
+# Get detailed help for any command
+aggsandbox <command> --help
 ```
 
 #### Bridge Information Commands
 
-Query bridge endpoints for debugging and monitoring:
+Query bridge endpoints with enhanced formatting and detailed explanations:
 
 ```bash
-# Show bridges for a network (default: network_id=1)
-aggsandbox show bridges
-aggsandbox show bridges --network-id 2
+# Show bridges for a network (1=L1 Ethereum, 1101=L2 Polygon zkEVM)
+aggsandbox show bridges --network 1      # L1 bridges  
+aggsandbox show bridges --network 1101   # L2 bridges
 
-# Show claims for a network (default: network_id=1101)
-aggsandbox show claims
-aggsandbox show claims --network-id 1
+# Show claims for a network
+aggsandbox show claims --network 1       # L1 claims (deposits to be claimed on L2)
+aggsandbox show claims --network 1101    # L2 claims (withdrawals to be claimed on L1)
 
-# Show claim proof (default: network_id=1, leaf_index=0, deposit_count=1)
-aggsandbox show claim-proof
-aggsandbox show claim-proof --network-id 1 --leaf-index 5 --deposit-count 10
+# Show claim proof with cryptographic verification data
+aggsandbox show claim-proof --network 1 --leaf-index 0 --deposit-count 1
+aggsandbox show claim-proof -n 1101 -l 5 -d 10  # Short form options
 
-# Show L1 info tree index (default: network_id=1, deposit_count=0)
-aggsandbox show l1-info-tree-index
-aggsandbox show l1-info-tree-index --network-id 1 --deposit-count 5
+# Show L1 info tree index for deposit verification
+aggsandbox show l1-info-tree-index --network 1 --deposit-count 0
+aggsandbox show l1-info-tree-index -n 1101 -d 5
+```
+
+All `show` commands now include comprehensive help with detailed explanations:
+```bash
+aggsandbox show --help           # Overview of all bridge commands
+aggsandbox show bridges --help   # Detailed bridge command help
 ```
 
 These commands query the bridge service at `http://localhost:5577` and display:
@@ -196,11 +217,68 @@ Each event displays:
 - 🎯 Event signature and decoded parameters
 - 🔍 Raw data for debugging
 
+## Advanced Features
+
+### Enhanced CLI Experience
+
+The CLI now includes several user experience improvements:
+
+- **🎨 Rich Help Messages**: Comprehensive help with examples, emojis, and detailed explanations
+- **📊 Progress Tracking**: Visual progress bars with step-by-step feedback during long operations
+- **🚨 Smart Error Handling**: Context-specific error messages with troubleshooting suggestions
+- **🔍 Verbose Logging**: Configurable log levels for debugging (`-v` for debug, `-vv` for trace)
+- **⚡ Performance Optimizations**: HTTP connection pooling and response caching for better performance
+
+### Logging and Verbosity
+
+Control output verbosity and format:
+
+```bash
+# Enable verbose output for debugging
+aggsandbox start --detach -v        # Debug level
+aggsandbox start --detach -vv       # Trace level (very detailed)
+
+# Quiet mode (only errors and warnings)
+aggsandbox start --detach --quiet
+
+# Different log formats
+aggsandbox start --detach --log-format json     # Machine-readable JSON logs
+aggsandbox start --detach --log-format compact  # Compact format
+aggsandbox start --detach --log-format pretty   # Default human-readable format
+```
+
+### Error Handling and Troubleshooting
+
+When errors occur, the CLI provides:
+
+- **🔧 Specific Issue Categories**: Docker, Configuration, API, or Blockchain Event issues
+- **💡 Quick Fixes**: Step-by-step commands to resolve common problems
+- **📚 Additional Context**: Links to documentation and troubleshooting guides
+- **🎯 Helpful Suggestions**: Context-aware recommendations based on the error type
+
+Example error output includes:
+```bash
+❌ Error: Docker daemon not running
+
+🐳 Docker Issue
+💡 Troubleshooting Steps:
+   1. Check Docker is running:
+      docker --version
+   2. Start Docker Desktop
+   3. Try again: aggsandbox start --detach
+
+🔗 Need more help?
+   • Run aggsandbox --help for detailed information
+   • Check logs with aggsandbox logs
+```
+
 ## Configuration
 
-The sandbox uses environment variables defined in the `.env` file:
+The sandbox supports multiple configuration methods with enhanced validation and error reporting:
 
-### Local Mode Variables
+### Environment Variables (`.env` file)
+
+The traditional method using environment variables:
 
 - `RPC_URL_1`, `RPC_URL_2`: Internal RPC URLs for services
 - `CHAIN_ID_MAINNET`, `CHAIN_ID_AGGLAYER_1`: Chain IDs for the networks
@@ -217,6 +295,60 @@ Pre-configured test accounts with known private keys:
 
 - `ACCOUNT_ADDRESS_1`, `PRIVATE_KEY_1`: Primary test account
 - `ACCOUNT_ADDRESS_2`, `PRIVATE_KEY_2`: Secondary test account
+
+### Configuration Files (New!)
+
+The CLI now supports TOML and YAML configuration files for more structured configuration:
+
+#### TOML Configuration (`aggsandbox.toml`)
+
+```toml
+[api]
+base_url = "http://localhost:5577"
+timeout = "30s"
+retry_attempts = 3
+
+[networks.l1]
+name = "Ethereum-L1"
+chain_id = "1"
+rpc_url = "http://localhost:8545"
+
+[networks.l2]
+name = "Polygon-zkEVM-L2"
+chain_id = "1101"
+rpc_url = "http://localhost:8546"
+
+[accounts]
+accounts = ["0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266"]
+private_keys = ["0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80"]
+```
+
+#### YAML Configuration (`aggsandbox.yaml`)
+
+```yaml
+api:
+  base_url: "http://localhost:5577"
+  timeout: "30s"
+  retry_attempts: 3
+
+networks:
+  l1:
+    name: "Ethereum-L1"
+    chain_id: "1"
+    rpc_url: "http://localhost:8545"
+  l2:
+    name: "Polygon-zkEVM-L2"
+    chain_id: "1101"
+    rpc_url: "http://localhost:8546"
+
+accounts:
+  accounts:
+    - "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266"
+  private_keys:
+    - "0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80"
+```
+
+**Configuration Priority**: Environment variables take precedence over configuration files, allowing for easy overrides.
 
 ## Network Configuration
 
@@ -273,17 +405,119 @@ The multi-L2 sandbox consists of:
 
 ## Troubleshooting
 
-### Fork Mode Issues
+The CLI now provides comprehensive error handling with context-specific guidance. Most issues will be automatically diagnosed with helpful suggestions.
+
+### Enhanced Error Handling
+
+When errors occur, you'll see:
+
+1. **Clear Error Description**: What went wrong
+2. **Issue Category**: Docker, Configuration, API, or Event-related
+3. **Quick Fix Steps**: Specific commands to resolve the issue
+4. **Additional Help**: Links to detailed troubleshooting
+
+### Common Issues and Solutions
+
+#### Fork Mode Issues
+
+```bash
+# If fork URLs are not accessible
+❌ Error: Fork URL validation failed
+
+🔧 Configuration Issue
+💡 Quick Fix:
+   1. Check your .env file:
+      cat .env
+   2. Verify fork URLs are accessible:
+      curl -X POST your_fork_url -H "Content-Type: application/json" --data '{"method":"eth_blockNumber","params":[],"id":1,"jsonrpc":"2.0"}'
+   3. Check API key validity (if required)
+```
 
 - Ensure your fork URLs are accessible and support the required RPC methods
-- Check that your API keys (if required) are properly configured
+- Check that your API keys (if required) are properly configured  
 - Some RPC providers have rate limits that may affect performance
 
-### Docker Issues
+#### Docker Issues
 
-- Ensure Docker daemon is running
+The CLI automatically detects and provides specific guidance for Docker issues:
+
+```bash
+# Docker not running
+❌ Error: Docker daemon not running
+
+🐳 Docker Issue
+💡 Troubleshooting Steps:
+   1. Check Docker is running:
+      docker --version
+   2. Start Docker Desktop
+   3. Try again: aggsandbox start --detach
+
+# Port conflicts
+❌ Error: Port 8545 already in use
+
+🐳 Docker Issue  
+💡 Quick Fix:
+   1. Stop existing containers:
+      aggsandbox stop
+   2. Check what's using the port:
+      lsof -i :8545
+   3. Either stop the conflicting service or change ports in docker-compose.yml
+```
+
+Manual troubleshooting:
 - Try rebuilding images: `aggsandbox start --build`
-- Check logs: `aggsandbox logs`
+- Check detailed logs: `aggsandbox logs -v`
+- Use verbose mode for more information: `aggsandbox start --detach -vv`
+
+#### Configuration Issues
+
+```bash
+# Missing environment variables
+❌ Error: Required environment variable FORK_URL_MAINNET not found
+
+🔧 Configuration Issue
+💡 Quick Fix:
+   1. Create or edit your .env file:
+      echo 'FORK_URL_MAINNET=your_url' >> .env
+   2. Or set it temporarily:
+      export FORK_URL_MAINNET=your_url
+```
+
+#### API Connection Issues
+
+```bash
+# Services not ready
+❌ Error: Bridge service not responding
+
+🌐 API Connection Issue
+💡 Troubleshooting Steps:
+   1. Check sandbox status:
+      aggsandbox status
+   2. Start if not running:
+      aggsandbox start --detach
+   3. Wait for services to be ready (30-60s)
+   4. Check service logs:
+      aggsandbox logs bridge-service
+```
+
+### Getting Additional Help
+
+```bash
+# Get comprehensive help
+aggsandbox --help
+
+# Command-specific help with examples
+aggsandbox start --help
+aggsandbox show --help
+
+# Enable verbose logging for debugging
+aggsandbox start --detach -vv
+
+# Check service status and logs
+aggsandbox status
+aggsandbox logs  # All services
+aggsandbox logs bridge-service  # Specific service
+```
 
 ## License
 

@@ -107,7 +107,6 @@ pub fn handle_start(detach: bool, build: bool, fork: bool, multi_l2: bool) {
             println!("{}", "✅ Sandbox stopped".green());
         }
     }
-
 }
 
 fn display_fork_urls(multi_l2: bool) {

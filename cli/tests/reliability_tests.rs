@@ -375,8 +375,7 @@ mod memory_leak_detection_tests {
             // Periodic memory pressure to detect leaks
             if iteration % 1000 == 0 {
                 // Force potential garbage collection
-                let temp_data: Vec<String> =
-                    (0..100).map(|i| format!("temp_string_{i}")).collect();
+                let temp_data: Vec<String> = (0..100).map(|i| format!("temp_string_{i}")).collect();
                 std::hint::black_box(temp_data);
             }
         }

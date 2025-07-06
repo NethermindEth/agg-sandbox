@@ -41,7 +41,7 @@ pub struct LogConfig {
 impl Default for LogConfig {
     fn default() -> Self {
         Self {
-            level: Level::INFO,
+            level: Level::WARN,
             format: LogFormat::Pretty,
             include_location: false,
             include_target: false,
@@ -94,8 +94,7 @@ pub fn init_logging(config: &LogConfig) -> Result<(), Box<dyn std::error::Error 
     let filter = EnvFilter::builder()
         .with_default_directive(config.level.into())
         .from_env_lossy()
-        // Allow overriding specific modules
-        .add_directive("aggsandbox=debug".parse()?)
+        // Allow overriding specific modules - only set debug level if explicitly configured
         .add_directive("hyper=warn".parse()?)
         .add_directive("reqwest=warn".parse()?)
         .add_directive("wiremock=warn".parse()?);
@@ -176,7 +175,7 @@ pub fn level_from_verbosity(verbose: u8, quiet: bool) -> Level {
         Level::ERROR
     } else {
         match verbose {
-            0 => Level::INFO,
+            0 => Level::WARN,
             1 => Level::DEBUG,
             _ => Level::TRACE,
         }
@@ -235,7 +234,7 @@ mod tests {
     #[test]
     fn test_log_config_defaults() {
         let config = LogConfig::default();
-        assert_eq!(config.level, Level::INFO);
+        assert_eq!(config.level, Level::WARN);
         assert!(matches!(config.format, LogFormat::Pretty));
         assert!(!config.include_location);
         assert!(!config.include_target);
@@ -270,7 +269,7 @@ mod tests {
 
     #[test]
     fn test_level_from_verbosity() {
-        assert_eq!(level_from_verbosity(0, false), Level::INFO);
+        assert_eq!(level_from_verbosity(0, false), Level::WARN);
         assert_eq!(level_from_verbosity(1, false), Level::DEBUG);
         assert_eq!(level_from_verbosity(2, false), Level::TRACE);
         assert_eq!(level_from_verbosity(0, true), Level::ERROR);

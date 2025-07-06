@@ -67,9 +67,6 @@ async fn handle_start_async(detach: bool, build: bool, fork: bool, multi_l2: boo
             std::process::exit(1);
         }
         progress.complete_step(handle);
-        reporter
-            .success("Configuration validated successfully")
-            .await;
     }
 
     // Step 2: Setup environment
@@ -85,7 +82,6 @@ async fn handle_start_async(detach: bool, build: bool, fork: bool, multi_l2: boo
         let docker_builder = config.create_docker_builder();
 
         progress.complete_step(handle);
-        reporter.success("Environment configured").await;
 
         // Build and execute Docker command
         info!(detach = detach, build = build, "Building Docker command");
@@ -99,13 +95,6 @@ async fn handle_start_async(detach: bool, build: bool, fork: bool, multi_l2: boo
         }) {
             // This step is handled by Docker, so we complete it immediately
             progress.complete_step(handle);
-            if build {
-                reporter
-                    .success("Docker images prepared for building")
-                    .await;
-            } else {
-                reporter.success("Docker services prepared").await;
-            }
         }
 
         // Step 4: Start services
@@ -149,7 +138,9 @@ async fn handle_start_async(detach: bool, build: bool, fork: bool, multi_l2: boo
                     );
 
                     progress.complete_step(verify_handle);
-                    reporter.success(success_msg).await;
+
+                    // Print success message after progress is complete
+                    println!("\n{} {}", "✅".green().bold(), success_msg.green());
                 }
 
                 // Load config and print appropriate info

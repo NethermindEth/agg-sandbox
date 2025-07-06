@@ -117,6 +117,7 @@ pub struct MultiStepProgress {
     current_step: usize,
     total_steps: usize,
     start_time: Instant,
+    progress_shown: bool,
 }
 
 #[derive(Clone)]
@@ -152,6 +153,7 @@ impl MultiStepProgress {
             current_step: 0,
             total_steps,
             start_time: Instant::now(),
+            progress_shown: false,
         }
     }
 
@@ -202,11 +204,21 @@ impl MultiStepProgress {
     }
 
     /// Print the current progress state
-    fn print_progress(&self) {
-        println!("\n{}", "📋 Progress Overview".bold());
-        println!("{}", "─".repeat(50));
+    fn print_progress(&mut self) {
+        // Only show the header once
+        if !self.progress_shown {
+            println!("\n{}", "📋 Progress Overview".bold());
+            println!("{}", "─".repeat(50));
+            self.progress_shown = true;
+        }
 
-        for (i, step) in self.steps.iter().enumerate() {
+        // Clear the current line and show updated progress
+        print!("\r{}", " ".repeat(80));
+        print!("\r");
+
+        // Show current step status
+        if self.current_step < self.steps.len() {
+            let step = &self.steps[self.current_step];
             let (symbol, color_fn): (&str, fn(&str) -> ColoredString) = match step.status {
                 StepStatus::Pending => ("○", |s| s.dimmed()),
                 StepStatus::InProgress => ("⟳", |s| s.cyan()),
@@ -220,29 +232,42 @@ impl MultiStepProgress {
                 .map(|d| format!(" ({})", format_duration(d)))
                 .unwrap_or_default();
 
-            println!(
-                "{} {}/{} {} {}{}",
+            print!(
+                "{} {}/{} {}{}{}",
                 color_fn(symbol),
-                i + 1,
+                self.current_step + 1,
                 self.total_steps,
                 color_fn(&step.name),
                 if step.status == StepStatus::InProgress {
-                    "...".dimmed().to_string()
+                    " ...".dimmed().to_string()
                 } else {
                     String::new()
                 },
                 duration_str.dimmed()
             );
-        }
-
-        if self.current_step >= self.total_steps {
+        } else {
+            // All steps completed
             let total_duration = self.start_time.elapsed();
-            println!(
-                "{}\n{} All steps completed in {}",
-                "─".repeat(50),
+            print!(
+                "{} All steps completed in {}",
                 "🎉".green(),
                 format_duration(total_duration).bold()
             );
+        }
+
+        io::stdout().flush().unwrap_or(());
+
+        // Add newline after step completion or when all done
+        if self.current_step >= self.steps.len() {
+            println!(); // Final newline when all done
+        } else {
+            let step = &self.steps[self.current_step];
+            if matches!(
+                step.status,
+                StepStatus::Completed | StepStatus::Failed | StepStatus::Skipped
+            ) {
+                println!(); // Move to next line after completion
+            }
         }
     }
 
@@ -392,5 +417,35 @@ mod tests {
         reporter.warning("This is a warning").await;
         reporter.error("This is an error").await;
         reporter.tip("This is a helpful tip").await;
+    }
+
+    #[tokio::test]
+    async fn test_multi_step_progress_display() {
+        let steps = vec![
+            "Step 1".to_string(),
+            "Step 2".to_string(),
+            "Step 3".to_string(),
+        ];
+        let mut progress = MultiStepProgress::new(steps);
+
+        // Start and complete first step
+        if let Some(handle) = progress.start_step("Step 1") {
+            tokio::time::sleep(tokio::time::Duration::from_millis(100)).await;
+            progress.complete_step(handle);
+        }
+
+        // Start and complete second step
+        if let Some(handle) = progress.start_step("Step 2") {
+            tokio::time::sleep(tokio::time::Duration::from_millis(100)).await;
+            progress.complete_step(handle);
+        }
+
+        // Start and complete third step
+        if let Some(handle) = progress.start_step("Step 3") {
+            tokio::time::sleep(tokio::time::Duration::from_millis(100)).await;
+            progress.complete_step(handle);
+        }
+
+        assert_eq!(progress.completion_percentage(), 100.0);
     }
 }

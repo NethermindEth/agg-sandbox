@@ -127,10 +127,6 @@ impl OptimizedApiClient {
             .tcp_keepalive(Duration::from_secs(60))
             .gzip(true)
             .brotli(true)
-            .http2_prior_knowledge()
-            .http2_keep_alive_interval(Duration::from_secs(30))
-            .http2_keep_alive_timeout(Duration::from_secs(10))
-            .http2_keep_alive_while_idle(true)
             .build()
             .expect("Failed to create HTTP client");
 

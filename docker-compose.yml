@@ -1,6 +1,6 @@
 services:
   anvil-l1:
-    image: ametelnethermind/aggsandbox-anvil
+    image: ametelnethermind/aggsandbox-anvil:latest
     ports:
       - "8545:8545"
     networks:
@@ -17,7 +17,7 @@ services:
       start_period: 10s
 
   anvil-l2:
-    image: ametelnethermind/aggsandbox-anvil
+    image: ametelnethermind/aggsandbox-anvil:latest
     ports:
       - "8546:8545"
     networks:
@@ -32,7 +32,6 @@ services:
       timeout: 3s
       retries: 5
       start_period: 10s
-
 
   contract-deployer:
     image: ametelnethermind/aggsandbox-deployer:latest
@@ -59,21 +58,46 @@ services:
       contract-deployer:
         condition: service_completed_successfully
     ports:
-      - "5577:5577"
-      - "8080:8080"
-      - "8555:8555"
+      - "5577:5577"  # REST API
+      - "8080:8080"  # Telemetry
+      - "8555:8555"  # RPC
     networks:
       - anvil-network
     volumes:
       - ./config:/app/config
-      - aggkit-data:/data
+      - aggkit-data:/app/data
+    env_file:
+      - .env
     environment:
-      - RPC_URL_1=http://anvil-l1:8545
-      - RPC_URL_2=http://anvil-l2:8545
+      # Basic configuration
+      - AGGKIT_SANDBOX_ENABLED=true
+      - AGGKIT_LOG_LEVEL=info
+      - AGGKIT_COMPONENTS=bridge,aggoracle
+      
+      # Network configuration
+      - AGGKIT_L1_URL=http://anvil-l1:8545
+      - AGGKIT_L2_URL=http://anvil-l2:8545
+      - AGGKIT_L1_CHAIN_ID=${CHAIN_ID_MAINNET:-1}
+      - AGGKIT_L2_CHAIN_ID=${CHAIN_ID_AGGLAYER_1:-1101}
+      
+      # Service ports
+      - AGGKIT_REST_PORT=5577
+      - AGGKIT_RPC_PORT=8555
+      - AGGKIT_TELEMETRY_PORT=8080
+      
+      # Database
+      - AGGKIT_DATABASE_NAME=/app/data/aggkit.db
+      
+      # Contract addresses (from .env file)
+      - POLYGON_ZKEVM_BRIDGE_L1=${POLYGON_ZKEVM_BRIDGE_L1}
+      - POLYGON_ZKEVM_BRIDGE_L2=${POLYGON_ZKEVM_BRIDGE_L2}
+      - POLYGON_ZKEVM_GLOBAL_EXIT_ROOT_L1=${POLYGON_ZKEVM_GLOBAL_EXIT_ROOT_L1}
+      - POLYGON_ZKEVM_GLOBAL_EXIT_ROOT_L2=${GLOBAL_EXIT_ROOT_MANAGER_L2}
+      - POLYGON_ROLLUP_MANAGER_L1=${POLYGON_ROLLUP_MANAGER_L1}
 
 networks:
   anvil-network:
     driver: bridge
 
 volumes:
-  aggkit-data:
+  aggkit-data: 

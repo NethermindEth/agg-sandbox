@@ -27,6 +27,12 @@ impl DockerComposeBuilder {
         self
     }
 
+    /// Set the compose files (replacing existing ones)
+    pub fn set_files<S: Into<String>>(&mut self, files: Vec<S>) -> &mut Self {
+        self.files = files.into_iter().map(|f| f.into()).collect();
+        self
+    }
+
     /// Add an environment variable
     pub fn add_env<K: Into<String>, V: Into<String>>(&mut self, key: K, value: V) -> &mut Self {
         self.env_vars.insert(key.into(), value.into());
@@ -211,9 +217,9 @@ impl SandboxConfig {
     pub fn create_docker_builder(&self) -> DockerComposeBuilder {
         let mut builder = DockerComposeBuilder::new();
 
-        // Add multi-L2 compose file if needed
+        // In multi-L2 mode, use only the multi-L2 compose file
         if self.multi_l2_mode {
-            builder.add_file("docker-compose.multi-l2.yml");
+            builder.set_files(vec!["docker-compose.multi-l2.yml"]);
         }
 
         // Set environment variables based on mode

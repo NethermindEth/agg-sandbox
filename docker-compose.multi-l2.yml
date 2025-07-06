@@ -1,16 +1,15 @@
 services:
-  anvil-l3:
-    build:
-      context: ./images
-      dockerfile: Dockerfile.anvil
+  # === MAIN SETUP (L1 + L2) ===
+  anvil-l1:
+    image: ametelnethermind/aggsandbox-anvil:latest
     ports:
-      - "8547:8545"
+      - "8545:8545"
     networks:
       - anvil-network
     environment:
       - ENABLE_FORK_MODE=${ENABLE_FORK_MODE:-false}
-      - FORK_URL_AGGLAYER_2=${FORK_URL_AGGLAYER_2:-}
-      - CHAIN_ID_AGGLAYER_2=${CHAIN_ID_AGGLAYER_2:-1102}
+      - FORK_URL_MAINNET=${FORK_URL_MAINNET:-}
+      - CHAIN_ID_MAINNET=${CHAIN_ID_MAINNET:-1}
     healthcheck:
       test: ["CMD-SHELL", "timeout 1 bash -c '</dev/tcp/localhost/8545'"]
       interval: 5s
@@ -18,27 +17,44 @@ services:
       retries: 5
       start_period: 10s
 
-  aggkit-l2:
-    image: ametelnethermind/aggkit:latest
-    depends_on:
-      anvil-l1:
-        condition: service_healthy
-      anvil-l2:
-        condition: service_healthy
+  anvil-l2:
+    image: ametelnethermind/aggsandbox-anvil:latest
+    ports:
+      - "8546:8545"
     networks:
       - anvil-network
-    volumes:
-      - ./config:/app/config
-      - aggkit-l2-data:/data
     environment:
-      - RPC_URL_1=http://anvil-l1:8545
-      - RPC_URL_2=http://anvil-l2:8545
+      - ENABLE_FORK_MODE=${ENABLE_FORK_MODE:-false}
+      - FORK_URL_AGGLAYER_1=${FORK_URL_AGGLAYER_1:-}
+      - CHAIN_ID_AGGLAYER_1=${CHAIN_ID_AGGLAYER_1:-1101}
+    healthcheck:
+      test: ["CMD-SHELL", "timeout 1 bash -c '</dev/tcp/localhost/8545'"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+      start_period: 10s
 
+  # === MULTI-L2 ADDITION (L3) ===
+  anvil-l3:
+    image: ametelnethermind/aggsandbox-anvil:latest
+    ports:
+      - "8547:8545"
+    networks:
+      - anvil-network
+    environment:
+      - ENABLE_FORK_MODE=${ENABLE_FORK_MODE:-false}
+      - FORK_URL_AGGLAYER_2=${FORK_URL_AGGLAYER_2:-}
+      - CHAIN_ID_AGGLAYER_2=${CHAIN_ID_AGGLAYER_2:-137}
+    healthcheck:
+      test: ["CMD-SHELL", "timeout 1 bash -c '</dev/tcp/localhost/8545'"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+      start_period: 10s
+
+  # === CONTRACT DEPLOYMENT ===
   contract-deployer:
-    build:
-      context: .
-      dockerfile: images/Dockerfile.deploy
-      no_cache: true
+    image: aggsandbox-deployer:latest
     depends_on:
       anvil-l1:
         condition: service_healthy
@@ -55,5 +71,111 @@ services:
     volumes:
       - ./.env:/app/output/deployed-contracts.env
 
+  # === AGGKIT INSTANCES ===
+  
+  # AggKit for L2 (L1 ↔ L2 bridge)
+  aggkit-l2:
+    image: aggsandbox-aggkit:latest
+    depends_on:
+      anvil-l1:
+        condition: service_healthy
+      anvil-l2:
+        condition: service_healthy
+      contract-deployer:
+        condition: service_completed_successfully
+    ports:
+      - "5577:5577"  # REST API
+      - "8080:8080"  # Telemetry
+      - "8555:8555"  # RPC
+    networks:
+      - anvil-network
+    volumes:
+      - ./config:/app/config
+      - aggkit-l2-data:/app/data
+    env_file:
+      - .env
+    environment:
+      # Basic configuration
+      - AGGKIT_SANDBOX_ENABLED=true
+      - AGGKIT_LOG_LEVEL=info
+      - AGGKIT_COMPONENTS=bridge,aggoracle
+      
+      # Network configuration
+      - AGGKIT_L1_URL=http://anvil-l1:8545
+      - AGGKIT_L2_URL=http://anvil-l2:8545
+      - AGGKIT_L1_CHAIN_ID=${CHAIN_ID_MAINNET:-1}
+      - AGGKIT_L2_CHAIN_ID=${CHAIN_ID_AGGLAYER_1:-1101}
+      
+      # Service ports
+      - AGGKIT_REST_PORT=5577
+      - AGGKIT_RPC_PORT=8555
+      - AGGKIT_TELEMETRY_PORT=8080
+      
+      # Database
+      - AGGKIT_DATABASE_NAME=/app/data/aggkit_l2.db
+      
+      # Contract addresses (from .env file)
+      - POLYGON_ZKEVM_BRIDGE_L1=${POLYGON_ZKEVM_BRIDGE_L1}
+      - POLYGON_ZKEVM_BRIDGE_L2=${POLYGON_ZKEVM_BRIDGE_L2}
+      - POLYGON_ZKEVM_GLOBAL_EXIT_ROOT_L1=${POLYGON_ZKEVM_GLOBAL_EXIT_ROOT_L1}
+      - POLYGON_ZKEVM_GLOBAL_EXIT_ROOT_L2=${GLOBAL_EXIT_ROOT_MANAGER_L2}
+      - POLYGON_ROLLUP_MANAGER_L1=${POLYGON_ROLLUP_MANAGER_L1}
+    container_name: aggkit-l2
+
+  # AggKit for L3 (L1 ↔ L3 bridge)
+  aggkit-l3:
+    image: aggsandbox-aggkit:latest
+    depends_on:
+      anvil-l1:
+        condition: service_healthy
+      anvil-l3:
+        condition: service_healthy
+      contract-deployer:
+        condition: service_completed_successfully
+    ports:
+      - "5578:5578"  # REST API (different external and internal port)
+      - "8081:8081"  # Telemetry (different external and internal port)
+      - "8556:8556"  # RPC (different external and internal port)
+    networks:
+      - anvil-network
+    volumes:
+      - ./config:/app/config
+      - aggkit-l3-data:/app/data
+    env_file:
+      - .env
+    environment:
+      # Basic configuration
+      - AGGKIT_SANDBOX_ENABLED=true
+      - AGGKIT_LOG_LEVEL=info
+      - AGGKIT_COMPONENTS=bridge,aggoracle
+      
+      # Network configuration
+      - AGGKIT_L1_URL=http://anvil-l1:8545
+      - AGGKIT_L2_URL=http://anvil-l3:8545
+      - AGGKIT_L1_CHAIN_ID=${CHAIN_ID_MAINNET:-1}
+      - AGGKIT_L2_CHAIN_ID=${CHAIN_ID_AGGLAYER_2:-137}
+      
+      # Service ports (different internal ports to avoid conflicts)
+      - AGGKIT_REST_PORT=5578
+      - AGGKIT_RPC_PORT=8556
+      - AGGKIT_TELEMETRY_PORT=8081
+      
+      # Database (different path to avoid conflicts)
+      - AGGKIT_DATABASE_NAME=/app/data/aggkit_l3.db
+      
+      # Contract addresses for L3 (you'll need to deploy separate contracts for L3)
+      # These will need to be different from L2 contracts
+      - POLYGON_ZKEVM_BRIDGE_L1=${POLYGON_ZKEVM_BRIDGE_L1}
+      - POLYGON_ZKEVM_BRIDGE_L2=${POLYGON_ZKEVM_BRIDGE_L3:-0x<deploy_bridge_for_L3>}
+      - POLYGON_ZKEVM_GLOBAL_EXIT_ROOT_L1=${POLYGON_ZKEVM_GLOBAL_EXIT_ROOT_L1}
+      - POLYGON_ZKEVM_GLOBAL_EXIT_ROOT_L2=${GLOBAL_EXIT_ROOT_MANAGER_L3:-0x<deploy_GER_for_L3>}
+      - POLYGON_ROLLUP_MANAGER_L1=${POLYGON_ROLLUP_MANAGER_L1}
+    container_name: aggkit-l3
+
+networks:
+  anvil-network:
+    driver: bridge
+
 volumes:
-  aggkit-l2-data: 
+  aggkit-l2-data:
+  aggkit-l3-data: 

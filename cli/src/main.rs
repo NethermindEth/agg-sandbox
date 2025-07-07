@@ -166,16 +166,29 @@ async fn main() {
 async fn run(cli: Cli) -> Result<()> {
     info!("Starting AggSandbox CLI v0.1.0");
 
-    // Ensure we're in the right directory (where docker-compose.yml exists)
-    if !Path::new("docker-compose.yml").exists() {
-        error!("docker-compose.yml not found in current directory");
+    // Ensure we're in the right directory (check for appropriate compose file based on command)
+    let needs_multi_l2 = match &cli.command {
+        Commands::Start { multi_l2, .. } => *multi_l2,
+        _ => false,
+    };
+
+    let compose_file = if needs_multi_l2 {
+        "docker-compose.multi-l2.yml"
+    } else {
+        "docker-compose.yml"
+    };
+
+    if !Path::new(compose_file).exists() {
+        error!("{} not found in current directory", compose_file);
         warn!("Please run this command from the project root directory");
         return Err(error::AggSandboxError::Config(
-            error::ConfigError::missing_required("docker-compose.yml file in working directory"),
+            error::ConfigError::missing_required(&format!(
+                "{compose_file} file in working directory"
+            )),
         ));
     }
 
-    info!("Found docker-compose.yml in current directory");
+    info!("Found {} in current directory", compose_file);
 
     // Load environment variables from .env file if it exists
     if Path::new(".env").exists() {

@@ -111,7 +111,15 @@ RUN echo '#!/bin/bash' > /app/wait-and-deploy.sh && \
     echo '    echo "Waiting for anvil-l2..."' >> /app/wait-and-deploy.sh && \
     echo '    sleep 2' >> /app/wait-and-deploy.sh && \
     echo 'done' >> /app/wait-and-deploy.sh && \
-    echo 'echo "Both Anvil instances are ready!"' >> /app/wait-and-deploy.sh && \
+    echo 'if [ -n "${RPC_URL_3}" ]; then' >> /app/wait-and-deploy.sh && \
+    echo '    until curl -s "${RPC_URL_3}" > /dev/null 2>&1; do' >> /app/wait-and-deploy.sh && \
+    echo '        echo "Waiting for anvil-l3..."' >> /app/wait-and-deploy.sh && \
+    echo '        sleep 2' >> /app/wait-and-deploy.sh && \
+    echo '    done' >> /app/wait-and-deploy.sh && \
+    echo '    echo "All Anvil instances (L1, L2, L3) are ready!"' >> /app/wait-and-deploy.sh && \
+    echo 'else' >> /app/wait-and-deploy.sh && \
+    echo '    echo "Anvil L1 and L2 are ready! (L3 not requested)"' >> /app/wait-and-deploy.sh && \
+    echo 'fi' >> /app/wait-and-deploy.sh && \
     echo 'sleep 5' >> /app/wait-and-deploy.sh && \
     echo 'echo "Preparing environment..."' >> /app/wait-and-deploy.sh && \
     echo 'if [ -f "/app/output/deployed-contracts.env" ]; then' >> /app/wait-and-deploy.sh && \
@@ -125,9 +133,16 @@ RUN echo '#!/bin/bash' > /app/wait-and-deploy.sh && \
     echo 'PRIVATE_KEY_1=0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80' >> /app/wait-and-deploy.sh && \
     echo 'PRIVATE_KEY_2=0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80' >> /app/wait-and-deploy.sh && \
     echo 'EOF' >> /app/wait-and-deploy.sh && \
+    echo '    if [ -n "${RPC_URL_3}" ]; then' >> /app/wait-and-deploy.sh && \
+    echo '        echo "RPC_URL_3=${RPC_URL_3}" >> /app/.env' >> /app/wait-and-deploy.sh && \
+    echo '        echo "PRIVATE_KEY_3=0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80" >> /app/.env' >> /app/wait-and-deploy.sh && \
+    echo '    fi' >> /app/wait-and-deploy.sh && \
     echo 'fi' >> /app/wait-and-deploy.sh && \
     echo 'export RPC_URL_1="${RPC_URL_1:-http://anvil-l1:8545}"' >> /app/wait-and-deploy.sh && \
     echo 'export RPC_URL_2="${RPC_URL_2:-http://anvil-l2:8545}"' >> /app/wait-and-deploy.sh && \
+    echo 'if [ -n "${RPC_URL_3}" ]; then' >> /app/wait-and-deploy.sh && \
+    echo '    export RPC_URL_3' >> /app/wait-and-deploy.sh && \
+    echo 'fi' >> /app/wait-and-deploy.sh && \
     echo 'echo "Starting contract deployment..."' >> /app/wait-and-deploy.sh && \
     echo 'cd /app' >> /app/wait-and-deploy.sh && \
     echo './scripts/deploy-contracts.sh /app/.env' >> /app/wait-and-deploy.sh && \

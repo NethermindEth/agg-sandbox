@@ -131,7 +131,7 @@ METADATA=$(cast abi-encode "f(string,string,uint8)" "AggERC20" "AGGERC20" 18)
 Before claiming assets, you need to get the proof data using the CLI command. Use the `l1_info_tree_index` value from the previous step as the `leaf_index` parameter:
 
 ```bash
-aggsandbox show claim-proof --network-id 1 --leaf-index 0 --deposit-count 1
+aggsandbox show claim-proof --network-id 1 --leaf-index 0 --deposit-count 0
 ```
 
 This will return the proof data including the `mainnet_exit_root` and `rollup_exit_root` needed for the claimAsset call. Example response:

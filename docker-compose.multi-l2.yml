@@ -75,7 +75,7 @@ services:
   
   # AggKit for L2 (L1 ↔ L2 bridge)
   aggkit-l2:
-    image: aggsandbox-aggkit:latest
+    image: ametelnethermind/aggsandbox-aggkit:latest
     depends_on:
       anvil-l1:
         condition: service_healthy
@@ -124,7 +124,7 @@ services:
 
   # AggKit for L3 (L1 ↔ L3 bridge)
   aggkit-l3:
-    image: aggsandbox-aggkit:latest
+    image: ametelnethermind/aggsandbox-aggkit:latest
     depends_on:
       anvil-l1:
         condition: service_healthy
@@ -166,9 +166,9 @@ services:
       # Contract addresses for L3 (you'll need to deploy separate contracts for L3)
       # These will need to be different from L2 contracts
       - POLYGON_ZKEVM_BRIDGE_L1=${POLYGON_ZKEVM_BRIDGE_L1}
-      - POLYGON_ZKEVM_BRIDGE_L2=${POLYGON_ZKEVM_BRIDGE_L3:-0x<deploy_bridge_for_L3>}
+      - POLYGON_ZKEVM_BRIDGE_L2=${POLYGON_ZKEVM_BRIDGE_L3}
       - POLYGON_ZKEVM_GLOBAL_EXIT_ROOT_L1=${POLYGON_ZKEVM_GLOBAL_EXIT_ROOT_L1}
-      - POLYGON_ZKEVM_GLOBAL_EXIT_ROOT_L2=${GLOBAL_EXIT_ROOT_MANAGER_L3:-0x<deploy_GER_for_L3>}
+      - POLYGON_ZKEVM_GLOBAL_EXIT_ROOT_L2=${GLOBAL_EXIT_ROOT_MANAGER_L3}
       - POLYGON_ROLLUP_MANAGER_L1=${POLYGON_ROLLUP_MANAGER_L1}
     container_name: aggkit-l3
 

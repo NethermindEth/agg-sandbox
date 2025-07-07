@@ -182,7 +182,9 @@ async fn run(cli: Cli) -> Result<()> {
         error!("{} not found in current directory", compose_file);
         warn!("Please run this command from the project root directory");
         return Err(error::AggSandboxError::Config(
-            error::ConfigError::missing_required(&format!("{} file in working directory", compose_file)),
+            error::ConfigError::missing_required(&format!(
+                "{compose_file} file in working directory"
+            )),
         ));
     }
 

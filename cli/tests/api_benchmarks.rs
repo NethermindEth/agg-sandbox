@@ -214,7 +214,7 @@ mod api_performance_benchmarks {
         let config = create_test_config(&mock_server.uri());
 
         let response_sizes = [10, 100, 1000, 5000];
-        let valid_network_ids = [1u64, 1101, 1102, 31337]; // Use valid network IDs
+        let valid_network_ids = [1u64, 1101, 31337, 31338]; // Use valid network IDs that all route to the same port
 
         for (i, &size) in response_sizes.iter().enumerate() {
             let network_id = valid_network_ids[i % valid_network_ids.len()];

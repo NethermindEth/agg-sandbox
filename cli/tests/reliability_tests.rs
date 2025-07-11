@@ -452,7 +452,7 @@ mod memory_leak_detection_tests {
                             }
                             2 => {
                                 let _batch_result =
-                                    Validator::validate_batch(vec![1u64, 1101, 1102], |&id| {
+                                    Validator::validate_batch(vec![1u64, 1101, 31338], |&id| {
                                         Validator::validate_network_id(id)
                                     });
                             }

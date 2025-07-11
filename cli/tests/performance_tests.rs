@@ -82,7 +82,7 @@ mod perf_tests {
     fn test_network_id_validation_performance() {
         let start = Instant::now();
 
-        for network_id in [1u64, 1101, 1102, 31337, 31338, 31339] {
+        for network_id in [1u64, 1101, 31337, 31338, 31339] {
             for _ in 0..100 {
                 let _ = Validator::validate_network_id(network_id);
             }
@@ -104,7 +104,7 @@ mod perf_tests {
 
     #[test]
     fn test_batch_validation_performance() {
-        let network_ids: Vec<u64> = vec![1, 1101, 1102, 31337, 31338, 31339];
+        let network_ids: Vec<u64> = vec![1, 1101, 31337, 31338, 31339];
         let start = Instant::now();
 
         for _ in 0..100 {

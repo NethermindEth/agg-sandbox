@@ -98,6 +98,39 @@ impl ConfigFormat {
 }
 
 impl Config {
+    /// Get the appropriate API base URL for a given network ID
+    pub fn get_api_base_url(&self, network_id: u64) -> String {
+        match network_id {
+            // Network IDs served by aggkit-l3 (port 5578)
+            137 | 1102 => {
+                // Replace port 5577 with 5578 for aggkit-l3
+                if self.api.base_url.contains("5577") {
+                    self.api.base_url.replace("5577", "5578")
+                } else {
+                    // If custom base_url doesn't contain 5577, construct l3 URL
+                    let base = if self.api.base_url.starts_with("http://") {
+                        self.api
+                            .base_url
+                            .strip_prefix("http://")
+                            .unwrap_or("localhost")
+                    } else if self.api.base_url.starts_with("https://") {
+                        self.api
+                            .base_url
+                            .strip_prefix("https://")
+                            .unwrap_or("localhost")
+                    } else {
+                        &self.api.base_url
+                    };
+
+                    let host = base.split(':').next().unwrap_or("localhost");
+                    format!("http://{host}:5578")
+                }
+            }
+            // Network IDs served by aggkit-l2 (port 5577) - default
+            _ => self.api.base_url.clone(),
+        }
+    }
+
     /// Load configuration with automatic source detection
     /// Tries: config files → environment variables → defaults
     pub fn load() -> Result<Self> {
@@ -701,5 +734,53 @@ mod tests {
         original_config.save_to_file(yaml_file.path()).unwrap();
         let loaded_yaml = Config::load_from_file(yaml_file.path()).unwrap();
         assert_eq!(loaded_yaml.api.base_url, original_config.api.base_url);
+    }
+
+    #[test]
+    fn test_get_api_base_url() {
+        let config = Config::load().unwrap();
+
+        // Test default network IDs go to port 5577
+        assert_eq!(config.get_api_base_url(1), "http://localhost:5577");
+        assert_eq!(config.get_api_base_url(1101), "http://localhost:5577");
+        assert_eq!(config.get_api_base_url(31337), "http://localhost:5577");
+
+        // Test network IDs that should go to port 5578 (aggkit-l3)
+        assert_eq!(config.get_api_base_url(137), "http://localhost:5578");
+        assert_eq!(config.get_api_base_url(1102), "http://localhost:5578");
+    }
+
+    #[test]
+    fn test_get_api_base_url_custom_host() {
+        let mut config = Config::load().unwrap();
+        config.api.base_url = "https://custom.host.com:5577".to_string();
+
+        // Test default network IDs use custom host with port 5577
+        assert_eq!(config.get_api_base_url(1), "https://custom.host.com:5577");
+        assert_eq!(
+            config.get_api_base_url(1101),
+            "https://custom.host.com:5577"
+        );
+
+        // Test network IDs that should go to port 5578 on custom host
+        assert_eq!(config.get_api_base_url(137), "https://custom.host.com:5578");
+        assert_eq!(
+            config.get_api_base_url(1102),
+            "https://custom.host.com:5578"
+        );
+    }
+
+    #[test]
+    fn test_get_api_base_url_custom_without_port() {
+        let mut config = Config::load().unwrap();
+        config.api.base_url = "https://api.example.com".to_string();
+
+        // Test default network IDs use original URL
+        assert_eq!(config.get_api_base_url(1), "https://api.example.com");
+        assert_eq!(config.get_api_base_url(1101), "https://api.example.com");
+
+        // Test network IDs that should go to port 5578 construct new URL
+        assert_eq!(config.get_api_base_url(137), "http://api.example.com:5578");
+        assert_eq!(config.get_api_base_url(1102), "http://api.example.com:5578");
     }
 }

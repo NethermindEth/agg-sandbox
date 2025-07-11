@@ -56,6 +56,7 @@ impl Validator {
         // Define valid network ID ranges based on common blockchain network IDs
         let valid_ranges = [
             (1, 1),         // Ethereum Mainnet
+            (137, 137),     // Polygon Mainnet
             (1101, 1102),   // Polygon zkEVM networks
             (31337, 31339), // Local development networks (Anvil default range)
         ];
@@ -70,7 +71,7 @@ impl Validator {
             Err(ConfigError::invalid_value(
                 "network_id",
                 &network_id.to_string(),
-                "Must be one of: 1 (Ethereum), 1101-1102 (Polygon zkEVM), or 31337-31339 (Local)",
+                "Must be one of: 1 (Ethereum), 137 (Polygon), 1101-1102 (Polygon zkEVM), or 31337-31339 (Local)",
             )
             .into())
         }
@@ -407,6 +408,7 @@ mod tests {
     #[test]
     fn test_validate_network_id_valid() {
         assert_eq!(Validator::validate_network_id(1).unwrap(), 1);
+        assert_eq!(Validator::validate_network_id(137).unwrap(), 137);
         assert_eq!(Validator::validate_network_id(1101).unwrap(), 1101);
         assert_eq!(Validator::validate_network_id(31337).unwrap(), 31337);
     }
@@ -581,14 +583,14 @@ mod tests {
 
     #[test]
     fn test_validate_batch() {
-        let network_ids = vec![1u64, 1101u64];
+        let network_ids = vec![1u64, 137u64, 1101u64];
 
         let result = Validator::validate_batch(network_ids.clone(), |&id| {
             Validator::validate_network_id(id)
         });
 
         assert!(result.is_ok());
-        assert_eq!(result.unwrap().len(), 2);
+        assert_eq!(result.unwrap().len(), 3);
 
         // Test with invalid network ID
         let invalid_ids = vec![1u64, 999u64];

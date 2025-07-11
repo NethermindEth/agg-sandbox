@@ -46,7 +46,7 @@ This occurs when the external call to `destinationAddress.call()` fails during m
 ### 2. Call Flow Analysis
 
 1. **Entry Point:** `claimMessage()` in `PolygonZkEVMBridgeV2.sol:534`
-2. **Verification:** Message leaf verification passes at `_verifyLeaf()` 
+2. **Verification:** Message leaf verification passes at `_verifyLeaf()`
 3. **Execution:** Call to `destinationAddress` (BridgeExtension) at lines 572-584
 4. **Failure:** The call to `onMessageReceived()` in BridgeExtension fails
 
@@ -74,11 +74,12 @@ function onMessageReceived(address originAddress, uint32 originNetwork, bytes ca
 
 The `MESSAGE_METADATA` parameter was decoded with the following values:
 
-```
+```bash
 Raw Data: 0x0000000000000000000000000000000000000000000000000000000000000001000000000000000000000000a513e6e4b8f2a923d98304ec87f64353c4d5c853000000000000000000000000000000000000000000000000000000000000044d0000000000000000000000000165878a594ca255338adfa4d48449f69242eb8f0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000012000000000000000000000000000000000000000000000000000000000000001400000000000000000000000000000000000000000000000000000000000000000000000000000000000000000e806a11ebf128faa3d1a3aa94c2db46c5f1b60b400000000000000000000000070997970c51812dc3a010c7d01b50e0d17dc79c800000000000000000000000000000000000000000000000000000000000000100000000000000000000000005fbdb2315678afecb367f032d93f642f64180aa3000000000000000000000000000000000000000000000000000000000000000c00000000000000000000000000000000000000000000000000000000000000044a9059cbb000000000000000000000000f39fd6e51aad88f6f4ce6ab8827279cfffb92266000000000000000000000000000000000000000000000000000000000000001000000000000000000000000000000000000000000000000000000000
 ```
 
 **Decoded Parameters:**
+
 - `dependsOnIndex`: **1**
 - `callAddress`: `0xa513e6e4b8f2a923d98304ec87f64353c4d5c853`
 - `fallbackAddress`: `0x000000000000000000000000000000000000044d`
@@ -91,6 +92,7 @@ Raw Data: 0x00000000000000000000000000000000000000000000000000000000000000010000
 ### Issue Identified
 
 **🚨 CRITICAL DISTINCTION:**
+
 - **Asset Claimed:** Global Index **0** (using `claimAsset`)
 - **Message Claiming:** Global Index **1** (using `claimMessage`)
 
@@ -99,7 +101,8 @@ Raw Data: 0x00000000000000000000000000000000000000000000000000000000000000010000
 ### Evidence from Logs
 
 From the successful asset claim (Event #15):
-```
+
+```bash
 📝 Event #15
 🎯 Event: ClaimEvent(uint256,uint32,address,address,uint256)
 🌍 Global Index: 0  ← Asset was claimed with index 0
@@ -116,11 +119,13 @@ But the message metadata shows `dependsOnIndex: 0` (from the latest MESSAGE_META
 Looking at your command history, you're changing the MESSAGE_METADATA between attempts:
 
 **First attempt:**
+
 ```bash
 MESSAGE_METADATA=$(cast abi-encode "f(uint256,address,address,uint32,address,bytes)" 0 $L2_TOKEN_ADDRESS $ACCOUNT_ADDRESS_2 1 $AGG_ERC20_L1 $TRANSFER_DATA)
 ```
 
 **Second attempt (the one that failed):**
+
 ```bash  
 MESSAGE_METADATA=$(cast abi-encode "f(uint256,address,address,uint32,address,bytes)" 0 $L2_TOKEN_ADDRESS $ACCOUNT_ADDRESS_2 1 $AGG_ERC20_L1 $TRANSFER_DATA)
 ```
@@ -136,6 +141,7 @@ if (!bridge.isClaimed(uint32(dependsOnIndex), originNetwork)) revert UnclaimedAs
 ```
 
 This translates to:
+
 ```solidity
 if (!bridge.isClaimed(0, 1)) revert UnclaimedAsset();
 //                     ↑  ↑
@@ -176,6 +182,7 @@ This CREATE2 deployment can fail for several reasons:
 ### JumpPoint Analysis
 
 The JumpPoint deployment uses these parameters:
+
 - **Salt**: `keccak256(abi.encodePacked(0, 1))` (dependsOnIndex=0, originNetwork=1)
 - **Constructor Args**:
   - `bridge`: Bridge contract address
@@ -192,18 +199,21 @@ The salt `keccak256(abi.encodePacked(0, 1))` might already be used. If a JumpPoi
 ### Debugging the Call
 
 The callData in your MESSAGE_METADATA is:
-```
+
+```bash
 0xa9059cbb000000000000000000000000f39fd6e51aad88f6f4ce6ab8827279cfffb92266000000000000000000000000000000000000000000000000000000000000001
 ```
 
 This decodes to:
+
 - Function: `transfer(address,uint256)`
-- To: `0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266` 
+- To: `0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266`
 - Amount: `1`
 
 ### Verification Steps
 
 1. **Check if JumpPoint exists**:
+
    ```bash
    SALT=$(cast keccak "$(cast abi-encode "f(uint256,uint32)" 0 1)")
    JUMPPOINT_ADDR=$(cast compute-address --salt $SALT $BRIDGE_EXTENSION_L2)
@@ -224,6 +234,7 @@ This decodes to:
 ### Code Reference
 
 From `BridgeExtension.sol:38`:
+
 ```solidity
 uint256 dependsOnIndex = bridge.depositCount() + 1; // only doing 1 bridge asset
 ```
@@ -283,15 +294,18 @@ cast call $POLYGON_ZKEVM_BRIDGE_L2 "claimedBitMap(uint256)" [wordPos]
 ## Contract References
 
 ### Key Files Analyzed
+
 - `agglayer-contracts/src/PolygonZkEVMBridgeV2.sol`
 - `agglayer-contracts/src/BridgeExtension.sol`
 
 ### Critical Functions
+
 - `PolygonZkEVMBridgeV2.claimMessage()` - Lines 534-591
 - `BridgeExtension.onMessageReceived()` - Lines 215-234
 - `PolygonZkEVMBridgeV2.isClaimed()` - Lines 710-722
 
 ### Error Definitions
+
 - `MessageFailed()` - `PolygonZkEVMBridgeV2.sol:587`
 - `UnclaimedAsset()` - `BridgeExtension.sol:16` and usage at line 228
 

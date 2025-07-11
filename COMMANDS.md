@@ -338,6 +338,7 @@ cast send $BRIDGE_EXTENSION_L1 "bridgeAndCall(address,uint256,uint32,address,add
 3. **Execution**: Automatically executes the call when both asset and message are processed
 
 **No Manual Claiming Required**: The BridgeExtension system handles the entire flow automatically, including:
+
 - Deploying the JumpPoint contract
 - Transferring assets to the target contract
 - Executing the encoded function call
@@ -365,6 +366,7 @@ aggsandbox show claims --network-id 1101
 ```
 
 The system creates two bridge events:
+
 - **Asset Bridge**: Bridges tokens to JumpPoint address
 - **Message Bridge**: Contains the call instructions
 

@@ -1,0 +1,12 @@
+{
+  "LeafType": 0,
+  "GlobalIndex": 0,          
+  "MainnetExitRoot":  "0x50b0cc5cad7791d8f04f43e13c74b4849b42497b1b17185e6641265c98daa686",
+  "RollupExitRoot":   "0x0000000000000000000000000000000000000000000000000000000000000000",
+  "OriginNetwork":      1,
+  "OriginTokenAddress":"0x5FbDB2315678afecb367f032d93F642f64180aa3",
+  "DestinationNetwork": 1101,
+  "DestinationAddress": "0x70997970C51812dc3A010C7d01b50e0d17dc79C8",
+  "Amount": 10,
+  "Metadata": ""
+}

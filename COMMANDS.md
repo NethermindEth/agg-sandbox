@@ -60,7 +60,7 @@ cast call $AGG_ERC20_L1 "balanceOf(address)" $ACCOUNT_ADDRESS_1 --rpc-url $RPC_1
 After initiating the bridge, you can check the bridge details using the CLI command:
 
 ```bash
-aggsandbox show bridges --network-id 1
+aggsandbox show bridges --chain-id 1
 ```
 
 This will return bridge information including transaction details, deposit count, and metadata. Example response:
@@ -101,7 +101,7 @@ This will return bridge information including transaction details, deposit count
 After getting the deposit count, you need to retrieve the L1 info tree index to use in the claim-proof endpoint:
 
 ```bash
-aggsandbox show l1-info-tree-index --network-id 1 --deposit-count 0
+aggsandbox show l1-info-tree-index --chain-id 1 --deposit-count 0
 ```
 
 This will return the L1 info tree index data. Example response:
@@ -131,7 +131,7 @@ METADATA=$(cast abi-encode "f(string,string,uint8)" "AggERC20" "AGGERC20" 18)
 Before claiming assets, you need to get the proof data using the CLI command. Use the `l1_info_tree_index` value from the previous step as the `leaf_index` parameter:
 
 ```bash
-aggsandbox show claim-proof --network-id 1 --leaf-index 0 --deposit-count 0
+aggsandbox show claim-proof --chain-id 1 --leaf-index 0 --deposit-count 0
 ```
 
 This will return the proof data including the `mainnet_exit_root` and `rollup_exit_root` needed for the claimAsset call. Example response:
@@ -156,6 +156,20 @@ This will return the proof data including the `mainnet_exit_root` and `rollup_ex
 
 - `mainnet_exit_root`: Use this as the merkle root in claimAsset
 - `rollup_exit_root`: Use this as the nullifier in claimAsset
+
+## Using claimsponsor
+
+Up to this point, all the data required to be passed as argument to sponsor the claim has been added to `claim.json` file
+
+```bash
+curl -X POST "http://localhost:5577/bridge/v1/sponsor-claim" --data @claim.json
+```
+
+Check claim status using this command
+
+```bash
+curl "http://localhost:5577/bridge/v1/sponsored-claim-status?global_index=0"
+```
 
 ## Step 5: Claim Bridged Assets on L2
 
@@ -183,7 +197,7 @@ cast send $POLYGON_ZKEVM_BRIDGE_L2 "claimAsset(uint256,bytes32,bytes32,uint32,ad
 After claiming assets, you can verify the claim was processed using the CLI command:
 
 ```bash
-aggsandbox show claims --network-id 1101
+aggsandbox show claims --chain-id 1101
 ```
 
 This will return information about processed claims. Example response:

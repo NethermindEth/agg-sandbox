@@ -62,7 +62,7 @@ services:
       - anvil-network
 
   aggkit:
-    image: ametelnethermind/aggsandbox-aggkit:latest
+    image: aggkit:local
     depends_on:
       aggkit-delay:
         condition: service_completed_successfully
@@ -81,7 +81,8 @@ services:
       # Basic configuration
       - AGGKIT_SANDBOX_ENABLED=true
       - AGGKIT_LOG_LEVEL=info
-      - AGGKIT_COMPONENTS=bridge,aggoracle
+      - AGGKIT_COMPONENTS=bridge,aggoracle,claim-sponsor
+      - AGGKIT_CLAIMSPONSOR_ENABLED=true
       
       # Network configuration
       - AGGKIT_L1_URL=http://anvil-l1:8545

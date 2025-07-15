@@ -73,15 +73,27 @@ services:
 
   # === AGGKIT INSTANCES ===
   
-  # AggKit for L2 (L1 ↔ L2 bridge)
-  aggkit-l2:
-    image: ametelnethermind/aggsandbox-aggkit:latest
+  # Delay service for AggKit startup
+  aggkit-delay:
+    image: busybox:latest
+    command: sleep 5
     depends_on:
       anvil-l1:
         condition: service_healthy
       anvil-l2:
         condition: service_healthy
+      anvil-l3:
+        condition: service_healthy
       contract-deployer:
+        condition: service_completed_successfully
+    networks:
+      - anvil-network
+
+  # AggKit for L2 (L1 ↔ L2 bridge)
+  aggkit-l2:
+    image: ametelnethermind/aggsandbox-aggkit:latest
+    depends_on:
+      aggkit-delay:
         condition: service_completed_successfully
     ports:
       - "5577:5577"  # REST API
@@ -126,11 +138,7 @@ services:
   aggkit-l3:
     image: ametelnethermind/aggsandbox-aggkit:latest
     depends_on:
-      anvil-l1:
-        condition: service_healthy
-      anvil-l3:
-        condition: service_healthy
-      contract-deployer:
+      aggkit-delay:
         condition: service_completed_successfully
     ports:
       - "5578:5578"  # REST API (different external and internal port)

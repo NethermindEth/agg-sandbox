@@ -48,14 +48,23 @@ services:
     volumes:
       - ./.env:/app/output/deployed-contracts.env
 
-  aggkit:
-    image: ametelnethermind/aggsandbox-aggkit:latest
+  aggkit-delay:
+    image: busybox:latest
+    command: sleep 5
     depends_on:
       anvil-l1:
         condition: service_healthy
       anvil-l2:
         condition: service_healthy
       contract-deployer:
+        condition: service_completed_successfully
+    networks:
+      - anvil-network
+
+  aggkit:
+    image: ametelnethermind/aggsandbox-aggkit:latest
+    depends_on:
+      aggkit-delay:
         condition: service_completed_successfully
     ports:
       - "5577:5577"  # REST API

@@ -153,6 +153,13 @@ aggsandbox info
 aggsandbox <command> --help
 ```
 
+> **⚠️ Developer Note**: When breaking the service during development, clear volumes before starting a new one:
+>
+> ```bash
+> aggsandbox stop --volumes
+> aggsandbox start --detach
+> ```
+
 #### Bridge Information Commands
 
 Query bridge endpoints with enhanced formatting and detailed explanations:
@@ -176,6 +183,7 @@ aggsandbox show l1-info-tree-index -n 1101 -d 5
 ```
 
 All `show` commands now include comprehensive help with detailed explanations:
+
 ```bash
 aggsandbox show --help           # Overview of all bridge commands
 aggsandbox show bridges --help   # Detailed bridge command help
@@ -257,6 +265,7 @@ When errors occur, the CLI provides:
 - **🎯 Helpful Suggestions**: Context-aware recommendations based on the error type
 
 Example error output includes:
+
 ```bash
 ❌ Error: Docker daemon not running
 
@@ -357,12 +366,12 @@ accounts:
 - **L1 (Ethereum Simulation)**: `http://127.0.0.1:8545` (Chain ID: 1)
 - **L2 (Polygon zkEVM Simulation)**: `http://127.0.0.1:8546` (Chain ID: 1101)
 
-### Fork Mode
+### Fork Mode Networks
 
 - **L1 (Ethereum Fork)**: `http://127.0.0.1:8545` (Uses real Ethereum state)
 - **L2 (Polygon zkEVM Fork)**: `http://127.0.0.1:8546` (Uses real Polygon state)
 
-### Multi-L2 Mode
+### Multi-L2 Mode Networks
 
 #### Local Multi-L2
 
@@ -394,7 +403,7 @@ The sandbox consists of:
 - A contract deployer service that automatically deploys required contracts
 - A CLI tool for managing the environment
 
-### Multi-L2 Mode
+### Multi-L2 Architecture
 
 The multi-L2 sandbox consists of:
 
@@ -465,6 +474,7 @@ The CLI automatically detects and provides specific guidance for Docker issues:
 ```
 
 Manual troubleshooting:
+
 - Try rebuilding images: `aggsandbox start --build`
 - Check detailed logs: `aggsandbox logs -v`
 - Use verbose mode for more information: `aggsandbox start --detach -vv`

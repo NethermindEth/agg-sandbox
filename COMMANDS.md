@@ -329,20 +329,127 @@ cast send $BRIDGE_EXTENSION_L1 "bridgeAndCall(address,uint256,uint32,address,add
 - `$TRANSFER_DATA`: Encoded transfer function call
 - `true`: Force bridge flag
 
-### Step 3: Wait for Automatic Execution
+### Step 3: Get Bridge Information and Claim Asset
 
-**Important**: Unlike manual bridging, `bridgeAndCall` is designed to execute automatically once the proper conditions are met. The system handles:
+**Important**: `bridgeAndCall` creates two bridge transactions:
 
-1. **Asset Bridge**: Automatically bridges tokens to a JumpPoint address
-2. **Message Bridge**: Automatically bridges the call instructions
-3. **Execution**: Automatically executes the call when both asset and message are processed
+1. **Asset Bridge**: Bridges tokens to a precalculated JumpPoint address (deposit_count = 0)
+2. **Message Bridge**: Contains the call instructions for execution (deposit_count = 1)
 
-**No Manual Claiming Required**: The BridgeExtension system handles the entire flow automatically, including:
+**⚠️ Critical**: The asset bridge MUST be claimed first before the message can be processed.
 
-- Deploying the JumpPoint contract
-- Transferring assets to the target contract
-- Executing the encoded function call
-- Handling fallback scenarios
+#### Get Bridge Information
+
+Check the bridges to get the deposit counts and proof data:
+
+```bash
+aggsandbox show bridges --network-id 1
+```
+
+Look for both bridge entries in the response. Note the `deposit_count` values:
+
+- **First bridge entry** (asset): `deposit_count = 0`
+- **Second bridge entry** (message): `deposit_count = 1`
+
+#### Get L1 Info Tree Index for Asset Bridge
+
+```bash
+aggsandbox show l1-info-tree-index --network-id 1 --deposit-count 0
+```
+
+#### Get Claim Proof for Asset Bridge
+
+```bash
+aggsandbox show claim-proof --network-id 1 --leaf-index [L1_INFO_TREE_INDEX] --deposit-count 0
+```
+
+#### Step 3a: Claim the Asset Bridge
+
+First, claim the asset bridge to the JumpPoint address:
+
+```bash
+# Generate the required data for JumpPoint address calculation
+TRANSFER_DATA=$(cast calldata "transfer(address,uint256)" $ACCOUNT_ADDRESS_1 1)
+L2_TOKEN_ADDRESS=$(cast call $POLYGON_ZKEVM_BRIDGE_L2 "precalculatedWrapperAddress(uint32,address,string,string,uint8)" 1 $AGG_ERC20_L1 "AggERC20" "AGGERC20" 18 --rpc-url $RPC_2 | sed 's/0x000000000000000000000000/0x/')
+
+# The asset was automatically bridged to a precalculated JumpPoint address by bridgeAndCall()
+# We need to manually claim it first before the message can be processed
+# In production, this might be auto-claimed by the system
+CLAIM_TO_ADDRESS=$ACCOUNT_ADDRESS_2
+
+# Prepare token metadata for asset claim
+METADATA=$(cast abi-encode "f(string,string,uint8)" "AggERC20" "AGGERC20" 18)
+
+# Claim the asset bridge (use values from claim-proof response)
+cast send $POLYGON_ZKEVM_BRIDGE_L2 "claimAsset(uint256,bytes32,bytes32,uint32,address,uint32,address,uint256,bytes)" \
+    0 \
+    [MAINNET_EXIT_ROOT_FROM_PROOF] \
+    [ROLLUP_EXIT_ROOT_FROM_PROOF] \
+    1 \
+    $AGG_ERC20_L1 \
+    $CHAIN_ID_AGGLAYER_1 \
+    $CLAIM_TO_ADDRESS \
+    10 \
+    $METADATA \
+    --private-key $PRIVATE_KEY_2 \
+    --rpc-url $RPC_2 \
+    --gas-limit 3000000
+```
+
+#### Step 3b: Get Message Bridge Claim Proof
+
+Get the proof data for the message bridge:
+
+```bash
+# Get L1 info tree index for message bridge
+aggsandbox show l1-info-tree-index --network-id 1 --deposit-count 1
+
+# Get claim proof for message bridge
+aggsandbox show claim-proof --network-id 1 --leaf-index [L1_INFO_TREE_INDEX_MESSAGE] --deposit-count 1
+```
+
+#### Step 3c: Claim the Message Bridge
+
+Execute the message claim to trigger the automatic execution:
+
+```bash
+# Generate the required data
+TRANSFER_DATA=$(cast calldata "transfer(address,uint256)" $ACCOUNT_ADDRESS_1 1)
+L2_TOKEN_ADDRESS=$(cast call $POLYGON_ZKEVM_BRIDGE_L2 "precalculatedWrapperAddress(uint32,address,string,string,uint8)" 1 $AGG_ERC20_L1 "AggERC20" "AGGERC20" 18 --rpc-url $RPC_2 | sed 's/0x000000000000000000000000/0x/')
+
+# Create the metadata for the bridge extension call
+METADATA=$(cast abi-encode "f(uint256,address,address,uint32,address,bytes)" 0 $L2_TOKEN_ADDRESS $ACCOUNT_ADDRESS_2 1 $AGG_ERC20_L1 $TRANSFER_DATA)
+
+# Claim the message bridge with actual values from your environment
+cast send $POLYGON_ZKEVM_BRIDGE_L2 "claimMessage(uint256,bytes32,bytes32,uint32,address,uint32,address,uint256,bytes)" 1 0xab6ef7caf19b63961aa41f0a10c8c30fec8d747342f8d49aa836406230cae965 0x0000000000000000000000000000000000000000000000000000000000000000 1 $BRIDGE_EXTENSION_L1 $CHAIN_ID_AGGLAYER_1 $BRIDGE_EXTENSION_L2 0 $METADATA --private-key $PRIVATE_KEY_2 --rpc-url $RPC_2 --gas-limit 3000000
+```
+
+**Parameter Explanation**:
+
+- `1`: Global index for message bridge (deposit_count = 1)
+- `[MAINNET_EXIT_ROOT_FROM_MESSAGE_PROOF]`: Use the mainnet exit root from the message claim proof
+- `[ROLLUP_EXIT_ROOT_FROM_MESSAGE_PROOF]`: Use the rollup exit root from the message claim proof
+- `1`: Origin network (L1)
+- `$BRIDGE_EXTENSION_L1`: Origin address (Bridge Extension on L1)
+- `$CHAIN_ID_AGGLAYER_1`: Destination network
+- `$BRIDGE_EXTENSION_L2`: Destination address (Bridge Extension on L2)
+- `0`: Amount (no ether with message)
+- `$METADATA`: Encoded parameters containing:
+  - `dependsOnIndex`: The asset bridge deposit count (0)
+  - `callAddress`: Target contract address (L2 token)
+  - `fallbackAddress`: Fallback address if call fails
+  - `assetOriginalNetwork`: Original asset network (1)
+  - `assetOriginalAddress`: Original asset address (L1 token)
+  - `callData`: Encoded function call to execute
+
+#### What Happens During Execution
+
+When you claim the message bridge, the BridgeExtension on L2:
+
+1. **Validates the claim**: Ensures the corresponding asset was claimed first
+2. **Deploys JumpPoint**: Creates a temporary contract using CREATE2
+3. **Executes the call**: JumpPoint transfers assets and executes your function call
+4. **Handles fallback**: If the call fails, assets go to the fallback address
 
 ### Use Cases for Bridge and Call
 
@@ -367,10 +474,10 @@ aggsandbox show claims --network-id 1101
 
 The system creates two bridge events:
 
-- **Asset Bridge**: Bridges tokens to JumpPoint address
-- **Message Bridge**: Contains the call instructions
+- **Asset Bridge**: Bridges tokens to JumpPoint address (should remain unclaimed)
+- **Message Bridge**: Contains the call instructions (requires manual claiming)
 
-Both are processed automatically without manual intervention.
+**Important**: In production, the asset bridge remains unclaimed until JumpPoint claims it. The message bridge requires manual claiming to trigger the BridgeExtension flow. In sandbox mode, auto-claiming may interfere with this process.
 
 ## Manual Claiming (Advanced)
 
@@ -398,15 +505,15 @@ For regular bridge messages (not from `bridgeAndCall`), you can claim manually:
 ```bash
 # Example: Claiming a regular bridge message
 cast send $POLYGON_ZKEVM_BRIDGE_L2 "claimMessage(uint256,bytes32,bytes32,uint32,address,uint32,address,uint256,bytes)" \
-    [GLOBAL_INDEX] \
-    [MAINNET_EXIT_ROOT] \
-    [ROLLUP_EXIT_ROOT] \
-    [ORIGIN_NETWORK] \
-    [ORIGIN_ADDRESS] \
-    [DESTINATION_NETWORK] \
-    [DESTINATION_ADDRESS] \
-    [AMOUNT] \
-    [METADATA] \
+    1 \
+    0x6974b4e71fdf57bb87aca8d85ce07a6eb1269064076c25476226fc1b7182076c \
+    0x0000000000000000000000000000000000000000000000000000000000000000 \
+    1 \
+    $BRIDGE_EXTENSION_L1 \
+    $CHAIN_ID_AGGLAYER_1 \
+    $BRIDGE_EXTENSION_L2 \
+    0 \
+    $METADATA \
     --private-key $PRIVATE_KEY_2 \
     --rpc-url $RPC_2 \
     --gas-limit 3000000

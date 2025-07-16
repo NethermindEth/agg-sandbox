@@ -50,7 +50,7 @@ services:
 
   aggkit-delay:
     image: busybox:latest
-    command: sleep 5
+    command: sleep 20
     depends_on:
       anvil-l1:
         condition: service_healthy

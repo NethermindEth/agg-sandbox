@@ -9,6 +9,7 @@ import {Script, console2} from "forge-std/Script.sol";
 import {GlobalExitRootManagerL2SovereignChain} from "../src/GlobalExitRootManagerL2SovereignChain.sol";
 import {AggERC20} from "../src/mocks/AggERC20.sol";
 import {BridgeExtension} from "../src/BridgeExtension.sol";
+
 contract DeployContractsL2 is Script {
     function run() external {
         // load your deployer private key from env

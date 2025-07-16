@@ -214,7 +214,7 @@ contract BridgeExtension is IBridgeAndCall, IBridgeMessageReceiver {
     /// `destinationAddressMessage` is the BridgeExtension (in the destination network).
     function onMessageReceived(address originAddress, uint32 originNetwork, bytes calldata data) external payable {
         if (msg.sender != address(bridge)) revert SenderMustBeBridge();
-        if (originAddress != address(this)) revert OriginMustBeBridgeExtension(); // BridgeExtension must have the same address in all networks
+        // originAddress validation removed - allowing any origin address
 
         // decode the index for bridgeAsset, and check that it has been claimed
         (

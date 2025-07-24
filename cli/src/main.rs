@@ -345,7 +345,7 @@ fn print_error(error: &error::AggSandboxError) {
                     eprintln!("   1. Check Docker is running:");
                     eprintln!("      {}", "docker --version".cyan());
                     eprintln!("   2. Verify Docker Compose:");
-                    eprintln!("      {}", "docker-compose --version".cyan());
+                    eprintln!("      {}", "docker compose version".cyan());
                     eprintln!("   3. Stop any existing containers:");
                     eprintln!("      {}", "aggsandbox stop".cyan());
                     eprintln!("   4. Check for port conflicts:");

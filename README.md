@@ -75,7 +75,7 @@ source ~/.bashrc
 ```bash
 # Check all required tools
 docker --version && echo "✅ Docker installed"
-docker-compose --version && echo "✅ Docker Compose installed"
+docker compose version && echo "✅ Docker Compose installed"
 rustc --version && echo "✅ Rust installed"
 make --version && echo "✅ Make installed"
 git --version && echo "✅ Git installed"
@@ -1032,7 +1032,7 @@ curl -f http://localhost:5577/health || echo "Service not healthy"
 aggsandbox status --detailed
 
 # Restart specific service
-docker-compose restart bridge-service
+docker compose restart bridge-service
 ```
 
 #### Performance Issues

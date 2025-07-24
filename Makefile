@@ -21,7 +21,7 @@ install:
 		mkdir -p "$(HOME)/.local/bin"; \
 	fi
 	@echo "📦 Building release version..."
-	@cd cli && cargo build --release
+	@cd cli && cargo build --release --quiet
 	@echo "📋 Installing to $(HOME)/.local/bin..."
 	@cp cli/target/release/aggsandbox "$(HOME)/.local/bin/"
 	@echo "✅ CLI installed successfully!"

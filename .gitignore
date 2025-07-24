@@ -9,3 +9,4 @@ cli/target/
 # Claude Code configuration files
 CLAUDE.md
 .claude/
+RUST_CONTEXT.md

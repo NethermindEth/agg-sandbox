@@ -362,7 +362,7 @@ This will return information about processed claims. Example response:
 Fetch the events on L2 to retrieve the new TokenWrapped address:
 
 ```bash
-aggsandbox events --chain anvil-l2
+aggsandbox events --network-id 1101
 ```
 
 You'll see the following event:

@@ -127,12 +127,19 @@ enum Commands {
     },
     /// 📡 Fetch and display blockchain events
     #[command(
-        long_about = "Monitor blockchain events from L1 and L2 chains.\n\nFetch and display recent events from specified blockchain,\nwith options to filter by contract address and block range.\n\nExamples:\n  aggsandbox events --chain anvil-l1              # Recent L1 events\n  aggsandbox events --chain anvil-l2 --blocks 20  # Last 20 L2 blocks\n  aggsandbox events --chain anvil-l1 --address 0x123 # Events from specific contract"
+        long_about = "Monitor blockchain events from L1 and L2 chains.\n\nFetch and display recent events from specified blockchain,\nwith options to filter by contract address and block range.\n\nExamples:\n  aggsandbox events --network-id 1                # Recent L1 events\n  aggsandbox events --network-id 1101 --blocks 20 # Last 20 L2 blocks\n  aggsandbox events --network-id 1 --address 0x123 # Events from specific contract\n\nLegacy (deprecated) examples:\n  aggsandbox events --chain anvil-l1              # Use --network-id 1 instead"
     )]
     Events {
-        /// Blockchain to fetch events from
-        #[arg(short, long, value_parser = ["anvil-l1", "anvil-l2", "anvil-l3"], help = "Chain to query (anvil-l1, anvil-l2, or anvil-l3)")]
-        chain: String,
+        /// Network ID to fetch events from (preferred over --chain)
+        #[arg(
+            short = 'n',
+            long,
+            help = "Network ID to query (1=L1, 1101=L2, 1102=L3)"
+        )]
+        network_id: Option<u64>,
+        /// Blockchain to fetch events from (deprecated, use --network-id instead)
+        #[arg(short, long, value_parser = ["anvil-l1", "anvil-l2", "anvil-l3"], help = "Chain to query (anvil-l1, anvil-l2, or anvil-l3) - DEPRECATED: use --network-id")]
+        chain: Option<String>,
         /// Number of recent blocks to scan for events
         #[arg(
             short,
@@ -243,12 +250,13 @@ async fn run(cli: Cli) -> Result<()> {
             commands::handle_show(subcommand).await
         }
         Commands::Events {
+            network_id,
             chain,
             blocks,
             address,
         } => {
-            info!(chain = %chain, blocks = blocks, address = ?address, "Executing events command");
-            commands::handle_events(chain, blocks, address).await
+            info!(network_id = ?network_id, chain = ?chain, blocks = blocks, address = ?address, "Executing events command");
+            commands::handle_events(network_id, chain, blocks, address).await
         }
     };
 

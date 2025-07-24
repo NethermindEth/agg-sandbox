@@ -457,14 +457,14 @@ Monitor and decode blockchain events in human-readable format:
 #### Basic Event Monitoring
 
 ```bash
-# Show events from L1 chain (last 5 blocks by default)
-aggsandbox events --chain anvil-l1
+# Show events from L1 chain (last 10 blocks by default)
+aggsandbox events --network-id 1
 
 # Show events from L2 chain with custom block range
-aggsandbox events --chain anvil-l2 --blocks 10
+aggsandbox events --network-id 1101 --blocks 20
 
 # Show events from L3 chain (if running multi-l2 mode)
-aggsandbox events --chain anvil-l3 --blocks 20
+aggsandbox events --network-id 1102 --blocks 30
 ```
 
 #### Advanced Filtering
@@ -472,15 +472,15 @@ aggsandbox events --chain anvil-l3 --blocks 20
 ```bash
 # Filter events by contract address
 aggsandbox events \
-  --chain anvil-l1 \
+  --network-id 1 \
   --blocks 5 \
   --address 0x5fbdb2315678afecb367f032d93f642f64180aa3
 
 # Show events with comprehensive monitoring
-aggsandbox events --chain anvil-l1 --blocks 50
+aggsandbox events --network-id 1 --blocks 50
 
-# Continuous monitoring with real-time updates
-aggsandbox events --chain anvil-l1 --follow
+# Legacy syntax (deprecated - shows warning)
+aggsandbox events --chain anvil-l1 --blocks 10
 ```
 
 #### Event Display Format
@@ -528,6 +528,15 @@ Each event displays:
 --network-id, -n   # Specify network ID (1, 1101, 1102)
 --leaf-index, -l   # Leaf index for proof generation
 --deposit-count, -d # Deposit count for proof verification
+```
+
+#### Events Command Options
+
+```bash
+--network-id, -n   # Network ID to query (1=L1, 1101=L2, 1102=L3)
+--chain, -c        # [DEPRECATED] Chain name (use --network-id instead)
+--blocks, -b       # Number of recent blocks to scan (default: 10)
+--address, -a      # Filter events by contract address
 ```
 
 ## Configuration

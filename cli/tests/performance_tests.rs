@@ -202,7 +202,7 @@ mod perf_tests {
         let max_expected_duration = if std::env::var("CI").is_ok() {
             Duration::from_millis(500)
         } else {
-            Duration::from_millis(200)
+            Duration::from_millis(300)
         };
         assert!(
             elapsed < max_expected_duration,

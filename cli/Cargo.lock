@@ -63,6 +63,7 @@ dependencies = [
  "serde_yaml",
  "tempfile",
  "test-case",
+ "thiserror 1.0.69",
  "tokio",
  "tokio-test",
  "toml",

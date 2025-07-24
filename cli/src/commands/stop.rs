@@ -6,7 +6,7 @@ pub fn handle_stop(volumes: bool) {
 
     println!(
         "{}",
-        "🛑 Stopping AggLayer sandbox environment..."
+        "🛑 Stopping Agglayer sandbox environment..."
             .yellow()
             .bold()
     );

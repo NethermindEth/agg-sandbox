@@ -249,7 +249,7 @@ pub fn print_multi_l2_info(config: &Config, fork: bool) {
     );
 
     if let Some(l3) = &config.networks.l3 {
-        println!("{}", "L2-2 (Second AggLayer Chain):".green());
+        println!("{}", "L2-2 (Second Agglayer Chain):".green());
         println!(
             "  Name: {}    Chain ID: {}    RPC: {}",
             l2_2_name.white(),

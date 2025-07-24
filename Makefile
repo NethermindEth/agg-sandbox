@@ -1,9 +1,9 @@
-# AggLayer Sandbox Project Makefile
+# Agglayer Sandbox Project Makefile
 .PHONY: install uninstall cli-check cli-build cli-clean help
 
 # Default target
 help:
-	@echo "🦀 AggLayer Sandbox Project"
+	@echo "🦀 Agglayer Sandbox Project"
 	@echo ""
 	@echo "Available targets:"
 	@echo "  install      - Build and install the CLI to ~/.local/bin"
@@ -15,7 +15,7 @@ help:
 
 # Install the CLI binary to user's local bin directory
 install:
-	@echo "🦀 Installing AggLayer Sandbox CLI..."
+	@echo "🦀 Installing Agglayer Sandbox CLI..."
 	@if [ ! -d "$(HOME)/.local/bin" ]; then \
 		echo "📁 Creating $(HOME)/.local/bin directory..."; \
 		mkdir -p "$(HOME)/.local/bin"; \
@@ -28,11 +28,11 @@ install:
 	@echo "🔧 Make sure $(HOME)/.local/bin is in your PATH"
 	@echo ""
 	@echo "Usage: aggsandbox --help"
-	@echo "🚀 Ready to manage your AggLayer sandbox!"
+	@echo "🚀 Ready to manage your Agglayer sandbox!"
 
 # Uninstall the CLI binary
 uninstall:
-	@echo "🗑️  Uninstalling AggLayer Sandbox CLI..."
+	@echo "🗑️  Uninstalling Agglayer Sandbox CLI..."
 	@if [ -f "$(HOME)/.local/bin/aggsandbox" ]; then \
 		rm "$(HOME)/.local/bin/aggsandbox"; \
 		echo "✅ CLI uninstalled successfully!"; \

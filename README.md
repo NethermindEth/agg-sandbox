@@ -1,6 +1,6 @@
-# AggLayer Sandbox
+# Agglayer Sandbox
 
-A development sandbox environment for the AggLayer with support for local blockchain simulation and fork mode.
+A development sandbox environment for the Agglayer with support for local blockchain simulation and fork mode.
 
 ## Table of Contents
 
@@ -34,7 +34,7 @@ A development sandbox environment for the AggLayer with support for local blockc
 
 ## Overview
 
-The AggLayer Sandbox provides a comprehensive development environment for testing cross-chain bridging operations, smart contract interactions, and multi-layer blockchain scenarios. It supports both completely local blockchain simulation and forking from real networks for testing against live data.
+The Agglayer Sandbox provides a comprehensive development environment for testing cross-chain bridging operations, smart contract interactions, and multi-layer blockchain scenarios. It supports both completely local blockchain simulation and forking from real networks for testing against live data.
 
 ## Features
 
@@ -1117,7 +1117,7 @@ aggsandbox logs --timestamps --verbose
 
 ## Contributing
 
-We welcome contributions to the AggLayer Sandbox! Here's how you can help:
+We welcome contributions to the Agglayer Sandbox! Here's how you can help:
 
 ### Development Setup
 

@@ -21,12 +21,12 @@ use tracing::{error, info, warn};
 
 #[derive(Parser)]
 #[command(name = "aggsandbox")]
-#[command(about = "🚀 CLI for managing AggLayer sandbox environment")]
+#[command(about = "🚀 CLI for managing Agglayer sandbox environment")]
 #[command(
-    long_about = "AggSandbox CLI provides comprehensive tools for managing your AggLayer sandbox environment.\n\nThis tool helps you start, stop, monitor, and interact with your sandbox infrastructure\nincluding L1/L2 chains, bridge services, and blockchain events.\n\nExamples:\n  aggsandbox start --detach           # Start sandbox in background\n  aggsandbox start --fork --multi-l2  # Start with real data and multiple L2s\n  aggsandbox logs -f bridge-service   # Follow bridge service logs\n  aggsandbox show bridges --network 1 # Show bridge information\n  aggsandbox events --chain anvil-l1  # Show recent blockchain events"
+    long_about = "AggSandbox CLI provides comprehensive tools for managing your Agglayer sandbox environment.\n\nThis tool helps you start, stop, monitor, and interact with your sandbox infrastructure\nincluding L1/L2 chains, bridge services, and blockchain events.\n\nExamples:\n  aggsandbox start --detach           # Start sandbox in background\n  aggsandbox start --fork --multi-l2  # Start with real data and multiple L2s\n  aggsandbox logs -f bridge-service   # Follow bridge service logs\n  aggsandbox show bridges --network 1 # Show bridge information\n  aggsandbox events --chain anvil-l1  # Show recent blockchain events"
 )]
 #[command(version = "0.1.0")]
-#[command(author = "AggLayer Team")]
+#[command(author = "Agglayer Team")]
 #[command(
     help_template = "{before-help}{name} {version}\n{about-with-newline}\n{usage-heading} {usage}\n\n{all-args}{after-help}"
 )]
@@ -53,7 +53,7 @@ struct Cli {
 enum Commands {
     /// 🚀 Start the sandbox environment
     #[command(
-        long_about = "Start the AggLayer sandbox environment with Docker Compose.\n\nThis command initializes and starts all required services including:\n- L1 Ethereum node (Anvil)\n- L2 Polygon zkEVM node (Anvil)\n- Bridge service\n- Agglayer service\n\nExamples:\n  aggsandbox start                     # Start with default settings\n  aggsandbox start --detach            # Start in background\n  aggsandbox start --build             # Rebuild images before starting\n  aggsandbox start --fork              # Use real blockchain data\n  aggsandbox start --fork --multi-l2   # Fork mode with multiple L2 chains"
+        long_about = "Start the Agglayer sandbox environment with Docker Compose.\n\nThis command initializes and starts all required services including:\n- L1 Ethereum node (Anvil)\n- L2 Polygon zkEVM node (Anvil)\n- Bridge service\n- Agglayer service\n\nExamples:\n  aggsandbox start                     # Start with default settings\n  aggsandbox start --detach            # Start in background\n  aggsandbox start --build             # Rebuild images before starting\n  aggsandbox start --fork              # Use real blockchain data\n  aggsandbox start --fork --multi-l2   # Fork mode with multiple L2 chains"
     )]
     Start {
         /// Run services in detached mode (background)
@@ -119,7 +119,7 @@ enum Commands {
     Info,
     /// 🌉 Show bridge and blockchain information
     #[command(
-        long_about = "Access bridge data and blockchain information.\n\nQuery bridges, claims, proofs, and other bridge-related data\nfrom the AggLayer bridge service API.\n\nExamples:\n  aggsandbox show bridges --network 1     # List bridges for network 1\n  aggsandbox show claims --network 1101   # Show claims for L2\n  aggsandbox show proof --network 1 --leaf-index 0 --deposit-count 1"
+        long_about = "Access bridge data and blockchain information.\n\nQuery bridges, claims, proofs, and other bridge-related data\nfrom the Agglayer bridge service API.\n\nExamples:\n  aggsandbox show bridges --network 1     # List bridges for network 1\n  aggsandbox show claims --network 1101   # Show claims for L2\n  aggsandbox show proof --network 1 --leaf-index 0 --deposit-count 1"
     )]
     Show {
         #[command(subcommand)]

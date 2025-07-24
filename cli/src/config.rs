@@ -407,7 +407,7 @@ impl NetworkConfig {
         // L3 is optional for multi-L2 mode
         let l3 = if Path::new("docker-compose.multi-l2.yml").exists() {
             Some(ChainConfig {
-                name: "AggLayer-2".to_string(),
+                name: "Agglayer-2".to_string(),
                 chain_id: get_env_var("CHAIN_ID_AGGLAYER_2", "1102"),
                 rpc_url: get_env_var("RPC_3", "http://localhost:8547"),
                 fork_url: std::env::var("FORK_URL_AGGLAYER_2").ok(),
@@ -575,13 +575,13 @@ impl Config {
         }
 
         if let Some(url) = &self.networks.l2.fork_url {
-            urls.push(("AggLayer 1".to_string(), url.clone()));
+            urls.push(("Agglayer 1".to_string(), url.clone()));
         }
 
         if multi_l2 {
             if let Some(l3) = &self.networks.l3 {
                 if let Some(url) = &l3.fork_url {
-                    urls.push(("AggLayer 2".to_string(), url.clone()));
+                    urls.push(("Agglayer 2".to_string(), url.clone()));
                 }
             }
         }

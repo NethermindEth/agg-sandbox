@@ -903,7 +903,7 @@ L2_TOKEN_ADDRESS=$(cast call $POLYGON_ZKEVM_BRIDGE_L2 \
 
 If you encounter issues not covered in this guide:
 
-1. Check the AggLayer documentation
+1. Check the Agglayer documentation
 2. Verify all environment variables are correctly set
 3. Ensure you're using the latest version of the CLI tools
 4. Check that the sandbox is running and accessible

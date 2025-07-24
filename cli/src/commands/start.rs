@@ -39,13 +39,13 @@ async fn handle_start_async(detach: bool, build: bool, fork: bool, multi_l2: boo
         build = build,
         fork = fork,
         multi_l2 = multi_l2,
-        "Starting AggLayer sandbox environment"
+        "Starting Agglayer sandbox environment"
     );
 
     println!(
         "{}",
         format!(
-            "🚀 Starting AggLayer sandbox environment in {}",
+            "🚀 Starting Agglayer sandbox environment in {}",
             config.mode_description()
         )
         .green()
@@ -201,8 +201,8 @@ fn display_fork_urls(multi_l2: bool) {
         );
         println!("{}", "Fork URLs detected:".cyan());
         println!("  Mainnet: {}", fork_mainnet.yellow());
-        println!("  AggLayer 1: {}", fork_agglayer_1.yellow());
-        println!("  AggLayer 2: {}", fork_agglayer_2.yellow());
+        println!("  Agglayer 1: {}", fork_agglayer_1.yellow());
+        println!("  Agglayer 2: {}", fork_agglayer_2.yellow());
     } else {
         info!(
             mainnet = %fork_mainnet,
@@ -212,6 +212,6 @@ fn display_fork_urls(multi_l2: bool) {
         );
         println!("{}", "Fork URLs detected:".cyan());
         println!("  Mainnet: {}", fork_mainnet.yellow());
-        println!("  AggLayer 1: {}", fork_agglayer_1.yellow());
+        println!("  Agglayer 1: {}", fork_agglayer_1.yellow());
     }
 }

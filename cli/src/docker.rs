@@ -3,6 +3,56 @@ use std::collections::HashMap;
 use std::path::Path;
 use std::process::Command;
 
+/// Detect which Docker Compose command is available
+/// Returns "docker" if `docker compose` is available, otherwise "docker-compose"
+fn get_compose_command() -> &'static str {
+    // Test if `docker compose` is available (modern integrated version)
+    if let Ok(output) = Command::new("docker")
+        .args(["compose", "--version"])
+        .output()
+    {
+        if output.status.success() {
+            let stdout = String::from_utf8_lossy(&output.stdout);
+            // Check if the output actually contains compose-related information
+            if stdout.to_lowercase().contains("compose") {
+                return "docker";
+            }
+        }
+    }
+
+    // Fall back to standalone docker-compose
+    if Command::new("docker-compose")
+        .arg("--version")
+        .output()
+        .map(|output| output.status.success())
+        .unwrap_or(false)
+    {
+        return "docker-compose";
+    }
+
+    // Default to docker-compose for backward compatibility
+    "docker-compose"
+}
+
+/// Get the appropriate compose command arguments
+/// Returns ("docker", ["compose"]) for modern Docker or ("docker-compose", []) for legacy
+fn get_compose_command_parts() -> (&'static str, Vec<&'static str>) {
+    if get_compose_command() == "docker" {
+        ("docker", vec!["compose"])
+    } else {
+        ("docker-compose", vec![])
+    }
+}
+
+/// Get a descriptive name for the compose command for error reporting
+fn get_compose_command_name() -> String {
+    if get_compose_command() == "docker" {
+        "docker compose".to_string()
+    } else {
+        "docker-compose".to_string()
+    }
+}
+
 /// Builder for Docker Compose commands with environment and file management
 #[derive(Debug, Clone)]
 pub struct DockerComposeBuilder {
@@ -47,7 +97,13 @@ impl DockerComposeBuilder {
 
     /// Build a docker-compose up command
     pub fn build_up_command(&self, detach: bool, build: bool) -> Command {
-        let mut cmd = Command::new("docker-compose");
+        let (program, base_args) = get_compose_command_parts();
+        let mut cmd = Command::new(program);
+
+        // Add base arguments (e.g., "compose" for modern docker command)
+        for arg in base_args {
+            cmd.arg(arg);
+        }
 
         // Add compose files
         for file in &self.files {
@@ -74,7 +130,13 @@ impl DockerComposeBuilder {
 
     /// Build a docker-compose down command
     pub fn build_down_command(&self, volumes: bool) -> Command {
-        let mut cmd = Command::new("docker-compose");
+        let (program, base_args) = get_compose_command_parts();
+        let mut cmd = Command::new(program);
+
+        // Add base arguments (e.g., "compose" for modern docker command)
+        for arg in base_args {
+            cmd.arg(arg);
+        }
 
         // Add compose files
         for file in &self.files {
@@ -97,7 +159,13 @@ impl DockerComposeBuilder {
 
     /// Build a docker-compose ps command
     pub fn build_ps_command(&self) -> Command {
-        let mut cmd = Command::new("docker-compose");
+        let (program, base_args) = get_compose_command_parts();
+        let mut cmd = Command::new(program);
+
+        // Add base arguments (e.g., "compose" for modern docker command)
+        for arg in base_args {
+            cmd.arg(arg);
+        }
 
         // Add compose files
         for file in &self.files {
@@ -116,7 +184,13 @@ impl DockerComposeBuilder {
 
     /// Build a docker-compose logs command
     pub fn build_logs_command(&self, follow: bool) -> Command {
-        let mut cmd = Command::new("docker-compose");
+        let (program, base_args) = get_compose_command_parts();
+        let mut cmd = Command::new(program);
+
+        // Add base arguments (e.g., "compose" for modern docker command)
+        for arg in base_args {
+            cmd.arg(arg);
+        }
 
         // Add compose files
         for file in &self.files {
@@ -275,11 +349,13 @@ pub fn create_auto_docker_builder() -> DockerComposeBuilder {
 
 /// Execute a Docker Compose command and handle output appropriately
 pub fn execute_docker_command(mut command: Command, capture_output: bool) -> Result<()> {
+    let cmd_name = get_compose_command_name();
+
     if capture_output {
         // Capture output for detached operations
         let output = command
             .output()
-            .map_err(|e| DockerError::command_failed("docker-compose", &e.to_string()))?;
+            .map_err(|e| DockerError::command_failed(&cmd_name, &e.to_string()))?;
 
         if !output.status.success() {
             let stderr_output = String::from_utf8_lossy(&output.stderr);
@@ -289,17 +365,17 @@ pub fn execute_docker_command(mut command: Command, capture_output: bool) -> Res
             if !stderr_output.is_empty() {
                 eprint!("{stderr_output}");
             }
-            return Err(DockerError::command_failed("docker-compose", &stderr_output).into());
+            return Err(DockerError::command_failed(&cmd_name, &stderr_output).into());
         }
     } else {
         // Run in foreground with real-time output
         let status = command
             .status()
-            .map_err(|e| DockerError::command_failed("docker-compose", &e.to_string()))?;
+            .map_err(|e| DockerError::command_failed(&cmd_name, &e.to_string()))?;
 
         if !status.success() {
             return Err(DockerError::command_failed(
-                "docker-compose",
+                &cmd_name,
                 "Command exited with non-zero status",
             )
             .into());
@@ -311,16 +387,18 @@ pub fn execute_docker_command(mut command: Command, capture_output: bool) -> Res
 
 /// Execute a Docker Compose command and return output
 pub fn execute_docker_command_with_output(mut command: Command) -> Result<String> {
+    let cmd_name = get_compose_command_name();
+
     let output = command
         .output()
-        .map_err(|e| DockerError::command_failed("docker-compose", &e.to_string()))?;
+        .map_err(|e| DockerError::command_failed(&cmd_name, &e.to_string()))?;
 
     if !output.status.success() {
         let stderr_output = String::from_utf8_lossy(&output.stderr);
         if !stderr_output.is_empty() {
             eprint!("{stderr_output}");
         }
-        return Err(DockerError::command_failed("docker-compose", &stderr_output).into());
+        return Err(DockerError::command_failed(&cmd_name, &stderr_output).into());
     }
 
     Ok(String::from_utf8_lossy(&output.stdout).to_string())
@@ -389,10 +467,41 @@ mod tests {
         let program = command.get_program();
         let args: Vec<&std::ffi::OsStr> = command.get_args().collect();
 
-        assert_eq!(program, "docker-compose");
+        // Test that we use either "docker" or "docker-compose" based on availability
+        let (expected_program, base_args) = get_compose_command_parts();
+        assert_eq!(program, expected_program);
+
+        // Check for base args (e.g., "compose" for modern docker)
+        for base_arg in base_args {
+            assert!(args.contains(&std::ffi::OsStr::new(base_arg)));
+        }
+
         assert!(args.contains(&std::ffi::OsStr::new("-f")));
         assert!(args.contains(&std::ffi::OsStr::new("docker-compose.yml")));
         assert!(args.contains(&std::ffi::OsStr::new("up")));
         assert!(args.contains(&std::ffi::OsStr::new("-d")));
+    }
+
+    #[test]
+    fn test_compose_command_detection() {
+        // Test that we get one of the expected commands
+        let cmd = get_compose_command();
+        assert!(cmd == "docker" || cmd == "docker-compose");
+
+        // Test that command parts are consistent with detected command
+        let (program, base_args) = get_compose_command_parts();
+        if cmd == "docker" {
+            assert_eq!(program, "docker");
+            assert_eq!(base_args, vec!["compose"]);
+        } else {
+            assert_eq!(program, "docker-compose");
+            assert!(base_args.is_empty());
+        }
+    }
+
+    #[test]
+    fn test_compose_command_name() {
+        let name = get_compose_command_name();
+        assert!(name == "docker compose" || name == "docker-compose");
     }
 }

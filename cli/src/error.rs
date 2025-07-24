@@ -1,250 +1,139 @@
-use std::fmt;
+use thiserror::Error;
 
 /// Main error type for the AggSandbox CLI
-#[derive(Debug)]
+#[derive(Error, Debug)]
 pub enum AggSandboxError {
     /// Configuration-related errors
-    Config(ConfigError),
+    #[error("Configuration error: {0}")]
+    Config(#[from] ConfigError),
     /// Docker-related errors
-    Docker(DockerError),
+    #[error("Docker error: {0}")]
+    Docker(#[from] DockerError),
     /// API-related errors
-    Api(ApiError),
+    #[error("API error: {0}")]
+    Api(#[from] ApiError),
     /// Event processing errors
-    Events(EventError),
+    #[error("Event processing error: {0}")]
+    Events(#[from] EventError),
     /// I/O errors
-    Io(std::io::Error),
+    #[error("I/O error: {0}")]
+    Io(#[from] std::io::Error),
     /// Generic errors with context
+    #[error("{0}")]
     Other(String),
 }
 
 /// Configuration-specific errors
-#[derive(Debug)]
+#[derive(Error, Debug)]
 pub enum ConfigError {
     /// Environment variable not found
+    #[error("Environment variable '{0}' not found")]
     EnvVarNotFound(String),
     /// Invalid configuration value
+    #[error("Invalid value '{value}' for '{key}': {reason}")]
     InvalidValue {
         key: String,
         value: String,
         reason: String,
     },
     /// Missing required configuration
+    #[error("Required configuration '{0}' is missing")]
     MissingRequired(String),
     /// Configuration validation failed
+    #[error("Configuration validation failed: {0}")]
     ValidationFailed(String),
 }
 
 /// Docker-related errors
-#[derive(Debug)]
+#[derive(Error, Debug)]
 pub enum DockerError {
     /// Docker compose file not found
+    #[error("Docker compose file not found: {0}")]
     #[allow(dead_code)]
     ComposeFileNotFound(String),
     /// Docker command execution failed
+    #[error("Docker command '{command}' failed: {stderr}")]
     CommandFailed { command: String, stderr: String },
     /// Docker service not running
+    #[error("Docker service '{0}' is not running")]
     #[allow(dead_code)]
     ServiceNotRunning(String),
     /// Docker compose validation failed
+    #[error("Docker compose validation failed: {0}")]
     ComposeValidationFailed(String),
 }
 
 /// API-related errors
-#[derive(Debug)]
+#[derive(Error, Debug)]
 pub enum ApiError {
     /// HTTP request failed
+    #[error("HTTP request to '{url}' failed with status {status}: {message}")]
     RequestFailed {
         url: String,
         status: u16,
         message: String,
     },
     /// Network connection failed
+    #[error("Network connection failed: {0}")]
     NetworkError(String),
     /// JSON parsing failed
+    #[error("Failed to parse JSON response: {0}")]
     JsonParseError(String),
     /// API response validation failed
+    #[error("API response validation failed: {0}")]
     #[allow(dead_code)]
     ResponseValidationFailed(String),
     /// API endpoint not available
+    #[error("API endpoint '{0}' is not available")]
     #[allow(dead_code)]
     EndpointUnavailable(String),
 }
 
 /// Event processing errors
-#[derive(Debug)]
+#[derive(Error, Debug)]
 pub enum EventError {
     /// Invalid chain specified
+    #[error("Invalid chain '{0}' specified")]
     InvalidChain(String),
     /// Contract address invalid
+    #[error("Invalid contract address '{0}'")]
     InvalidAddress(String),
     /// Event parsing failed
+    #[error("Failed to parse event data: {0}")]
     #[allow(dead_code)]
     ParseError(String),
     /// RPC connection failed
+    #[error("RPC connection failed: {0}")]
     RpcConnectionFailed(String),
 }
 
-impl fmt::Display for AggSandboxError {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            AggSandboxError::Config(e) => write!(f, "Configuration error: {e}"),
-            AggSandboxError::Docker(e) => write!(f, "Docker error: {e}"),
-            AggSandboxError::Api(e) => write!(f, "API error: {e}"),
-            AggSandboxError::Events(e) => write!(f, "Event processing error: {e}"),
-            AggSandboxError::Io(e) => write!(f, "I/O error: {e}"),
-            AggSandboxError::Other(msg) => write!(f, "{msg}"),
-        }
-    }
-}
-
-impl fmt::Display for ConfigError {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            ConfigError::EnvVarNotFound(var) => {
-                write!(f, "Environment variable '{var}' not found")
-            }
-            ConfigError::InvalidValue { key, value, reason } => {
-                write!(f, "Invalid value '{value}' for '{key}': {reason}")
-            }
-            ConfigError::MissingRequired(key) => {
-                write!(f, "Required configuration '{key}' is missing")
-            }
-            ConfigError::ValidationFailed(msg) => {
-                write!(f, "Configuration validation failed: {msg}")
-            }
-        }
-    }
-}
-
-impl fmt::Display for DockerError {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            DockerError::ComposeFileNotFound(file) => {
-                write!(f, "Docker compose file not found: {file}")
-            }
-            DockerError::CommandFailed { command, stderr } => {
-                write!(f, "Docker command '{command}' failed: {stderr}")
-            }
-            DockerError::ServiceNotRunning(service) => {
-                write!(f, "Docker service '{service}' is not running")
-            }
-            DockerError::ComposeValidationFailed(msg) => {
-                write!(f, "Docker compose validation failed: {msg}")
-            }
-        }
-    }
-}
-
-impl fmt::Display for ApiError {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            ApiError::RequestFailed {
-                url,
-                status,
-                message,
-            } => {
-                write!(
-                    f,
-                    "HTTP request to '{url}' failed with status {status}: {message}"
-                )
-            }
-            ApiError::NetworkError(msg) => {
-                write!(f, "Network connection failed: {msg}")
-            }
-            ApiError::JsonParseError(msg) => {
-                write!(f, "Failed to parse JSON response: {msg}")
-            }
-            ApiError::ResponseValidationFailed(msg) => {
-                write!(f, "API response validation failed: {msg}")
-            }
-            ApiError::EndpointUnavailable(endpoint) => {
-                write!(f, "API endpoint '{endpoint}' is not available")
-            }
-        }
-    }
-}
-
-impl fmt::Display for EventError {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            EventError::InvalidChain(chain) => {
-                write!(f, "Invalid chain '{chain}' specified")
-            }
-            EventError::InvalidAddress(addr) => {
-                write!(f, "Invalid contract address '{addr}'")
-            }
-            EventError::ParseError(msg) => {
-                write!(f, "Failed to parse event data: {msg}")
-            }
-            EventError::RpcConnectionFailed(msg) => {
-                write!(f, "RPC connection failed: {msg}")
-            }
-        }
-    }
-}
-
-impl std::error::Error for AggSandboxError {}
-impl std::error::Error for ConfigError {}
-impl std::error::Error for DockerError {}
-impl std::error::Error for ApiError {}
-impl std::error::Error for EventError {}
-
-// Conversion from standard library errors
-impl From<std::io::Error> for AggSandboxError {
-    fn from(err: std::io::Error) -> Self {
-        AggSandboxError::Io(err)
-    }
-}
-
-impl From<ConfigError> for AggSandboxError {
-    fn from(err: ConfigError) -> Self {
-        AggSandboxError::Config(err)
-    }
-}
-
-impl From<DockerError> for AggSandboxError {
-    fn from(err: DockerError) -> Self {
-        AggSandboxError::Docker(err)
-    }
-}
-
-impl From<ApiError> for AggSandboxError {
-    fn from(err: ApiError) -> Self {
-        AggSandboxError::Api(err)
-    }
-}
-
-impl From<EventError> for AggSandboxError {
-    fn from(err: EventError) -> Self {
-        AggSandboxError::Events(err)
-    }
-}
+// Note: Basic From implementations are handled automatically by thiserror's #[from] attribute
 
 // Conversion from external library errors
-impl From<reqwest::Error> for AggSandboxError {
+impl From<reqwest::Error> for ApiError {
     fn from(err: reqwest::Error) -> Self {
         if err.is_timeout() {
-            AggSandboxError::Api(ApiError::NetworkError("Request timeout".to_string()))
+            ApiError::NetworkError("Request timeout".to_string())
         } else if err.is_connect() {
-            AggSandboxError::Api(ApiError::NetworkError("Connection failed".to_string()))
+            ApiError::NetworkError("Connection failed".to_string())
         } else if let Some(status) = err.status() {
-            AggSandboxError::Api(ApiError::RequestFailed {
+            ApiError::RequestFailed {
                 url: err
                     .url()
                     .map(|u| u.to_string())
                     .unwrap_or_else(|| "unknown".to_string()),
                 status: status.as_u16(),
                 message: err.to_string(),
-            })
+            }
         } else {
-            AggSandboxError::Api(ApiError::NetworkError(err.to_string()))
+            ApiError::NetworkError(err.to_string())
         }
     }
 }
 
-impl From<serde_json::Error> for AggSandboxError {
+impl From<serde_json::Error> for ApiError {
     fn from(err: serde_json::Error) -> Self {
-        AggSandboxError::Api(ApiError::JsonParseError(err.to_string()))
+        ApiError::JsonParseError(err.to_string())
     }
 }
 

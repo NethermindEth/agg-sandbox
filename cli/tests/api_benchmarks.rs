@@ -8,6 +8,7 @@ mod api_performance_benchmarks {
     use aggsandbox::config::{
         AccountConfig, ApiConfig, ChainConfig, Config, ContractConfig, NetworkConfig,
     };
+    use aggsandbox::types::{ChainId, EthereumAddress, RpcUrl};
     use serde_json::json;
     use std::collections::HashMap;
     use std::sync::Arc;
@@ -18,27 +19,30 @@ mod api_performance_benchmarks {
     fn create_test_config(base_url: &str) -> Config {
         Config {
             api: ApiConfig {
-                base_url: base_url.to_string(),
+                base_url: RpcUrl::new(base_url).expect("Valid test URL"),
                 timeout: Duration::from_millis(5000),
                 retry_attempts: 3,
             },
             networks: NetworkConfig {
                 l1: ChainConfig {
                     name: "Test-L1".to_string(),
-                    chain_id: "1".to_string(),
-                    rpc_url: "http://localhost:8545".to_string(),
+                    chain_id: ChainId::new("1").expect("Valid test chain ID"),
+                    rpc_url: RpcUrl::new("http://localhost:8545").expect("Valid test URL"),
                     fork_url: None,
                 },
                 l2: ChainConfig {
                     name: "Test-L2".to_string(),
-                    chain_id: "1101".to_string(),
-                    rpc_url: "http://localhost:8546".to_string(),
+                    chain_id: ChainId::new("1101").expect("Valid test chain ID"),
+                    rpc_url: RpcUrl::new("http://localhost:8546").expect("Valid test URL"),
                     fork_url: None,
                 },
                 l3: None,
             },
             accounts: AccountConfig {
-                accounts: vec!["0xtest".to_string()],
+                accounts: vec![
+                    EthereumAddress::new("0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266")
+                        .expect("Valid test address"),
+                ],
                 private_keys: vec!["0xkey".to_string()],
             },
             contracts: ContractConfig {
@@ -362,6 +366,7 @@ mod api_reliability_benchmarks {
     use aggsandbox::config::{
         AccountConfig, ApiConfig, ChainConfig, Config, ContractConfig, NetworkConfig,
     };
+    use aggsandbox::types::{ChainId, EthereumAddress, RpcUrl};
     use serde_json::json;
     use std::collections::HashMap;
     use std::sync::{Arc, Mutex};
@@ -372,27 +377,30 @@ mod api_reliability_benchmarks {
     fn create_test_config(base_url: &str) -> Config {
         Config {
             api: ApiConfig {
-                base_url: base_url.to_string(),
+                base_url: RpcUrl::new(base_url).expect("Valid test URL"),
                 timeout: Duration::from_millis(2000),
                 retry_attempts: 2,
             },
             networks: NetworkConfig {
                 l1: ChainConfig {
                     name: "Test-L1".to_string(),
-                    chain_id: "1".to_string(),
-                    rpc_url: "http://localhost:8545".to_string(),
+                    chain_id: ChainId::new("1").expect("Valid test chain ID"),
+                    rpc_url: RpcUrl::new("http://localhost:8545").expect("Valid test URL"),
                     fork_url: None,
                 },
                 l2: ChainConfig {
                     name: "Test-L2".to_string(),
-                    chain_id: "1101".to_string(),
-                    rpc_url: "http://localhost:8546".to_string(),
+                    chain_id: ChainId::new("1101").expect("Valid test chain ID"),
+                    rpc_url: RpcUrl::new("http://localhost:8546").expect("Valid test URL"),
                     fork_url: None,
                 },
                 l3: None,
             },
             accounts: AccountConfig {
-                accounts: vec!["0xtest".to_string()],
+                accounts: vec![
+                    EthereumAddress::new("0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266")
+                        .expect("Valid test address"),
+                ],
                 private_keys: vec!["0xkey".to_string()],
             },
             contracts: ContractConfig {

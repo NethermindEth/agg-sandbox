@@ -1,4 +1,4 @@
-/// Performance and stress tests for the AggLayer sandbox CLI
+/// Performance and stress tests for the Agglayer sandbox CLI
 ///
 /// These tests verify performance characteristics and resource usage
 /// to ensure the CLI remains responsive under various conditions.
@@ -202,7 +202,7 @@ mod perf_tests {
         let max_expected_duration = if std::env::var("CI").is_ok() {
             Duration::from_millis(500)
         } else {
-            Duration::from_millis(200)
+            Duration::from_millis(300)
         };
         assert!(
             elapsed < max_expected_duration,

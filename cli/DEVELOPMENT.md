@@ -1,6 +1,6 @@
-# AggLayer Sandbox CLI - Development Guide
+# Agglayer Sandbox CLI - Development Guide
 
-This comprehensive guide covers all aspects of developing the AggLayer Sandbox CLI, from project structure to advanced development patterns.
+This comprehensive guide covers all aspects of developing the Agglayer Sandbox CLI, from project structure to advanced development patterns.
 
 ## Project Structure
 

@@ -12,6 +12,19 @@ if ! docker info > /dev/null 2>&1; then
     exit 1
 fi
 
+# Function to get the appropriate Docker Compose command
+get_compose_command() {
+    if docker compose version > /dev/null 2>&1; then
+        echo "docker compose"
+    elif docker-compose --version > /dev/null 2>&1; then
+        echo "docker-compose"
+    else
+        echo "docker-compose"  # fallback
+    fi
+}
+
+COMPOSE_CMD=$(get_compose_command)
+
 # Check if docker-compose.yml exists
 if [ ! -f "docker-compose.yml" ]; then
     echo "docker-compose.yml not found. Please run this script from the project root directory."
@@ -20,11 +33,11 @@ fi
 
 # Stop any existing containers to ensure a clean state
 echo -e "${GREEN}Stopping existing containers...${NC}"
-docker-compose down
+$COMPOSE_CMD down
 
 # Start Docker containers
 echo -e "${GREEN}Starting Anvil instances...${NC}"
-docker-compose up -d
+$COMPOSE_CMD up -d
 
 # Wait for Anvil instances to be ready
 echo -e "${GREEN}Waiting for Anvil instances to be ready...${NC}"

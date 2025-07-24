@@ -362,7 +362,7 @@ This will return information about processed claims. Example response:
 Fetch the events on L2 to retrieve the new TokenWrapped address:
 
 ```bash
-aggsandbox events --chain anvil-l2
+aggsandbox events --network-id 1101
 ```
 
 You'll see the following event:
@@ -903,7 +903,7 @@ L2_TOKEN_ADDRESS=$(cast call $POLYGON_ZKEVM_BRIDGE_L2 \
 
 If you encounter issues not covered in this guide:
 
-1. Check the AggLayer documentation
+1. Check the Agglayer documentation
 2. Verify all environment variables are correctly set
 3. Ensure you're using the latest version of the CLI tools
 4. Check that the sandbox is running and accessible

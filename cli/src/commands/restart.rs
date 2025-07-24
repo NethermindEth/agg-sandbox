@@ -4,7 +4,7 @@ use colored::*;
 pub async fn handle_restart() {
     println!(
         "{}",
-        "🔄 Restarting AggLayer sandbox environment..."
+        "🔄 Restarting Agglayer sandbox environment..."
             .yellow()
             .bold()
     );

@@ -12,6 +12,7 @@ mod events;
 mod logging;
 mod logs;
 mod progress;
+mod types;
 mod validation;
 
 use commands::ShowCommands;

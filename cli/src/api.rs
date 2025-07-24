@@ -1,5 +1,6 @@
 use crate::api_client::OptimizedApiClient;
 use crate::error::Result;
+// Removed unused imports: ChainId, EthereumAddress, RpcUrl
 use crate::validation::Validator;
 use colored::*;
 use serde::Deserialize;
@@ -127,7 +128,11 @@ pub async fn get_l1_info_tree_index(
 }
 
 pub fn print_json_response(title: &str, data: &serde_json::Value) {
-    println!("\n{}", format!("📋 {title}").green().bold());
+    println!(
+        "
+{}",
+        format!("📋 {title}").green().bold()
+    );
     println!("{}", "═".repeat(60).dimmed());
 
     let pretty_json = serde_json::to_string_pretty(data).unwrap_or_else(|_| format!("{data:?}"));
@@ -148,30 +153,35 @@ mod tests {
     use wiremock::matchers::{method, path, query_param};
     use wiremock::{Mock, MockServer, ResponseTemplate};
 
+    use crate::types::{ChainId, EthereumAddress, RpcUrl};
+
     fn create_test_config(base_url: &str) -> Config {
         Config {
             api: ApiConfig {
-                base_url: base_url.to_string(),
+                base_url: RpcUrl::new(base_url).expect("Valid test URL"),
                 timeout: Duration::from_millis(5000),
                 retry_attempts: 3,
             },
             networks: NetworkConfig {
                 l1: ChainConfig {
                     name: "Test-L1".to_string(),
-                    chain_id: "1".to_string(),
-                    rpc_url: "http://localhost:8545".to_string(),
+                    chain_id: ChainId::new("1").expect("Valid test chain ID"),
+                    rpc_url: RpcUrl::new("http://localhost:8545").expect("Valid test URL"),
                     fork_url: None,
                 },
                 l2: ChainConfig {
                     name: "Test-L2".to_string(),
-                    chain_id: "1101".to_string(),
-                    rpc_url: "http://localhost:8546".to_string(),
+                    chain_id: ChainId::new("1101").expect("Valid test chain ID"),
+                    rpc_url: RpcUrl::new("http://localhost:8546").expect("Valid test URL"),
                     fork_url: None,
                 },
                 l3: None,
             },
             accounts: AccountConfig {
-                accounts: vec!["0xtest".to_string()],
+                accounts: vec![
+                    EthereumAddress::new("0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266")
+                        .expect("Valid test address"),
+                ],
                 private_keys: vec!["0xkey".to_string()],
             },
             contracts: ContractConfig {

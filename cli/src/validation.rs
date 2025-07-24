@@ -141,6 +141,7 @@ impl Validator {
     }
 
     /// Validate RPC URL format
+    #[allow(dead_code)]
     pub fn validate_rpc_url(url: &str) -> Result<String> {
         let sanitized = Self::sanitize_url(url);
 
@@ -162,6 +163,7 @@ impl Validator {
     }
 
     /// Sanitize URL input
+    #[allow(dead_code)]
     fn sanitize_url(url: &str) -> String {
         url.trim().to_string()
     }

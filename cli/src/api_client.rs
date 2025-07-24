@@ -1,5 +1,6 @@
 use crate::config::Config;
 use crate::error::{ApiError, Result};
+use crate::types::NetworkId;
 use dashmap::DashMap;
 use lru::LruCache;
 use reqwest::{Client, ClientBuilder};
@@ -309,7 +310,7 @@ impl OptimizedApiClient {
     pub async fn get_bridges(&self, config: &Config, network_id: u64) -> Result<serde_json::Value> {
         let cache_key = CacheKey::new("bridges".to_string()).with_network_id(network_id);
 
-        let base_url = config.get_api_base_url(network_id);
+        let base_url = config.get_api_base_url(NetworkId::new(network_id)?);
         let url = format!("{base_url}/bridge/v1/bridges?network_id={network_id}");
 
         let timeout = config.api.timeout;
@@ -325,7 +326,7 @@ impl OptimizedApiClient {
     pub async fn get_claims(&self, config: &Config, network_id: u64) -> Result<serde_json::Value> {
         let cache_key = CacheKey::new("claims".to_string()).with_network_id(network_id);
 
-        let base_url = config.get_api_base_url(network_id);
+        let base_url = config.get_api_base_url(NetworkId::new(network_id)?);
         let url = format!("{base_url}/bridge/v1/claims?network_id={network_id}");
 
         let timeout = config.api.timeout;
@@ -353,7 +354,7 @@ impl OptimizedApiClient {
             .with_leaf_index(leaf_index)
             .with_deposit_count(deposit_count);
 
-        let base_url = config.get_api_base_url(network_id);
+        let base_url = config.get_api_base_url(NetworkId::new(network_id)?);
         let url = format!("{base_url}/bridge/v1/claim-proof?network_id={network_id}&leaf_index={leaf_index}&deposit_count={deposit_count}");
 
         let timeout = config.api.timeout;
@@ -379,7 +380,7 @@ impl OptimizedApiClient {
             .with_network_id(network_id)
             .with_deposit_count(deposit_count);
 
-        let base_url = config.get_api_base_url(network_id);
+        let base_url = config.get_api_base_url(NetworkId::new(network_id)?);
         let url = format!("{base_url}/bridge/v1/l1-info-tree-index?network_id={network_id}&deposit_count={deposit_count}");
 
         let timeout = config.api.timeout;

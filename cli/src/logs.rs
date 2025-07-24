@@ -8,7 +8,7 @@ fn print_accounts_and_keys(config: &Config) {
     println!("{}", "-----------------------".cyan());
 
     for (i, account) in config.accounts.accounts.iter().enumerate() {
-        println!("({i}): {}", account.yellow());
+        println!("({i}): {}", account.as_ref().yellow());
     }
 
     println!();
@@ -128,15 +128,15 @@ pub fn print_sandbox_info(config: &Config) {
     println!(
         "  Name: {}    Chain ID: {}    RPC: {}",
         config.networks.l1.name.white(),
-        config.networks.l1.chain_id.white(),
-        config.networks.l1.rpc_url.white()
+        config.networks.l1.chain_id.as_ref().white(),
+        config.networks.l1.rpc_url.as_ref().white()
     );
     println!("{}", "L2 (Polygon zkEVM Simulation):".green());
     println!(
         "  Name: {}    Chain ID: {}    RPC: {}",
         config.networks.l2.name.white(),
-        config.networks.l2.chain_id.white(),
-        config.networks.l2.rpc_url.white()
+        config.networks.l2.chain_id.as_ref().white(),
+        config.networks.l2.rpc_url.as_ref().white()
     );
 
     // Add contract addresses section
@@ -169,15 +169,15 @@ pub fn print_sandbox_fork_info(config: &Config) {
     println!(
         "  Name: {}    Chain ID: {}    RPC: {}",
         format!("{}-Fork", config.networks.l1.name).white(),
-        config.networks.l1.chain_id.white(),
-        config.networks.l1.rpc_url.white()
+        config.networks.l1.chain_id.as_ref().white(),
+        config.networks.l1.rpc_url.as_ref().white()
     );
     println!("{}", "L2 (Polygon zkEVM Fork):".green());
     println!(
         "  Name: {}    Chain ID: {}    RPC: {}",
         format!("{}-Fork", config.networks.l2.name).white(),
-        config.networks.l2.chain_id.white(),
-        config.networks.l2.rpc_url.white()
+        config.networks.l2.chain_id.as_ref().white(),
+        config.networks.l2.rpc_url.as_ref().white()
     );
 
     // Add contract addresses section
@@ -237,15 +237,15 @@ pub fn print_multi_l2_info(config: &Config, fork: bool) {
     println!(
         "  Name: {}    Chain ID: {}    RPC: {}",
         l1_name.white(),
-        config.networks.l1.chain_id.white(),
-        config.networks.l1.rpc_url.white()
+        config.networks.l1.chain_id.as_ref().white(),
+        config.networks.l1.rpc_url.as_ref().white()
     );
     println!("{}", "L2-1 (Polygon zkEVM):".green());
     println!(
         "  Name: {}    Chain ID: {}    RPC: {}",
         l2_1_name.white(),
-        config.networks.l2.chain_id.white(),
-        config.networks.l2.rpc_url.white()
+        config.networks.l2.chain_id.as_ref().white(),
+        config.networks.l2.rpc_url.as_ref().white()
     );
 
     if let Some(l3) = &config.networks.l3 {
@@ -253,8 +253,8 @@ pub fn print_multi_l2_info(config: &Config, fork: bool) {
         println!(
             "  Name: {}    Chain ID: {}    RPC: {}",
             l2_2_name.white(),
-            l3.chain_id.white(),
-            l3.rpc_url.white()
+            l3.chain_id.as_ref().white(),
+            l3.rpc_url.as_ref().white()
         );
     }
 

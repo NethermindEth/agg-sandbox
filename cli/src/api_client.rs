@@ -2,11 +2,11 @@ use crate::config::Config;
 use crate::error::{ApiError, Result};
 use dashmap::DashMap;
 use lru::LruCache;
-use once_cell::sync::Lazy;
 use reqwest::{Client, ClientBuilder};
 use std::hash::Hash;
 use std::num::NonZeroUsize;
 use std::sync::Arc;
+use std::sync::LazyLock;
 use std::time::{Duration, Instant};
 use tokio::sync::RwLock;
 use tracing::{debug, info, instrument, warn};
@@ -113,8 +113,8 @@ pub struct OptimizedApiClient {
 }
 
 /// Global client instance for reuse across API calls
-static GLOBAL_CLIENT: Lazy<Arc<OptimizedApiClient>> =
-    Lazy::new(|| Arc::new(OptimizedApiClient::new(CacheConfig::default())));
+static GLOBAL_CLIENT: LazyLock<Arc<OptimizedApiClient>> =
+    LazyLock::new(|| Arc::new(OptimizedApiClient::new(CacheConfig::default())));
 
 impl OptimizedApiClient {
     /// Create a new optimized API client

@@ -23,7 +23,7 @@ use tracing::{error, info, warn};
 #[command(name = "aggsandbox")]
 #[command(about = "🚀 CLI for managing Agglayer sandbox environment")]
 #[command(
-    long_about = "AggSandbox CLI provides comprehensive tools for managing your Agglayer sandbox environment.\n\nThis tool helps you start, stop, monitor, and interact with your sandbox infrastructure\nincluding L1/L2 chains, bridge services, and blockchain events.\n\nExamples:\n  aggsandbox start --detach           # Start sandbox in background\n  aggsandbox start --fork --multi-l2  # Start with real data and multiple L2s\n  aggsandbox logs -f bridge-service   # Follow bridge service logs\n  aggsandbox show bridges --network 1 # Show bridge information\n  aggsandbox events --chain anvil-l1  # Show recent blockchain events"
+    long_about = "AggSandbox CLI provides comprehensive tools for managing your Agglayer sandbox environment.\n\nThis tool helps you start, stop, monitor, and interact with your sandbox infrastructure\nincluding L1/L2 chains, bridge services, and blockchain events.\n\nExamples:\n  aggsandbox start --detach           # Start sandbox in background\n  aggsandbox start --fork --multi-l2  # Start with real data and multiple L2s\n  aggsandbox logs -f aggkit           # Follow aggkit logs\n  aggsandbox show bridges --network 1 # Show bridge information\n  aggsandbox events --chain anvil-l1  # Show recent blockchain events"
 )]
 #[command(version = "0.1.0")]
 #[command(author = "Agglayer Team")]
@@ -97,14 +97,14 @@ enum Commands {
     Status,
     /// 📋 Show logs from services
     #[command(
-        long_about = "Display logs from sandbox services.\n\nView logs from all services or filter by specific service name.\nUse --follow to stream logs in real-time.\n\nExamples:\n  aggsandbox logs                    # Show all logs\n  aggsandbox logs bridge-service     # Show bridge service logs\n  aggsandbox logs -f                 # Follow all logs\n  aggsandbox logs -f anvil-l1        # Follow L1 node logs"
+        long_about = "Display logs from sandbox services.\n\nView logs from all services or filter by specific service name.\nUse --follow to stream logs in real-time.\n\nExamples:\n  aggsandbox logs                    # Show all logs\n  aggsandbox logs aggkit             # Show aggkit logs (bridge, oracle, etc.)\n  aggsandbox logs -f                 # Follow all logs\n  aggsandbox logs -f anvil-l1        # Follow L1 node logs\n  aggsandbox logs -f aggkit          # Follow aggkit logs in real-time"
     )]
     Logs {
         /// Follow log output in real-time
         #[arg(short, long, help = "Stream logs continuously (like 'tail -f')")]
         follow: bool,
         /// Specific service name to show logs for
-        #[arg(help = "Service name (e.g., bridge-service, anvil-l1, anvil-l2, agglayer)")]
+        #[arg(help = "Service name (e.g., aggkit, anvil-l1, anvil-l2, contract-deployer)")]
         service: Option<String>,
     },
     /// 🔄 Restart the sandbox environment
@@ -390,7 +390,7 @@ fn print_error(error: &error::AggSandboxError) {
                     eprintln!("   • API service is starting up");
                     eprintln!("   • Wait 30-60 seconds and try again");
                     eprintln!("   • Check service health:");
-                    eprintln!("     {}", "aggsandbox logs bridge-service".cyan());
+                    eprintln!("     {}", "aggsandbox logs aggkit".cyan());
                 }
                 error::ApiError::RequestFailed { status, .. } => {
                     eprintln!("{}", "💡 HTTP Error Help:".blue().bold());

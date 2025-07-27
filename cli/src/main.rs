@@ -24,7 +24,7 @@ use tracing::{error, info, warn};
 #[command(name = "aggsandbox")]
 #[command(about = "🚀 CLI for managing Agglayer sandbox environment")]
 #[command(
-    long_about = "AggSandbox CLI provides comprehensive tools for managing your Agglayer sandbox environment.\n\nThis tool helps you start, stop, monitor, and interact with your sandbox infrastructure\nincluding L1/L2 chains, bridge services, and blockchain events.\n\nExamples:\n  aggsandbox start --detach           # Start sandbox in background\n  aggsandbox start --fork --multi-l2  # Start with real data and multiple L2s\n  aggsandbox logs -f aggkit           # Follow aggkit logs\n  aggsandbox show bridges --network 1 # Show bridge information\n  aggsandbox events --chain anvil-l1  # Show recent blockchain events"
+    long_about = "AggSandbox CLI provides comprehensive tools for managing your Agglayer sandbox environment.\n\nThis tool helps you start, stop, monitor, and interact with your sandbox infrastructure\nincluding L1/L2 chains, bridge services, and blockchain events.\n\nExamples:\n  aggsandbox start --detach             # Start sandbox in background\n  aggsandbox start --fork --multi-l2    # Start with real data and multiple L2s\n  aggsandbox logs -f aggkit             # Follow aggkit logs\n  aggsandbox show bridges --network-id 0 # Show L1 bridge information\n  aggsandbox events --chain anvil-l1    # Show recent blockchain events"
 )]
 #[command(version = "0.1.0")]
 #[command(author = "Agglayer Team")]
@@ -120,7 +120,7 @@ enum Commands {
     Info,
     /// 🌉 Show bridge and blockchain information
     #[command(
-        long_about = "Access bridge data and blockchain information.\n\nQuery bridges, claims, proofs, and other bridge-related data\nfrom the Agglayer bridge service API.\n\nExamples:\n  aggsandbox show bridges --network 1     # List bridges for network 1\n  aggsandbox show claims --network 1101   # Show claims for L2\n  aggsandbox show proof --network 1 --leaf-index 0 --deposit-count 1"
+        long_about = "Access bridge data and blockchain information.\n\nQuery bridges, claims, proofs, and other bridge-related data\nfrom the Agglayer bridge service API.\n\nExamples:\n  aggsandbox show bridges --network-id 0     # List bridges for L1\n  aggsandbox show claims --network-id 1      # Show claims for first L2\n  aggsandbox show proof --network-id 0 --leaf-index 0 --deposit-count 1"
     )]
     Show {
         #[command(subcommand)]
@@ -128,15 +128,11 @@ enum Commands {
     },
     /// 📡 Fetch and display blockchain events
     #[command(
-        long_about = "Monitor blockchain events from L1 and L2 chains.\n\nFetch and display recent events from specified blockchain,\nwith options to filter by contract address and block range.\n\nExamples:\n  aggsandbox events --network-id 1                # Recent L1 events\n  aggsandbox events --network-id 1101 --blocks 20 # Last 20 L2 blocks\n  aggsandbox events --network-id 1 --address 0x123 # Events from specific contract\n\nLegacy (deprecated) examples:\n  aggsandbox events --chain anvil-l1              # Use --network-id 1 instead"
+        long_about = "Monitor blockchain events from L1 and L2 chains.\n\nFetch and display recent events from specified blockchain,\nwith options to filter by contract address and block range.\n\nExamples:\n  aggsandbox events --network-id 0                # Recent L1 events\n  aggsandbox events --network-id 1 --blocks 20    # Last 20 blocks from first L2\n  aggsandbox events --network-id 0 --address 0x123 # Events from specific contract\n\nLegacy (deprecated) examples:\n  aggsandbox events --chain anvil-l1              # Use --network-id 0 instead"
     )]
     Events {
         /// Network ID to fetch events from (preferred over --chain)
-        #[arg(
-            short = 'n',
-            long,
-            help = "Network ID to query (1=L1, 1101=L2, 1102=L3)"
-        )]
+        #[arg(short = 'n', long, help = "Network ID to query (0=L1, 1=L2, 2=L3)")]
         network_id: Option<u64>,
         /// Blockchain to fetch events from (deprecated, use --network-id instead)
         #[arg(short, long, value_parser = ["anvil-l1", "anvil-l2", "anvil-l3"], help = "Chain to query (anvil-l1, anvil-l2, or anvil-l3) - DEPRECATED: use --network-id")]

@@ -66,13 +66,14 @@ pub struct NetworkId(u64);
 impl NetworkId {
     /// Create a new NetworkId with validation
     pub fn new(id: u64) -> Result<Self> {
-        // Valid network ID ranges from RUST_CONTEXT validation
+        // Define valid Agglayer network ID ranges
+        // 0 = Ethereum L1
+        // 1 = First L2 connected to Agglayer
+        // 2 = Second L2 (if multi-L2 setup)
+        // 3+ = Additional L2 chains
         let valid_ranges = [
-            (1, 1),         // Ethereum Mainnet
-            (137, 137),     // Polygon
-            (1101, 1102),   // Agglayer chains
-            (31337, 31338), // Hardhat default and test
-            (5000, 5000),   // For test coverage (used in tests)
+            (0, 3),         // Agglayer network IDs: 0 (L1), 1-3 (L2 chains)
+            (31337, 31339), // Local development networks (for testing)
         ];
 
         let is_valid = valid_ranges
@@ -85,7 +86,7 @@ impl NetworkId {
             Err(ConfigError::invalid_value(
                 "network_id",
                 &id.to_string(),
-                "must be a valid network ID (1, 137, 1101-1102, 31337)",
+                "Must be one of: 0 (Ethereum L1), 1-3 (L2 chains), or 31337-31339 (Local development)",
             )
             .into())
         }
@@ -96,9 +97,9 @@ impl NetworkId {
         self.0
     }
 
-    /// Check if this is an L3 network (aggkit-l3 service)
+    /// Check if this is an L2/L3 network (non-L1)
     pub fn is_l3(&self) -> bool {
-        matches!(self.0, 137 | 1102)
+        matches!(self.0, 1..=3)
     }
 }
 
@@ -323,17 +324,26 @@ mod tests {
 
     #[test]
     fn test_network_id_valid() {
-        let network_id = NetworkId::new(1).unwrap();
-        assert_eq!(network_id.as_u64(), 1);
-        assert!(!network_id.is_l3());
+        let l1_network = NetworkId::new(0).unwrap();
+        assert_eq!(l1_network.as_u64(), 0);
+        assert!(!l1_network.is_l3());
 
-        let l3_network = NetworkId::new(137).unwrap();
+        let l2_network = NetworkId::new(1).unwrap();
+        assert_eq!(l2_network.as_u64(), 1);
+        assert!(l2_network.is_l3());
+
+        let l3_network = NetworkId::new(2).unwrap();
         assert!(l3_network.is_l3());
+
+        let dev_network = NetworkId::new(31337).unwrap();
+        assert_eq!(dev_network.as_u64(), 31337);
     }
 
     #[test]
     fn test_network_id_invalid() {
-        assert!(NetworkId::new(0).is_err());
+        assert!(NetworkId::new(4).is_err()); // Beyond L2 range
+        assert!(NetworkId::new(137).is_err()); // Old chain ID format
+        assert!(NetworkId::new(1101).is_err()); // Old chain ID format
         assert!(NetworkId::new(999).is_err());
         assert!(NetworkId::new(2000).is_err());
     }

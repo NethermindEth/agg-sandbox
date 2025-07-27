@@ -182,7 +182,7 @@ mod network_failure_tests {
             .mount(&mock_server)
             .await;
 
-        let result = api::get_bridges(&config, 1).await;
+        let result = api::get_bridges(&config, 1, false).await;
 
         assert!(result.is_err());
         // Note: This test may pass quickly in test environment
@@ -194,7 +194,7 @@ mod network_failure_tests {
     async fn test_dns_resolution_failure() {
         let config = create_test_config("http://nonexistent.invalid.domain.local:5577");
 
-        let result = api::get_bridges(&config, 1).await;
+        let result = api::get_bridges(&config, 1, false).await;
 
         assert!(result.is_err());
         match result.unwrap_err() {
@@ -209,7 +209,7 @@ mod network_failure_tests {
         // Use a port that's unlikely to be in use
         let config = create_test_config("http://localhost:9999");
 
-        let result = api::get_bridges(&config, 1).await;
+        let result = api::get_bridges(&config, 1, false).await;
 
         assert!(result.is_err());
         match result.unwrap_err() {
@@ -230,7 +230,7 @@ mod network_failure_tests {
             .mount(&mock_server)
             .await;
 
-        let result = api::get_bridges(&config, 1).await;
+        let result = api::get_bridges(&config, 1, false).await;
 
         assert!(result.is_err());
         match result.unwrap_err() {
@@ -251,7 +251,7 @@ mod network_failure_tests {
             .mount(&mock_server)
             .await;
 
-        let result = api::get_bridges(&config, 1).await;
+        let result = api::get_bridges(&config, 1, false).await;
 
         assert!(result.is_err());
         match result.unwrap_err() {
@@ -272,7 +272,7 @@ mod network_failure_tests {
             .mount(&mock_server)
             .await;
 
-        let result = api::get_bridges(&config, 1).await;
+        let result = api::get_bridges(&config, 1, false).await;
 
         assert!(result.is_err());
         match result.unwrap_err() {
@@ -293,7 +293,7 @@ mod network_failure_tests {
             .mount(&mock_server)
             .await;
 
-        let result = api::get_bridges(&config, 1).await;
+        let result = api::get_bridges(&config, 1, false).await;
 
         assert!(result.is_err());
         match result.unwrap_err() {
@@ -323,7 +323,7 @@ mod network_failure_tests {
             .mount(&mock_server)
             .await;
 
-        let result = api::get_bridges(&config, 1).await;
+        let result = api::get_bridges(&config, 1, false).await;
 
         // This should succeed but we verify it handles large responses
         assert!(result.is_ok());
@@ -384,7 +384,7 @@ mod configuration_failure_tests {
     /// Test invalid network ID validation
     #[test]
     fn test_invalid_network_id_validation() {
-        let invalid_network_ids = vec![0, u64::MAX, 999999];
+        let invalid_network_ids = vec![4, u64::MAX, 999999];
 
         for network_id in invalid_network_ids {
             let result = Validator::validate_network_id(network_id);

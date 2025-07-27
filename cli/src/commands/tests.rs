@@ -158,16 +158,24 @@ mod integration_tests {
 
         // The enum should have all expected variants
         // This is verified at compile time, but we can create instances
-        let _bridges_cmd = ShowCommands::Bridges { network_id: 1 };
-        let _claims_cmd = ShowCommands::Claims { network_id: 1101 };
+        let _bridges_cmd = ShowCommands::Bridges {
+            network_id: 1,
+            json: false,
+        };
+        let _claims_cmd = ShowCommands::Claims {
+            network_id: 1,
+            json: false,
+        };
         let _proof_cmd = ShowCommands::ClaimProof {
             network_id: 1,
             leaf_index: 0,
             deposit_count: 1,
+            json: false,
         };
         let _tree_cmd = ShowCommands::L1InfoTreeIndex {
             network_id: 1,
             deposit_count: 0,
+            json: false,
         };
     }
 
@@ -233,7 +241,7 @@ mod failure_scenario_tests {
         use crate::validation::Validator;
 
         // Test edge cases for network ID validation
-        assert!(Validator::validate_network_id(0).is_err());
+        assert!(Validator::validate_network_id(0).is_ok()); // Network ID 0 is valid (Ethereum L1)
         assert!(Validator::validate_network_id(u64::MAX).is_err());
 
         // Test edge cases for block count validation

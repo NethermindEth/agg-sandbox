@@ -488,6 +488,7 @@ The tools in this directory ensure your local development environment matches CI
 ### CI/CD Pipeline
 
 The project uses GitHub Actions for:
+
 - **Continuous Integration**: Run tests on all PRs
 - **Code Quality**: Enforce formatting and linting
 - **Security**: Audit dependencies for vulnerabilities

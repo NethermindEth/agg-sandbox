@@ -62,7 +62,7 @@ services:
       - anvil-network
 
   aggkit:
-    image: ametelnethermind/aggsandbox-aggkit:latest
+    image: aggkit:local
     depends_on:
       aggkit-delay:
         condition: service_completed_successfully

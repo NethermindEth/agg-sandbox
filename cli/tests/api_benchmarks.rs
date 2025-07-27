@@ -61,7 +61,7 @@ mod api_performance_benchmarks {
         let mock_response = json!({
             "bridges": (0..100).map(|i| json!({
                 "id": format!("bridge_{i}"),
-                "network_id": 1,
+                "network_id": 0,
                 "address": format!("0x{:040x}", i),
                 "amount": format!("{}000000000000000000", i + 1)
             })).collect::<Vec<_>>()
@@ -69,14 +69,14 @@ mod api_performance_benchmarks {
 
         Mock::given(method("GET"))
             .and(path("/bridge/v1/bridges"))
-            .and(query_param("network_id", "1"))
+            .and(query_param("network_id", "0"))
             .respond_with(ResponseTemplate::new(200).set_body_json(&mock_response))
             .mount(&mock_server)
             .await;
 
         // Warm-up calls
         for _ in 0..3 {
-            let _ = api::get_bridges(&config, 1).await;
+            let _ = api::get_bridges(&config, 0, false).await;
         }
 
         // Benchmark actual calls
@@ -84,7 +84,7 @@ mod api_performance_benchmarks {
         let start_time = Instant::now();
 
         for _ in 0..iterations {
-            let result = api::get_bridges(&config, 1).await;
+            let result = api::get_bridges(&config, 0, false).await;
             assert!(result.is_ok(), "API call should succeed");
         }
 
@@ -119,7 +119,7 @@ mod api_performance_benchmarks {
         let mock_response = json!({
             "claims": (0..50).map(|i| json!({
                 "id": format!("claim_{i}"),
-                "network_id": 1101,
+                "network_id": 0,
                 "leaf_index": i,
                 "deposit_count": i + 1,
                 "amount": format!("{}000000000000000000", i + 1)
@@ -128,7 +128,7 @@ mod api_performance_benchmarks {
 
         Mock::given(method("GET"))
             .and(path("/bridge/v1/claims"))
-            .and(query_param("network_id", "1101"))
+            .and(query_param("network_id", "0"))
             .respond_with(ResponseTemplate::new(200).set_body_json(&mock_response))
             .mount(&mock_server)
             .await;
@@ -137,7 +137,7 @@ mod api_performance_benchmarks {
         let start_time = Instant::now();
 
         for _ in 0..iterations {
-            let result = api::get_claims(&config, 1101).await;
+            let result = api::get_claims(&config, 0, false).await;
             assert!(result.is_ok(), "Claims API call should succeed");
         }
 
@@ -160,7 +160,7 @@ mod api_performance_benchmarks {
         let config = Arc::new(create_test_config(&mock_server.uri()));
 
         let mock_response = json!({
-            "bridges": [{"id": "test", "network_id": 1, "address": "0x123"}]
+            "bridges": [{"id": "test", "network_id": 0, "address": "0x123"}]
         });
 
         Mock::given(method("GET"))
@@ -179,7 +179,7 @@ mod api_performance_benchmarks {
                 let config = Arc::clone(&config);
                 tokio::spawn(async move {
                     for _ in 0..calls_per_thread {
-                        let _result = api::get_bridges(&config, 1).await;
+                        let _result = api::get_bridges(&config, 0, false).await;
                     }
                 })
             })
@@ -218,7 +218,7 @@ mod api_performance_benchmarks {
         let config = create_test_config(&mock_server.uri());
 
         let response_sizes = [10, 100, 1000, 5000];
-        let valid_network_ids = [1u64, 1101, 31337, 31338]; // Use valid network IDs that all route to the same port
+        let valid_network_ids = [0u64]; // Use only L1 network ID for testing since it stays on original port
 
         for (i, &size) in response_sizes.iter().enumerate() {
             let network_id = valid_network_ids[i % valid_network_ids.len()];
@@ -243,7 +243,7 @@ mod api_performance_benchmarks {
             let start_time = Instant::now();
 
             for _ in 0..iterations {
-                let result = api::get_bridges(&config, network_id).await;
+                let result = api::get_bridges(&config, network_id, false).await;
                 assert!(result.is_ok(), "API call should succeed for size {size}");
             }
 
@@ -287,7 +287,7 @@ mod api_performance_benchmarks {
             let start_time = Instant::now();
 
             for _ in 0..iterations {
-                let result = api::get_bridges(&config, status_code as u64).await;
+                let result = api::get_bridges(&config, status_code as u64, false).await;
                 assert!(result.is_err(), "Should fail for status {status_code}");
             }
 
@@ -314,7 +314,7 @@ mod api_performance_benchmarks {
         let large_response = json!({
             "bridges": (0..10000).map(|i| json!({
                 "id": format!("bridge_{i}"),
-                "network_id": 1,
+                "network_id": 0,
                 "address": format!("0x{:040x}", i),
                 "metadata": {
                     "description": format!("Bridge description {}", "x".repeat(500)),
@@ -334,7 +334,7 @@ mod api_performance_benchmarks {
         let start_time = Instant::now();
 
         for i in 0..iterations {
-            let result = api::get_bridges(&config, 1).await;
+            let result = api::get_bridges(&config, 0, false).await;
             assert!(result.is_ok(), "Large response API call should succeed");
 
             // Force garbage collection pressure periodically
@@ -417,7 +417,7 @@ mod api_reliability_benchmarks {
         let config = Arc::new(create_test_config(&mock_server.uri()));
 
         let mock_response = json!({
-            "bridges": [{"id": "test", "network_id": 1, "address": "0x123"}]
+            "bridges": [{"id": "test", "network_id": 0, "address": "0x123"}]
         });
 
         Mock::given(method("GET"))
@@ -439,7 +439,7 @@ mod api_reliability_benchmarks {
 
                 tokio::spawn(async move {
                     while start_time.elapsed() < duration {
-                        match api::get_bridges(&config, 1).await {
+                        match api::get_bridges(&config, 0, false).await {
                             Ok(_) => *success_count.lock().unwrap() += 1,
                             Err(_) => *error_count.lock().unwrap() += 1,
                         }
@@ -489,7 +489,7 @@ mod api_reliability_benchmarks {
         let config = create_test_config(&mock_server.uri());
 
         let success_response = json!({
-            "bridges": [{"id": "test", "network_id": 1, "address": "0x123"}]
+            "bridges": [{"id": "test", "network_id": 0, "address": "0x123"}]
         });
 
         // Alternate between success and failure
@@ -510,7 +510,7 @@ mod api_reliability_benchmarks {
                 .await;
 
             let start_time = Instant::now();
-            let _result = api::get_bridges(&config, 1).await;
+            let _result = api::get_bridges(&config, 0, false).await;
             let call_duration = start_time.elapsed();
 
             call_count += 1;
@@ -542,7 +542,7 @@ mod api_reliability_benchmarks {
 
         for _ in 0..iterations {
             let call_start = Instant::now();
-            let result = api::get_bridges(&config, 1).await;
+            let result = api::get_bridges(&config, 0, false).await;
             let call_duration = call_start.elapsed();
 
             // Should fail (either timeout or connection refused)

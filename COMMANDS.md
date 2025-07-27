@@ -95,9 +95,9 @@ cast send $POLYGON_ZKEVM_BRIDGE_L1 \
   --rpc-url $RPC_1
 
 # 3. Get proof data
-DEPOSIT_COUNT=$(aggsandbox show bridges --network-id 1 | jq -r '.bridges[0].deposit_count')
-LEAF_INDEX=$(aggsandbox show l1-info-tree-index --network-id 1 --deposit-count $DEPOSIT_COUNT | jq -r '.l1_info_tree_index')
-PROOF_DATA=$(aggsandbox show claim-proof --network-id 1 --leaf-index $LEAF_INDEX --deposit-count $DEPOSIT_COUNT)
+DEPOSIT_COUNT=$(aggsandbox show bridges --network-id 0 --json | jq -r '.bridges[0].deposit_count')
+LEAF_INDEX=$(aggsandbox show l1-info-tree-index --network-id 0 --deposit-count $DEPOSIT_COUNT --json | jq -r '.')
+PROOF_DATA=$(aggsandbox show claim-proof --network-id 0 --leaf-index $LEAF_INDEX --deposit-count $DEPOSIT_COUNT --json)
 
 # 4. Extract proof values
 MAINNET_EXIT_ROOT=$(echo $PROOF_DATA | jq -r '.l1_info_tree_leaf.mainnet_exit_root')
@@ -185,7 +185,7 @@ cast call $AGG_ERC20_L1 \
 After initiating the bridge, you can check the bridge details using the CLI command:
 
 ```bash
-aggsandbox show bridges --network-id 1
+aggsandbox show bridges --network-id 0
 ```
 
 This will return bridge information including transaction details, deposit count, and metadata. Example response:
@@ -228,7 +228,7 @@ After getting the deposit count, you need to retrieve the L1 info tree index to 
 
 ```bash
 # Replace <DEPOSIT_COUNT> with deposit_count from bridge response
-aggsandbox show l1-info-tree-index --network-id 1 --deposit-count <DEPOSIT_COUNT>
+aggsandbox show l1-info-tree-index --network-id 0 --deposit-count <DEPOSIT_COUNT>
 ```
 
 Example response:
@@ -260,7 +260,7 @@ Before claiming assets, you need to get the proof data using the CLI command. Us
 ```bash
 # Replace <LEAF_INDEX> with l1_info_tree_index from previous response
 # Replace <DEPOSIT_COUNT> with deposit_count from bridge response
-aggsandbox show claim-proof --network-id 1 --leaf-index <LEAF_INDEX> --deposit-count <DEPOSIT_COUNT>
+aggsandbox show claim-proof --network-id 0 --leaf-index <LEAF_INDEX> --deposit-count <DEPOSIT_COUNT>
 ```
 
 This will return the proof data including the `mainnet_exit_root` and `rollup_exit_root` needed for the claimAsset call. Example response:
@@ -298,7 +298,7 @@ cast send $POLYGON_ZKEVM_BRIDGE_L2 \
   <ROLLUP_EXIT_ROOT> \
   1 \
   $AGG_ERC20_L1 \
-  1101 \
+  $CHAIN_ID_AGGLAYER_1 \
   $ACCOUNT_ADDRESS_2 \
   10 \
   $METADATA \
@@ -324,7 +324,7 @@ cast send $POLYGON_ZKEVM_BRIDGE_L2 \
 After claiming assets, you can verify the claim was processed using the CLI command:
 
 ```bash
-aggsandbox show claims --network-id 1101
+aggsandbox show claims --network-id 1
 ```
 
 This will return information about processed claims. Example response:
@@ -362,7 +362,7 @@ This will return information about processed claims. Example response:
 Fetch the events on L2 to retrieve the new TokenWrapped address:
 
 ```bash
-aggsandbox events --network-id 1101
+aggsandbox events --network-id 1
 ```
 
 You'll see the following event:
@@ -437,13 +437,13 @@ Follow the same process as before to get the claim proof:
 
 ```bash
 # Get bridge details
-aggsandbox show bridges --network-id 1101
+aggsandbox show bridges --network-id 1
 
 # Get L1 info tree index
-aggsandbox show l1-info-tree-index --network-id 1101 --deposit-count <DEPOSIT_COUNT>
+aggsandbox show l1-info-tree-index --network-id 1 --deposit-count <DEPOSIT_COUNT>
 
 # Get claim proof
-aggsandbox show claim-proof --network-id 1101 --leaf-index <LEAF_INDEX> --deposit-count <DEPOSIT_COUNT>
+aggsandbox show claim-proof --network-id 1 --leaf-index <LEAF_INDEX> --deposit-count <DEPOSIT_COUNT>
 ```
 
 ### Step 7d: Claim Assets on L1
@@ -456,8 +456,8 @@ cast send $POLYGON_ZKEVM_BRIDGE_L1 \
   <DEPOSIT_COUNT> \
   <MAINNET_EXIT_ROOT> \
   <ROLLUP_EXIT_ROOT> \
-  1101 \
-  $TOKENWRAPPED \
+  1 \
+  $AGG_ERC20_L1 \
   1 \
   $ACCOUNT_ADDRESS_1 \
   10 \
@@ -561,7 +561,7 @@ cast send $BRIDGE_EXTENSION_L1 \
 Check the bridges to get the deposit counts and proof data:
 
 ```bash
-aggsandbox show bridges --network-id 1
+aggsandbox show bridges --network-id 0
 ```
 
 Look for both bridge entries in the response. Note the `deposit_count` values:
@@ -575,7 +575,7 @@ First, claim the asset bridge to the JumpPoint address:
 
 ```bash
 # Get L1 info tree index for asset bridge
-aggsandbox show l1-info-tree-index --network-id 1 --deposit-count 0
+aggsandbox show l1-info-tree-index --network-id 0 --deposit-count 0
 
 # Get claim proof for asset bridge
 aggsandbox show claim-proof --network-id 1 --leaf-index <L1_INFO_TREE_INDEX> --deposit-count 0
@@ -606,7 +606,7 @@ Get the proof data for the message bridge:
 
 ```bash
 # Get L1 info tree index for message bridge
-aggsandbox show l1-info-tree-index --network-id 1 --deposit-count 1
+aggsandbox show l1-info-tree-index --network-id 0 --deposit-count 1
 
 # Get claim proof for message bridge
 aggsandbox show claim-proof --network-id 1 --leaf-index <L1_INFO_TREE_INDEX_MESSAGE> --deposit-count 1
@@ -680,10 +680,10 @@ You can monitor the execution by checking bridge events:
 
 ```bash
 # Get bridge details to see both asset and message bridges
-aggsandbox show bridges --network-id 1
+aggsandbox show bridges --network-id 0
 
 # Check claims to see execution status
-aggsandbox show claims --network-id 1101
+aggsandbox show claims --network-id 1
 ```
 
 The system creates two bridge events:

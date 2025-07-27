@@ -102,8 +102,8 @@ impl Config {
     /// Get the appropriate API base URL for a given network ID
     pub fn get_api_base_url(&self, network_id: NetworkId) -> String {
         match network_id.as_u64() {
-            // Network IDs served by aggkit-l3 (port 5578)
-            137 | 1102 => {
+            // Network ID 2+ served by aggkit-l3 (port 5578)
+            2..=3 => {
                 // Replace port 5577 with 5578 for aggkit-l3
                 let base_url = self.api.base_url.as_str();
                 if base_url.contains("5577") {
@@ -122,7 +122,7 @@ impl Config {
                     format!("http://{host}:5578")
                 }
             }
-            // Network IDs served by aggkit-l2 (port 5577) - default
+            // Network ID 0 (L1), 1 (L2), and dev networks served by aggkit-l2 (port 5577) - default
             _ => self.api.base_url.as_str().to_string(),
         }
     }
@@ -775,13 +775,13 @@ mod tests {
     fn test_get_api_base_url() {
         let config = Config::load().unwrap();
 
-        // Test default network IDs go to port 5577
+        // Test L1 (network 0) and L2 (network 1) go to port 5577
         assert_eq!(
-            config.get_api_base_url(NetworkId::new(1).unwrap()),
+            config.get_api_base_url(NetworkId::new(0).unwrap()),
             "http://localhost:5577"
         );
         assert_eq!(
-            config.get_api_base_url(NetworkId::new(1101).unwrap()),
+            config.get_api_base_url(NetworkId::new(1).unwrap()),
             "http://localhost:5577"
         );
         assert_eq!(
@@ -789,13 +789,13 @@ mod tests {
             "http://localhost:5577"
         );
 
-        // Test network IDs that should go to port 5578 (aggkit-l3)
+        // Test network ID 2+ goes to port 5578 (aggkit-l3)
         assert_eq!(
-            config.get_api_base_url(NetworkId::new(137).unwrap()),
+            config.get_api_base_url(NetworkId::new(2).unwrap()),
             "http://localhost:5578"
         );
         assert_eq!(
-            config.get_api_base_url(NetworkId::new(1102).unwrap()),
+            config.get_api_base_url(NetworkId::new(3).unwrap()),
             "http://localhost:5578"
         );
     }
@@ -805,23 +805,23 @@ mod tests {
         let mut config = Config::load().unwrap();
         config.api.base_url = RpcUrl::new("https://custom.host.com:5577").unwrap();
 
-        // Test default network IDs use custom host with port 5577
+        // Test L1 (network 0) and L2 (network 1) use custom host with port 5577
+        assert_eq!(
+            config.get_api_base_url(NetworkId::new(0).unwrap()),
+            "https://custom.host.com:5577"
+        );
         assert_eq!(
             config.get_api_base_url(NetworkId::new(1).unwrap()),
             "https://custom.host.com:5577"
         );
-        assert_eq!(
-            config.get_api_base_url(NetworkId::new(1101).unwrap()),
-            "https://custom.host.com:5577"
-        );
 
-        // Test network IDs that should go to port 5578 on custom host
+        // Test network ID 2+ goes to port 5578 on custom host
         assert_eq!(
-            config.get_api_base_url(NetworkId::new(137).unwrap()),
+            config.get_api_base_url(NetworkId::new(2).unwrap()),
             "https://custom.host.com:5578"
         );
         assert_eq!(
-            config.get_api_base_url(NetworkId::new(1102).unwrap()),
+            config.get_api_base_url(NetworkId::new(3).unwrap()),
             "https://custom.host.com:5578"
         );
     }
@@ -831,23 +831,23 @@ mod tests {
         let mut config = Config::load().unwrap();
         config.api.base_url = RpcUrl::new("https://api.example.com").unwrap();
 
-        // Test default network IDs use original URL
+        // Test L1 (network 0) and L2 (network 1) use original URL
+        assert_eq!(
+            config.get_api_base_url(NetworkId::new(0).unwrap()),
+            "https://api.example.com"
+        );
         assert_eq!(
             config.get_api_base_url(NetworkId::new(1).unwrap()),
             "https://api.example.com"
         );
-        assert_eq!(
-            config.get_api_base_url(NetworkId::new(1101).unwrap()),
-            "https://api.example.com"
-        );
 
-        // Test network IDs that should go to port 5578 construct new URL
+        // Test network ID 2+ constructs new URL with port 5578
         assert_eq!(
-            config.get_api_base_url(NetworkId::new(137).unwrap()),
+            config.get_api_base_url(NetworkId::new(2).unwrap()),
             "http://api.example.com:5578"
         );
         assert_eq!(
-            config.get_api_base_url(NetworkId::new(1102).unwrap()),
+            config.get_api_base_url(NetworkId::new(3).unwrap()),
             "http://api.example.com:5578"
         );
     }

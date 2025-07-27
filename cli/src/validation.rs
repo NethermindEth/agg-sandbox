@@ -53,12 +53,14 @@ impl Validator {
 
     /// Validate network ID for API calls
     pub fn validate_network_id(network_id: u64) -> Result<u64> {
-        // Define valid network ID ranges based on common blockchain network IDs
+        // Define valid Agglayer network ID ranges
+        // 0 = Ethereum L1
+        // 1 = First L2 connected to Agglayer
+        // 2 = Second L2 (if multi-L2 setup)
+        // 3+ = Additional L2 chains
         let valid_ranges = [
-            (1, 1),         // Ethereum Mainnet
-            (137, 137),     // Polygon Mainnet
-            (1101, 1102),   // Polygon zkEVM networks
-            (31337, 31339), // Local development networks (Anvil default range)
+            (0, 3),         // Agglayer network IDs: 0 (L1), 1-3 (L2 chains)
+            (31337, 31339), // Local development networks (for testing)
         ];
 
         let is_valid = valid_ranges
@@ -71,7 +73,7 @@ impl Validator {
             Err(ConfigError::invalid_value(
                 "network_id",
                 &network_id.to_string(),
-                "Must be one of: 1 (Ethereum), 137 (Polygon), 1101-1102 (Polygon zkEVM), or 31337-31339 (Local)",
+                "Must be one of: 0 (Ethereum L1), 1-3 (L2 chains), or 31337-31339 (Local development)",
             )
             .into())
         }
@@ -409,17 +411,20 @@ mod tests {
 
     #[test]
     fn test_validate_network_id_valid() {
-        assert_eq!(Validator::validate_network_id(1).unwrap(), 1);
-        assert_eq!(Validator::validate_network_id(137).unwrap(), 137);
-        assert_eq!(Validator::validate_network_id(1101).unwrap(), 1101);
-        assert_eq!(Validator::validate_network_id(31337).unwrap(), 31337);
+        assert_eq!(Validator::validate_network_id(0).unwrap(), 0); // L1 Ethereum
+        assert_eq!(Validator::validate_network_id(1).unwrap(), 1); // First L2
+        assert_eq!(Validator::validate_network_id(2).unwrap(), 2); // Second L2
+        assert_eq!(Validator::validate_network_id(3).unwrap(), 3); // Third L2
+        assert_eq!(Validator::validate_network_id(31337).unwrap(), 31337); // Local dev
     }
 
     #[test]
     fn test_validate_network_id_invalid() {
-        assert!(Validator::validate_network_id(999).is_err());
-        assert!(Validator::validate_network_id(2000).is_err());
-        assert!(Validator::validate_network_id(0).is_err());
+        assert!(Validator::validate_network_id(4).is_err()); // Beyond L2 range
+        assert!(Validator::validate_network_id(137).is_err()); // Old chain ID format
+        assert!(Validator::validate_network_id(1101).is_err()); // Old chain ID format
+        assert!(Validator::validate_network_id(999).is_err()); // Invalid range
+        assert!(Validator::validate_network_id(2000).is_err()); // Invalid range
     }
 
     #[test]
@@ -585,7 +590,7 @@ mod tests {
 
     #[test]
     fn test_validate_batch() {
-        let network_ids = vec![1u64, 137u64, 1101u64];
+        let network_ids = vec![0u64, 1u64, 2u64];
 
         let result = Validator::validate_batch(network_ids.clone(), |&id| {
             Validator::validate_network_id(id)

@@ -54,7 +54,7 @@ services:
 
   # === CONTRACT DEPLOYMENT ===
   contract-deployer:
-    image: aggsandbox-deployer:latest
+    image: ametelnethermind/aggsandbox-deployer:latest
     depends_on:
       anvil-l1:
         condition: service_healthy
@@ -91,7 +91,7 @@ services:
 
   # AggKit for L2 (L1 ↔ L2 bridge)
   aggkit-l2:
-    image: ametelnethermind/aggsandbox-aggkit:latest
+    image: aggkit:local
     depends_on:
       aggkit-delay:
         condition: service_completed_successfully
@@ -136,7 +136,7 @@ services:
 
   # AggKit for L3 (L1 ↔ L3 bridge)
   aggkit-l3:
-    image: ametelnethermind/aggsandbox-aggkit:latest
+    image: aggkit:local
     depends_on:
       aggkit-delay:
         condition: service_completed_successfully

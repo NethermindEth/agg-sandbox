@@ -33,7 +33,11 @@ pub struct L1InfoTreeIndexResponse {
 }
 
 #[instrument(fields(network_id = network_id))]
-pub async fn get_bridges(config: &Config, network_id: u64) -> Result<BridgeResponse> {
+pub async fn get_bridges(
+    config: &Config,
+    network_id: u64,
+    json_mode: bool,
+) -> Result<BridgeResponse> {
     // Validate network ID
     debug!(network_id = network_id, "Validating network ID");
     let validated_network_id = Validator::validate_network_id(network_id)?;
@@ -43,10 +47,12 @@ pub async fn get_bridges(config: &Config, network_id: u64) -> Result<BridgeRespo
         "Fetching bridges from API with caching"
     );
 
-    println!(
-        "{}",
-        format!("🔍 Fetching bridges for network_id: {validated_network_id}").cyan()
-    );
+    if !json_mode {
+        println!(
+            "{}",
+            format!("🔍 Fetching bridges for network_id: {validated_network_id}").cyan()
+        );
+    }
 
     // Use the optimized client with caching and connection pooling
     let client = OptimizedApiClient::global();
@@ -60,14 +66,20 @@ pub async fn get_bridges(config: &Config, network_id: u64) -> Result<BridgeRespo
     Ok(BridgeResponse { data: bridge_data })
 }
 
-pub async fn get_claims(config: &Config, network_id: u64) -> Result<ClaimResponse> {
+pub async fn get_claims(
+    config: &Config,
+    network_id: u64,
+    json_mode: bool,
+) -> Result<ClaimResponse> {
     // Validate network ID
     let validated_network_id = Validator::validate_network_id(network_id)?;
 
-    println!(
-        "{}",
-        format!("🔍 Fetching claims for network_id: {validated_network_id}").cyan()
-    );
+    if !json_mode {
+        println!(
+            "{}",
+            format!("🔍 Fetching claims for network_id: {validated_network_id}").cyan()
+        );
+    }
 
     // Use the optimized client with caching and connection pooling
     let client = OptimizedApiClient::global();
@@ -81,17 +93,20 @@ pub async fn get_claim_proof(
     network_id: u64,
     leaf_index: u64,
     deposit_count: u64,
+    json_mode: bool,
 ) -> Result<ClaimProofResponse> {
     // Validate network ID
     let validated_network_id = Validator::validate_network_id(network_id)?;
 
-    println!(
-        "{}",
-        format!(
-            "🔍 Fetching claim proof for network_id: {validated_network_id}, leaf_index: {leaf_index}, deposit_count: {deposit_count}"
-        )
-        .cyan()
-    );
+    if !json_mode {
+        println!(
+            "{}",
+            format!(
+                "🔍 Fetching claim proof for network_id: {validated_network_id}, leaf_index: {leaf_index}, deposit_count: {deposit_count}"
+            )
+            .cyan()
+        );
+    }
 
     // Use the optimized client with caching and connection pooling
     let client = OptimizedApiClient::global();
@@ -106,17 +121,20 @@ pub async fn get_l1_info_tree_index(
     config: &Config,
     network_id: u64,
     deposit_count: u64,
+    json_mode: bool,
 ) -> Result<L1InfoTreeIndexResponse> {
     // Validate network ID
     let validated_network_id = Validator::validate_network_id(network_id)?;
 
-    println!(
-        "{}",
-        format!(
-            "🔍 Fetching L1 info tree index for network_id: {validated_network_id}, deposit_count: {deposit_count}"
-        )
-        .cyan()
-    );
+    if !json_mode {
+        println!(
+            "{}",
+            format!(
+                "🔍 Fetching L1 info tree index for network_id: {validated_network_id}, deposit_count: {deposit_count}"
+            )
+            .cyan()
+        );
+    }
 
     // Use the optimized client with caching and connection pooling
     let client = OptimizedApiClient::global();
@@ -128,17 +146,18 @@ pub async fn get_l1_info_tree_index(
 }
 
 pub fn print_json_response(title: &str, data: &serde_json::Value) {
-    println!(
-        "
-{}",
-        format!("📋 {title}").green().bold()
-    );
+    println!("\n{}", format!("📋 {title}").green().bold());
     println!("{}", "═".repeat(60).dimmed());
 
     let pretty_json = serde_json::to_string_pretty(data).unwrap_or_else(|_| format!("{data:?}"));
 
     println!("{pretty_json}");
     println!("{}", "═".repeat(60).dimmed());
+}
+
+pub fn print_raw_json(data: &serde_json::Value) {
+    let json_string = serde_json::to_string(data).unwrap_or_else(|_| format!("{data:?}"));
+    println!("{json_string}");
 }
 
 #[cfg(test)]
@@ -201,7 +220,7 @@ mod tests {
             "bridges": [
                 {
                     "id": "1",
-                    "network_id": 1,
+                    "network_id": 0,
                     "address": "0x123"
                 }
             ]
@@ -209,13 +228,13 @@ mod tests {
 
         Mock::given(method("GET"))
             .and(path("/bridge/v1/bridges"))
-            .and(query_param("network_id", "1"))
+            .and(query_param("network_id", "0"))
             .respond_with(ResponseTemplate::new(200).set_body_json(&mock_response))
             .mount(&mock_server)
             .await;
 
         // Test the function
-        let result = get_bridges(&config, 1).await;
+        let result = get_bridges(&config, 0, false).await;
 
         assert!(result.is_ok());
         let response = result.unwrap();
@@ -228,7 +247,7 @@ mod tests {
         let config = create_test_config(&mock_server.uri());
 
         // Test with invalid network ID
-        let result = get_bridges(&config, 999).await;
+        let result = get_bridges(&config, 999, false).await;
 
         assert!(result.is_err());
         // Verify it's a validation error for invalid network ID
@@ -245,12 +264,12 @@ mod tests {
 
         Mock::given(method("GET"))
             .and(path("/bridge/v1/bridges"))
-            .and(query_param("network_id", "1"))
+            .and(query_param("network_id", "0"))
             .respond_with(ResponseTemplate::new(500))
             .mount(&mock_server)
             .await;
 
-        let result = get_bridges(&config, 1).await;
+        let result = get_bridges(&config, 0, false).await;
 
         assert!(result.is_err());
         match result.unwrap_err() {
@@ -273,7 +292,7 @@ mod tests {
             "claims": [
                 {
                     "id": "1",
-                    "network_id": 1101,
+                    "network_id": 0,
                     "amount": "1000000000000000000"
                 }
             ]
@@ -281,12 +300,12 @@ mod tests {
 
         Mock::given(method("GET"))
             .and(path("/bridge/v1/claims"))
-            .and(query_param("network_id", "1101"))
+            .and(query_param("network_id", "0"))
             .respond_with(ResponseTemplate::new(200).set_body_json(&mock_response))
             .mount(&mock_server)
             .await;
 
-        let result = get_claims(&config, 1101).await;
+        let result = get_claims(&config, 0, false).await;
 
         assert!(result.is_ok());
         let response = result.unwrap();
@@ -308,14 +327,14 @@ mod tests {
 
         Mock::given(method("GET"))
             .and(path("/bridge/v1/claim-proof"))
-            .and(query_param("network_id", "1"))
+            .and(query_param("network_id", "0"))
             .and(query_param("leaf_index", "0"))
             .and(query_param("deposit_count", "1"))
             .respond_with(ResponseTemplate::new(200).set_body_json(&mock_response))
             .mount(&mock_server)
             .await;
 
-        let result = get_claim_proof(&config, 1, 0, 1).await;
+        let result = get_claim_proof(&config, 0, 0, 1, false).await;
 
         assert!(result.is_ok());
         let response = result.unwrap();
@@ -334,13 +353,13 @@ mod tests {
 
         Mock::given(method("GET"))
             .and(path("/bridge/v1/l1-info-tree-index"))
-            .and(query_param("network_id", "1"))
+            .and(query_param("network_id", "0"))
             .and(query_param("deposit_count", "0"))
             .respond_with(ResponseTemplate::new(200).set_body_json(&mock_response))
             .mount(&mock_server)
             .await;
 
-        let result = get_l1_info_tree_index(&config, 1, 0).await;
+        let result = get_l1_info_tree_index(&config, 0, 0, false).await;
 
         assert!(result.is_ok());
         let response = result.unwrap();

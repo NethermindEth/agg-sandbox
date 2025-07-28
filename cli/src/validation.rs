@@ -53,8 +53,12 @@ impl Validator {
 
     /// Validate network ID for API calls
     pub fn validate_network_id(network_id: u64) -> Result<u64> {
-        // Define valid network ID ranges based on common blockchain network IDs
+        // Define valid network IDs for sandbox environment:
+        // - Network IDs 0, 1, 2 (sandbox internal IDs)
+        // - Chain IDs 1, 137, 1101-1102 (actual blockchain chain IDs)
+        // - Local development networks 31337-31339 (Anvil default range)
         let valid_ranges = [
+            (0, 2),         // Sandbox network IDs: 0=L1, 1=L2, 2=L3
             (1, 1),         // Ethereum Mainnet
             (137, 137),     // Polygon Mainnet
             (1101, 1102),   // Polygon zkEVM networks
@@ -71,7 +75,7 @@ impl Validator {
             Err(ConfigError::invalid_value(
                 "network_id",
                 &network_id.to_string(),
-                "Must be one of: 1 (Ethereum), 137 (Polygon), 1101-1102 (Polygon zkEVM), or 31337-31339 (Local)",
+                "Must be one of: 0-2 (sandbox networks), 1 (Ethereum), 137 (Polygon), 1101-1102 (Polygon zkEVM), or 31337-31339 (Local)",
             )
             .into())
         }

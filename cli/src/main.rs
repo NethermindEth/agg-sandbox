@@ -14,7 +14,7 @@ mod logs;
 mod progress;
 mod validation;
 
-use commands::ShowCommands;
+use commands::{ShowCommands, BridgeCommands};
 use error::Result;
 use logging::LogConfig;
 use tracing::{error, info, warn};
@@ -124,6 +124,14 @@ enum Commands {
     Show {
         #[command(subcommand)]
         subcommand: ShowCommands,
+    },
+    /// 🌉 Execute bridge operations (asset transfers, claims, messages)
+    #[command(
+        long_about = "Execute bridge operations using lxly.js integration.\n\nPerform cross-chain asset transfers, claim bridged assets, and send messages\nbetween L1 and L2 networks with user-friendly commands.\n\nExamples:\n  aggsandbox bridge asset --network 1 --destination-network 1101 --amount 0.1 --token-address 0x0000...\n  aggsandbox bridge claim --network 1101 --tx-hash 0xabc... --source-network 1\n  aggsandbox bridge message --network 1 --destination-network 1101 --target 0x123... --data 0xabc..."
+    )]
+    Bridge {
+        #[command(subcommand)]
+        subcommand: BridgeCommands,
     },
     /// 📡 Fetch and display blockchain events
     #[command(
@@ -241,6 +249,10 @@ async fn run(cli: Cli) -> Result<()> {
         Commands::Show { subcommand } => {
             info!(subcommand = ?subcommand, "Executing show command");
             commands::handle_show(subcommand).await
+        }
+        Commands::Bridge { subcommand } => {
+            info!(subcommand = ?subcommand, "Executing bridge command");
+            commands::handle_bridge(subcommand).await
         }
         Commands::Events {
             chain,

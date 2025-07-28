@@ -1,0 +1,1 @@
+{"version":3,"file":"readStream.d.ts","sourceRoot":"","sources":["../../../src/util/readStream.ts"],"names":[],"mappings":"AACA,OAAO,EAAE,QAAQ,EAAE,MAAM,iBAAiB,CAAA;AAM1C,OAAO,KAAK,EAAE,IAAI,EAAE,MAAM,YAAY,CAAA;AAuBtC,qBAAa,cAAe,SAAQ,QAAQ;IAC1C,OAAO,CAAC,IAAI,CAAM;IAClB,OAAO,CAAC,QAAQ,CAAS;gBAEb,IAAI,EAAE,IAAI;IAOhB,KAAK;CAwBZ"}

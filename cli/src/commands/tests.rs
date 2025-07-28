@@ -7,6 +7,7 @@ mod integration_tests {
     use crate::config::{
         AccountConfig, ApiConfig, ChainConfig, Config, ContractConfig, NetworkConfig,
     };
+    use crate::types::{ChainId, EthereumAddress, RpcUrl};
     use std::collections::HashMap;
     use std::time::Duration;
 
@@ -14,29 +15,31 @@ mod integration_tests {
     fn create_test_config() -> Config {
         Config {
             api: ApiConfig {
-                base_url: "http://localhost:5577".to_string(),
+                base_url: RpcUrl::new("http://localhost:5577").expect("Valid test URL"),
                 timeout: Duration::from_millis(5000),
                 retry_attempts: 3,
             },
             networks: NetworkConfig {
                 l1: ChainConfig {
                     name: "Test-L1".to_string(),
-                    chain_id: "1".to_string(),
-                    rpc_url: "http://localhost:8545".to_string(),
+                    chain_id: ChainId::new("1").expect("Valid test chain ID"),
+                    rpc_url: RpcUrl::new("http://localhost:8545").expect("Valid test URL"),
                     fork_url: None,
                 },
                 l2: ChainConfig {
                     name: "Test-L2".to_string(),
-                    chain_id: "1101".to_string(),
-                    rpc_url: "http://localhost:8546".to_string(),
+                    chain_id: ChainId::new("1101").expect("Valid test chain ID"),
+                    rpc_url: RpcUrl::new("http://localhost:8546").expect("Valid test URL"),
                     fork_url: None,
                 },
                 l3: None,
             },
             accounts: AccountConfig {
                 accounts: vec![
-                    "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266".to_string(),
-                    "0x70997970C51812dc3A010C7d01b50e0d17dc79C8".to_string(),
+                    EthereumAddress::new("0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266")
+                        .expect("Valid test address"),
+                    EthereumAddress::new("0x70997970C51812dc3A010C7d01b50e0d17dc79C8")
+                        .expect("Valid test address"),
                 ],
                 private_keys: vec![
                     "0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80"
@@ -48,10 +51,15 @@ mod integration_tests {
             contracts: ContractConfig {
                 l1_contracts: {
                     let mut contracts = HashMap::new();
-                    contracts.insert("TestContract".to_string(), "0x123".to_string());
+                    contracts.insert(
+                        "TestContract".to_string(),
+                        EthereumAddress::new("0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266")
+                            .expect("Valid test address"),
+                    );
                     contracts
                 },
                 l2_contracts: HashMap::new(),
+                l3_contracts: HashMap::new(),
             },
         }
     }
@@ -60,9 +68,9 @@ mod integration_tests {
     fn test_create_test_config() {
         let config = create_test_config();
 
-        assert_eq!(config.api.base_url, "http://localhost:5577");
-        assert_eq!(config.networks.l1.chain_id, "1");
-        assert_eq!(config.networks.l2.chain_id, "1101");
+        assert_eq!(config.api.base_url.as_str(), "http://localhost:5577");
+        assert_eq!(config.networks.l1.chain_id.as_str(), "1");
+        assert_eq!(config.networks.l2.chain_id.as_str(), "1101");
         assert_eq!(config.accounts.accounts.len(), 2);
         assert!(config.contracts.l1_contracts.contains_key("TestContract"));
     }
@@ -151,16 +159,24 @@ mod integration_tests {
 
         // The enum should have all expected variants
         // This is verified at compile time, but we can create instances
-        let _bridges_cmd = ShowCommands::Bridges { network_id: 1 };
-        let _claims_cmd = ShowCommands::Claims { network_id: 1101 };
+        let _bridges_cmd = ShowCommands::Bridges {
+            network_id: 1,
+            json: false,
+        };
+        let _claims_cmd = ShowCommands::Claims {
+            network_id: 1,
+            json: false,
+        };
         let _proof_cmd = ShowCommands::ClaimProof {
             network_id: 1,
             leaf_index: 0,
             deposit_count: 1,
+            json: false,
         };
         let _tree_cmd = ShowCommands::L1InfoTreeIndex {
             network_id: 1,
             deposit_count: 0,
+            json: false,
         };
     }
 
@@ -226,7 +242,7 @@ mod failure_scenario_tests {
         use crate::validation::Validator;
 
         // Test edge cases for network ID validation
-        assert!(Validator::validate_network_id(0).is_err());
+        assert!(Validator::validate_network_id(0).is_ok()); // Network ID 0 is valid (Ethereum L1)
         assert!(Validator::validate_network_id(u64::MAX).is_err());
 
         // Test edge cases for block count validation

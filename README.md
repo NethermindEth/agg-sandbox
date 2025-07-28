@@ -1,6 +1,6 @@
-# AggLayer Sandbox
+# Agglayer Sandbox
 
-A development sandbox environment for the AggLayer with support for local blockchain simulation and fork mode.
+A development sandbox environment for the Agglayer with support for local blockchain simulation and fork mode.
 
 ## Table of Contents
 
@@ -34,7 +34,7 @@ A development sandbox environment for the AggLayer with support for local blockc
 
 ## Overview
 
-The AggLayer Sandbox provides a comprehensive development environment for testing cross-chain bridging operations, smart contract interactions, and multi-layer blockchain scenarios. It supports both completely local blockchain simulation and forking from real networks for testing against live data.
+The Agglayer Sandbox provides a comprehensive development environment for testing cross-chain bridging operations, smart contract interactions, and multi-layer blockchain scenarios. It supports both completely local blockchain simulation and forking from real networks for testing against live data.
 
 ## Features
 
@@ -42,6 +42,7 @@ The AggLayer Sandbox provides a comprehensive development environment for testin
 - **🍴 Fork Mode**: Fork existing blockchains to test against real network state  
 - **🔗 Multi-L2 Mode**: Run with a second L2 chain for multi-chain testing (supports both local and fork modes)
 - **🎨 Enhanced CLI** with rich help messages, progress tracking, and intelligent error handling
+- **📊 JSON Scripting Support** with `--json` flag for clean machine-readable output and automation
 - **⚙️ Advanced Configuration** with TOML/YAML file support and environment variable management
 - **⚡ Performance Optimizations** with HTTP connection pooling and response caching
 - **📊 Comprehensive Monitoring** with structured logging and detailed troubleshooting guides
@@ -75,7 +76,7 @@ source ~/.bashrc
 ```bash
 # Check all required tools
 docker --version && echo "✅ Docker installed"
-docker-compose --version && echo "✅ Docker Compose installed"
+docker compose version && echo "✅ Docker Compose installed"
 rustc --version && echo "✅ Rust installed"
 make --version && echo "✅ Make installed"
 git --version && echo "✅ Git installed"
@@ -113,6 +114,12 @@ git --version && echo "✅ Git installed"
    ```
 
 ### Basic Usage
+
+**Create .env:**
+
+```bash
+cp .env.example .env
+```
 
 **Start the sandbox in local mode:**
 
@@ -389,26 +396,32 @@ Query bridge endpoints with enhanced formatting and detailed explanations:
 
 ```bash
 # Show bridges for L1 (Ethereum)
+aggsandbox show bridges --network-id 0
+
+# Show bridges for first L2 (Polygon zkEVM)  
 aggsandbox show bridges --network-id 1
 
-# Show bridges for L2 (Polygon zkEVM)  
-aggsandbox show bridges --network-id 1101
+# Show bridges for second L2 (if running multi-L2 mode)
+aggsandbox show bridges --network-id 2
 
 # Show bridges with verbose output
-aggsandbox show bridges --network-id 1 --verbose
+aggsandbox show bridges --network-id 0 --verbose
+
+# Raw JSON output for scripting (no decorative formatting)
+aggsandbox show bridges --network-id 1 --json
 ```
 
 #### Claims Management
 
 ```bash
 # Show L1 claims (deposits to be claimed on L2)
-aggsandbox show claims --network-id 1
+aggsandbox show claims --network-id 0
 
 # Show L2 claims (withdrawals to be claimed on L1)
-aggsandbox show claims --network-id 1101
+aggsandbox show claims --network-id 1
 
-# Filter claims by status
-aggsandbox show claims --network-id 1101 --status pending
+# Show claims with raw JSON output for parsing
+aggsandbox show claims --network-id 1 --json
 ```
 
 #### Proof Generation
@@ -416,18 +429,49 @@ aggsandbox show claims --network-id 1101 --status pending
 ```bash
 # Show claim proof with verification data
 aggsandbox show claim-proof \
-  --network-id 1 \
+  --network-id 0 \
   --leaf-index 0 \
   --deposit-count 1
 
-# Short form options
-aggsandbox show claim-proof -n 1101 -l 5 -d 10
+# Short form options with JSON output
+aggsandbox show claim-proof -n 1 -l 5 -d 10 --json
 
 # Show L1 info tree index for deposit verification
 aggsandbox show l1-info-tree-index \
-  --network-id 1 \
+  --network-id 0 \
   --deposit-count 0
+
+# Raw JSON for scripting integration
+aggsandbox show l1-info-tree-index \
+  --network-id 0 \
+  --deposit-count 0 \
+  --json
 ```
+
+#### JSON Output for Scripting
+
+All `show` commands support a `--json` flag for machine-readable output:
+
+```bash
+# Extract specific values with jq
+DEPOSIT_COUNT=$(aggsandbox show bridges --network-id 1 --json | jq -r '.bridges[0].deposit_count')
+
+# Parse bridge data in scripts
+BRIDGE_DATA=$(aggsandbox show bridges --network-id 0 --json)
+echo "$BRIDGE_DATA" | jq '.count'
+
+# Chain multiple operations
+LEAF_INDEX=$(aggsandbox show l1-info-tree-index --network-id 0 --deposit-count 0 --json | jq -r '.')
+aggsandbox show claim-proof --network-id 0 --leaf-index "$LEAF_INDEX" --deposit-count 1 --json
+```
+
+**Features of JSON Output:**
+
+- ✅ Clean JSON without decorative formatting
+- ✅ No status messages or progress indicators
+- ✅ Perfect for piping to `jq` or other JSON parsers
+- ✅ Ideal for shell scripts and automation
+- ✅ Maintains same data structure as formatted output
 
 #### Help and Documentation
 
@@ -457,14 +501,14 @@ Monitor and decode blockchain events in human-readable format:
 #### Basic Event Monitoring
 
 ```bash
-# Show events from L1 chain (last 5 blocks by default)
-aggsandbox events --chain anvil-l1
+# Show events from L1 chain (last 10 blocks by default)
+aggsandbox events --network-id 0
 
-# Show events from L2 chain with custom block range
-aggsandbox events --chain anvil-l2 --blocks 10
+# Show events from first L2 chain with custom block range
+aggsandbox events --network-id 1 --blocks 20
 
-# Show events from L3 chain (if running multi-l2 mode)
-aggsandbox events --chain anvil-l3 --blocks 20
+# Show events from second L2 chain (if running multi-l2 mode)
+aggsandbox events --network-id 2 --blocks 30
 ```
 
 #### Advanced Filtering
@@ -472,15 +516,15 @@ aggsandbox events --chain anvil-l3 --blocks 20
 ```bash
 # Filter events by contract address
 aggsandbox events \
-  --chain anvil-l1 \
+  --network-id 0 \
   --blocks 5 \
   --address 0x5fbdb2315678afecb367f032d93f642f64180aa3
 
 # Show events with comprehensive monitoring
-aggsandbox events --chain anvil-l1 --blocks 50
+aggsandbox events --network-id 1 --blocks 50
 
-# Continuous monitoring with real-time updates
-aggsandbox events --chain anvil-l1 --follow
+# Legacy syntax (deprecated - shows warning)
+aggsandbox events --chain anvil-l1 --blocks 10
 ```
 
 #### Event Display Format
@@ -525,9 +569,19 @@ Each event displays:
 #### Show Command Options
 
 ```bash
---network-id, -n   # Specify network ID (1, 1101, 1102)
+--network-id, -n   # Specify network ID (0=L1, 1=first L2, 2=second L2)
 --leaf-index, -l   # Leaf index for proof generation
 --deposit-count, -d # Deposit count for proof verification
+--json             # Output raw JSON without decorative formatting (for scripting)
+```
+
+#### Events Command Options
+
+```bash
+--network-id, -n   # Network ID to query (0=L1, 1=first L2, 2=second L2)
+--chain, -c        # [DEPRECATED] Chain name (use --network-id instead)
+--blocks, -b       # Number of recent blocks to scan (default: 10)
+--address, -a      # Filter events by contract address
 ```
 
 ## Configuration
@@ -554,7 +608,7 @@ RPC_URL_2=http://127.0.0.1:8546
 # Chain IDs for the networks
 CHAIN_ID_MAINNET=1
 CHAIN_ID_AGGLAYER_1=1101
-CHAIN_ID_AGGLAYER_2=1102  # For multi-L2 mode
+CHAIN_ID_AGGLAYER_2=137  # For multi-L2 mode
 ```
 
 #### Fork Mode Variables
@@ -1032,7 +1086,7 @@ curl -f http://localhost:5577/health || echo "Service not healthy"
 aggsandbox status --detailed
 
 # Restart specific service
-docker-compose restart bridge-service
+docker compose restart bridge-service
 ```
 
 #### Performance Issues
@@ -1108,7 +1162,7 @@ aggsandbox logs --timestamps --verbose
 
 ## Contributing
 
-We welcome contributions to the AggLayer Sandbox! Here's how you can help:
+We welcome contributions to the Agglayer Sandbox! Here's how you can help:
 
 ### Development Setup
 

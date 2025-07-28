@@ -115,6 +115,12 @@ git --version && echo "✅ Git installed"
 
 ### Basic Usage
 
+**Create .env:**
+
+```bash
+cp .env.example .env
+```
+
 **Start the sandbox in local mode:**
 
 ```bash
@@ -460,6 +466,7 @@ aggsandbox show claim-proof --network-id 0 --leaf-index "$LEAF_INDEX" --deposit-
 ```
 
 **Features of JSON Output:**
+
 - ✅ Clean JSON without decorative formatting
 - ✅ No status messages or progress indicators
 - ✅ Perfect for piping to `jq` or other JSON parsers
@@ -601,7 +608,7 @@ RPC_URL_2=http://127.0.0.1:8546
 # Chain IDs for the networks
 CHAIN_ID_MAINNET=1
 CHAIN_ID_AGGLAYER_1=1101
-CHAIN_ID_AGGLAYER_2=1102  # For multi-L2 mode
+CHAIN_ID_AGGLAYER_2=137  # For multi-L2 mode
 ```
 
 #### Fork Mode Variables

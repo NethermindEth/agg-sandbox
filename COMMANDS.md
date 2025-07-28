@@ -108,7 +108,7 @@ METADATA=$(cast abi-encode "f(string,string,uint8)" "AggERC20" "AGGERC20" 18)
 cast send $POLYGON_ZKEVM_BRIDGE_L2 \
   "claimAsset(uint256,bytes32,bytes32,uint32,address,uint32,address,uint256,bytes)" \
   $DEPOSIT_COUNT $MAINNET_EXIT_ROOT $ROLLUP_EXIT_ROOT \
-  1 $AGG_ERC20_L1 1101 $ACCOUNT_ADDRESS_2 10 $METADATA \
+  1 $AGG_ERC20_L1 $CHAIN_ID_AGGLAYER_1 $ACCOUNT_ADDRESS_2 10 $METADATA \
   --private-key $PRIVATE_KEY_2 \
   --rpc-url $RPC_2 \
   --gas-limit 3000000
@@ -314,7 +314,7 @@ cast send $POLYGON_ZKEVM_BRIDGE_L2 \
 3. `<ROLLUP_EXIT_ROOT>` - Rollup exit root from claim proof
 4. `1` - Origin network ID
 5. `$AGG_ERC20_L1` - Token contract address
-6. `1101` - Destination network ID
+6. `CHAIN_ID_AGGLAYER_1` - Destination chain ID
 7. `$ACCOUNT_ADDRESS_2` - Recipient address
 8. `10` - Amount to claim
 9. `$METADATA` - Token metadata
@@ -456,9 +456,9 @@ cast send $POLYGON_ZKEVM_BRIDGE_L1 \
   <DEPOSIT_COUNT> \
   <MAINNET_EXIT_ROOT> \
   <ROLLUP_EXIT_ROOT> \
-  1 \
+  $CHAIN_ID_MAINNET \
   $AGG_ERC20_L1 \
-  1 \
+  $CHAIN_ID_MAINNET \
   $ACCOUNT_ADDRESS_1 \
   10 \
   0x \
@@ -469,8 +469,8 @@ cast send $POLYGON_ZKEVM_BRIDGE_L1 \
 
 **Parameter notes:**
 
-- `1101` - Origin network ID (L2 chain ID)
-- `1` - Destination network ID (L1 chain ID)
+- `CHAIN_ID_MAINNET` - Origin network ID of the token (L1 chain ID)
+- `CHAIN_ID_MAINNET` - Destination network ID (L1 chain ID)
 - The merkle root and nullifier values come from the claim-proof endpoint
 
 ### Step 7e: Verify Final Balance
@@ -758,16 +758,16 @@ The AggKit provides REST API endpoints for interacting with the bridge system an
 
 ```bash
 # Get available bridges
-aggsandbox show bridges --network-id 1
+aggsandbox show bridges --network-id 0
 
 # Get L1 info tree index
-aggsandbox show l1-info-tree-index --network-id 1 --deposit-count 0
+aggsandbox show l1-info-tree-index --network-id 0 --deposit-count 0
 
 # Get claim proof
-aggsandbox show claim-proof --network-id 1 --leaf-index 0 --deposit-count 1
+aggsandbox show claim-proof --network-id 0 --leaf-index 0 --deposit-count 1
 
 # Get claims
-aggsandbox show claims --network-id 1101
+aggsandbox show claims --network-id 1
 ```
 
 ### Direct API Endpoints
@@ -785,7 +785,7 @@ http://localhost:5577/bridge/v1/bridges?network_id=1
 #### L1 Info Tree Index
 
 ```url
-http://localhost:5577/bridge/v1/l1-info-tree-index?network_id=1&deposit_count=0
+http://localhost:5577/bridge/v1/l1-info-tree-index?network_id=0&deposit_count=0
 ```
 
 **Explanation**: This endpoint retrieves the L1 info tree index for a given deposit count. The returned index is used as the `leaf_index` parameter in the claim-proof endpoint to generate the correct merkle proof for claiming bridged assets.
@@ -793,7 +793,7 @@ http://localhost:5577/bridge/v1/l1-info-tree-index?network_id=1&deposit_count=0
 #### Get Claim Proof
 
 ```url
-http://localhost:5577/bridge/v1/claim-proof?network_id=1&leaf_index=0&deposit_count=1
+http://localhost:5577/bridge/v1/claim-proof?network_id=0&leaf_index=0&deposit_count=1
 ```
 
 **Explanation**: This endpoint generates the merkle proof needed to claim bridged assets. The proof is required to verify that the bridge transaction was included in the bridge's merkle tree and is used in the `claimAsset` function.
@@ -801,7 +801,7 @@ http://localhost:5577/bridge/v1/claim-proof?network_id=1&leaf_index=0&deposit_co
 #### Get Claims
 
 ```url
-http://localhost:5577/bridge/v1/claims?network_id=1101
+http://localhost:5577/bridge/v1/claims?network_id=1
 ```
 
 **Explanation**: This endpoint returns a list of all claims (successful bridge transactions) for the specified network ID. It can be used to track bridge activity and verify the status of bridge transactions.
@@ -877,7 +877,7 @@ cast block-number --rpc-url $RPC_2 && echo "✅ L2 RPC connected"
 
 ```bash
 # Ensure asset bridge (deposit_count = 0) is claimed before message bridge (deposit_count = 1)
-aggsandbox show claims --network-id 1101
+aggsandbox show claims --network-id 1
 ```
 
 **JumpPoint deployment fails**

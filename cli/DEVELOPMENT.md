@@ -1,6 +1,6 @@
-# AggLayer Sandbox CLI - Development Guide
+# Agglayer Sandbox CLI - Development Guide
 
-This comprehensive guide covers all aspects of developing the AggLayer Sandbox CLI, from project structure to advanced development patterns.
+This comprehensive guide covers all aspects of developing the Agglayer Sandbox CLI, from project structure to advanced development patterns.
 
 ## Project Structure
 
@@ -488,6 +488,7 @@ The tools in this directory ensure your local development environment matches CI
 ### CI/CD Pipeline
 
 The project uses GitHub Actions for:
+
 - **Continuous Integration**: Run tests on all PRs
 - **Code Quality**: Enforce formatting and linting
 - **Security**: Audit dependencies for vulnerabilities

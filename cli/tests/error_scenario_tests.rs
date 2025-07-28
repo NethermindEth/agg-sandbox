@@ -126,6 +126,7 @@ mod network_failure_tests {
         AccountConfig, ApiConfig, ChainConfig, Config, ContractConfig, NetworkConfig,
     };
     use aggsandbox::error::{AggSandboxError, ApiError};
+    use aggsandbox::types::{ChainId, EthereumAddress, RpcUrl};
     use std::collections::HashMap;
     use std::time::Duration;
     use wiremock::matchers::{method, path};
@@ -134,32 +135,36 @@ mod network_failure_tests {
     fn create_test_config(base_url: &str) -> Config {
         Config {
             api: ApiConfig {
-                base_url: base_url.to_string(),
+                base_url: RpcUrl::new(base_url).expect("Valid test URL"),
                 timeout: Duration::from_millis(1000), // Short timeout for testing
                 retry_attempts: 1,                    // Single attempt for testing
             },
             networks: NetworkConfig {
                 l1: ChainConfig {
                     name: "Test-L1".to_string(),
-                    chain_id: "1".to_string(),
-                    rpc_url: "http://localhost:8545".to_string(),
+                    chain_id: ChainId::new("1").expect("Valid test chain ID"),
+                    rpc_url: RpcUrl::new("http://localhost:8545").expect("Valid test URL"),
                     fork_url: None,
                 },
                 l2: ChainConfig {
                     name: "Test-L2".to_string(),
-                    chain_id: "1101".to_string(),
-                    rpc_url: "http://localhost:8546".to_string(),
+                    chain_id: ChainId::new("1101").expect("Valid test chain ID"),
+                    rpc_url: RpcUrl::new("http://localhost:8546").expect("Valid test URL"),
                     fork_url: None,
                 },
                 l3: None,
             },
             accounts: AccountConfig {
-                accounts: vec!["0xtest".to_string()],
+                accounts: vec![
+                    EthereumAddress::new("0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266")
+                        .expect("Valid test address"),
+                ],
                 private_keys: vec!["0xkey".to_string()],
             },
             contracts: ContractConfig {
                 l1_contracts: HashMap::new(),
                 l2_contracts: HashMap::new(),
+                l3_contracts: HashMap::new(),
             },
         }
     }
@@ -178,7 +183,7 @@ mod network_failure_tests {
             .mount(&mock_server)
             .await;
 
-        let result = api::get_bridges(&config, 1).await;
+        let result = api::get_bridges(&config, 1, false).await;
 
         assert!(result.is_err());
         // Note: This test may pass quickly in test environment
@@ -190,7 +195,7 @@ mod network_failure_tests {
     async fn test_dns_resolution_failure() {
         let config = create_test_config("http://nonexistent.invalid.domain.local:5577");
 
-        let result = api::get_bridges(&config, 1).await;
+        let result = api::get_bridges(&config, 1, false).await;
 
         assert!(result.is_err());
         match result.unwrap_err() {
@@ -205,7 +210,7 @@ mod network_failure_tests {
         // Use a port that's unlikely to be in use
         let config = create_test_config("http://localhost:9999");
 
-        let result = api::get_bridges(&config, 1).await;
+        let result = api::get_bridges(&config, 1, false).await;
 
         assert!(result.is_err());
         match result.unwrap_err() {
@@ -226,7 +231,7 @@ mod network_failure_tests {
             .mount(&mock_server)
             .await;
 
-        let result = api::get_bridges(&config, 1).await;
+        let result = api::get_bridges(&config, 1, false).await;
 
         assert!(result.is_err());
         match result.unwrap_err() {
@@ -247,7 +252,7 @@ mod network_failure_tests {
             .mount(&mock_server)
             .await;
 
-        let result = api::get_bridges(&config, 1).await;
+        let result = api::get_bridges(&config, 1, false).await;
 
         assert!(result.is_err());
         match result.unwrap_err() {
@@ -268,7 +273,7 @@ mod network_failure_tests {
             .mount(&mock_server)
             .await;
 
-        let result = api::get_bridges(&config, 1).await;
+        let result = api::get_bridges(&config, 1, false).await;
 
         assert!(result.is_err());
         match result.unwrap_err() {
@@ -289,7 +294,7 @@ mod network_failure_tests {
             .mount(&mock_server)
             .await;
 
-        let result = api::get_bridges(&config, 1).await;
+        let result = api::get_bridges(&config, 1, false).await;
 
         assert!(result.is_err());
         match result.unwrap_err() {
@@ -319,7 +324,7 @@ mod network_failure_tests {
             .mount(&mock_server)
             .await;
 
-        let result = api::get_bridges(&config, 1).await;
+        let result = api::get_bridges(&config, 1, false).await;
 
         // This should succeed but we verify it handles large responses
         assert!(result.is_ok());
@@ -380,7 +385,7 @@ mod configuration_failure_tests {
     /// Test invalid network ID validation
     #[test]
     fn test_invalid_network_id_validation() {
-        let invalid_network_ids = vec![0, u64::MAX, 999999];
+        let invalid_network_ids = vec![4, u64::MAX, 999999];
 
         for network_id in invalid_network_ids {
             let result = Validator::validate_network_id(network_id);

@@ -54,7 +54,7 @@ services:
 
   # === CONTRACT DEPLOYMENT ===
   contract-deployer:
-    image: aggsandbox-deployer:latest
+    image: ametelnethermind/aggsandbox-deployer:latest
     depends_on:
       anvil-l1:
         condition: service_healthy

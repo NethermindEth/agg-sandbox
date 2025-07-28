@@ -1,4 +1,5 @@
 use crate::error::{ConfigError, Result};
+use crate::types::{ChainId, EthereumAddress, NetworkId, RpcUrl};
 use crate::validation::Validator;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -18,7 +19,7 @@ pub struct Config {
 /// API configuration settings
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ApiConfig {
-    pub base_url: String,
+    pub base_url: RpcUrl,
     #[serde(with = "duration_serde")]
     #[allow(dead_code)]
     pub timeout: Duration,
@@ -38,24 +39,25 @@ pub struct NetworkConfig {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ChainConfig {
     pub name: String,
-    pub chain_id: String,
-    pub rpc_url: String,
+    pub chain_id: ChainId,
+    pub rpc_url: RpcUrl,
     #[allow(dead_code)]
-    pub fork_url: Option<String>,
+    pub fork_url: Option<RpcUrl>,
 }
 
 /// Account configuration with pre-configured test accounts
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AccountConfig {
-    pub accounts: Vec<String>,
-    pub private_keys: Vec<String>,
+    pub accounts: Vec<EthereumAddress>,
+    pub private_keys: Vec<String>, // Keep as String since private keys have different format
 }
 
 /// Contract addresses configuration
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ContractConfig {
-    pub l1_contracts: HashMap<String, String>,
-    pub l2_contracts: HashMap<String, String>,
+    pub l1_contracts: HashMap<String, EthereumAddress>,
+    pub l2_contracts: HashMap<String, EthereumAddress>,
+    pub l3_contracts: HashMap<String, EthereumAddress>,
 }
 
 /// Custom serialization for Duration to support TOML/YAML
@@ -99,35 +101,30 @@ impl ConfigFormat {
 
 impl Config {
     /// Get the appropriate API base URL for a given network ID
-    pub fn get_api_base_url(&self, network_id: u64) -> String {
-        match network_id {
-            // Network IDs served by aggkit-l3 (port 5578)
-            137 | 1102 => {
+    pub fn get_api_base_url(&self, network_id: NetworkId) -> String {
+        match network_id.as_u64() {
+            // Network ID 2+ served by aggkit-l3 (port 5578)
+            2..=3 => {
                 // Replace port 5577 with 5578 for aggkit-l3
-                if self.api.base_url.contains("5577") {
-                    self.api.base_url.replace("5577", "5578")
+                let base_url = self.api.base_url.as_str();
+                if base_url.contains("5577") {
+                    base_url.replace("5577", "5578")
                 } else {
                     // If custom base_url doesn't contain 5577, construct l3 URL
-                    let base = if self.api.base_url.starts_with("http://") {
-                        self.api
-                            .base_url
-                            .strip_prefix("http://")
-                            .unwrap_or("localhost")
-                    } else if self.api.base_url.starts_with("https://") {
-                        self.api
-                            .base_url
-                            .strip_prefix("https://")
-                            .unwrap_or("localhost")
+                    let base = if base_url.starts_with("http://") {
+                        base_url.strip_prefix("http://").unwrap_or("localhost")
+                    } else if base_url.starts_with("https://") {
+                        base_url.strip_prefix("https://").unwrap_or("localhost")
                     } else {
-                        &self.api.base_url
+                        base_url
                     };
 
                     let host = base.split(':').next().unwrap_or("localhost");
                     format!("http://{host}:5578")
                 }
             }
-            // Network IDs served by aggkit-l2 (port 5577) - default
-            _ => self.api.base_url.clone(),
+            // Network ID 0 (L1), 1 (L2), and dev networks served by aggkit-l2 (port 5577) - default
+            _ => self.api.base_url.as_str().to_string(),
         }
     }
 
@@ -211,7 +208,9 @@ impl Config {
     fn merge_from_env(&mut self) {
         // API configuration overrides
         if let Ok(base_url) = std::env::var("API_BASE_URL") {
-            self.api.base_url = base_url;
+            if let Ok(rpc_url) = RpcUrl::new(base_url) {
+                self.api.base_url = rpc_url;
+            }
         }
         if let Ok(timeout_str) = std::env::var("API_TIMEOUT_MS") {
             if let Ok(timeout_ms) = timeout_str.parse::<u64>() {
@@ -226,52 +225,53 @@ impl Config {
 
         // Network configuration overrides
         if let Ok(rpc_1) = std::env::var("RPC_1") {
-            self.networks.l1.rpc_url = rpc_1;
+            if let Ok(url) = RpcUrl::new(rpc_1) {
+                self.networks.l1.rpc_url = url;
+            }
         }
         if let Ok(rpc_2) = std::env::var("RPC_2") {
-            self.networks.l2.rpc_url = rpc_2;
+            if let Ok(url) = RpcUrl::new(rpc_2) {
+                self.networks.l2.rpc_url = url;
+            }
         }
         if let Ok(rpc_3) = std::env::var("RPC_3") {
             if let Some(l3) = &mut self.networks.l3 {
-                l3.rpc_url = rpc_3;
+                if let Ok(url) = RpcUrl::new(rpc_3) {
+                    l3.rpc_url = url;
+                }
             }
         }
 
         // Chain ID overrides
         if let Ok(chain_id) = std::env::var("CHAIN_ID_MAINNET") {
-            self.networks.l1.chain_id = chain_id;
+            if let Ok(id) = ChainId::new(chain_id) {
+                self.networks.l1.chain_id = id;
+            }
         }
         if let Ok(chain_id) = std::env::var("CHAIN_ID_AGGLAYER_1") {
-            self.networks.l2.chain_id = chain_id;
+            if let Ok(id) = ChainId::new(chain_id) {
+                self.networks.l2.chain_id = id;
+            }
         }
         if let Ok(chain_id) = std::env::var("CHAIN_ID_AGGLAYER_2") {
             if let Some(l3) = &mut self.networks.l3 {
-                l3.chain_id = chain_id;
+                if let Ok(id) = ChainId::new(chain_id) {
+                    l3.chain_id = id;
+                }
             }
         }
     }
 
     /// Validate configuration values
     fn validate(&self) -> Result<()> {
-        // Validate API configuration
-        Validator::validate_rpc_url(&self.api.base_url)?;
-
+        // API configuration is already validated by RpcUrl constructor
         if self.api.timeout.as_millis() == 0 {
             return Err(ConfigError::validation_failed("API timeout cannot be zero").into());
         }
 
-        // Validate network configurations
-        Validator::validate_rpc_url(&self.networks.l1.rpc_url)?;
-        Validator::validate_rpc_url(&self.networks.l2.rpc_url)?;
-
-        if let Some(l3) = &self.networks.l3 {
-            Validator::validate_rpc_url(&l3.rpc_url)?;
-        }
-
-        // Validate accounts
-        for account in &self.accounts.accounts {
-            Validator::validate_ethereum_address(account)?;
-        }
+        // Network configurations are already validated by RpcUrl constructor
+        // Chain IDs are already validated by ChainId constructor
+        // Accounts are already validated by EthereumAddress constructor
 
         Ok(())
     }
@@ -320,11 +320,11 @@ impl Config {
     #[allow(dead_code)]
     pub fn get_rpc_url(&self, chain: &str) -> Result<String> {
         match chain {
-            "anvil-l1" => Ok(self.networks.l1.rpc_url.clone()),
-            "anvil-l2" => Ok(self.networks.l2.rpc_url.clone()),
+            "anvil-l1" => Ok(self.networks.l1.rpc_url.as_str().to_string()),
+            "anvil-l2" => Ok(self.networks.l2.rpc_url.as_str().to_string()),
             "anvil-l3" => {
                 if let Some(l3) = &self.networks.l3 {
-                    Ok(l3.rpc_url.clone())
+                    Ok(l3.rpc_url.as_str().to_string())
                 } else {
                     Err(ConfigError::missing_required("L3 chain configuration").into())
                 }
@@ -348,7 +348,7 @@ impl Config {
 impl Default for ApiConfig {
     fn default() -> Self {
         ApiConfig {
-            base_url: "http://localhost:5577".to_string(),
+            base_url: RpcUrl::new("http://localhost:5577").expect("Default URL should be valid"),
             timeout: Duration::from_millis(30000),
             retry_attempts: 3,
         }
@@ -358,7 +358,7 @@ impl Default for ApiConfig {
 impl ApiConfig {
     fn load() -> Result<Self> {
         let base_url_str = get_env_var("API_BASE_URL", "http://localhost:5577");
-        let base_url = Validator::validate_rpc_url(&base_url_str)?;
+        let base_url = RpcUrl::new(base_url_str)?;
 
         let timeout_ms_str = get_env_var("API_TIMEOUT_MS", "30000");
         let timeout_ms = timeout_ms_str.parse::<u64>().map_err(|_| {
@@ -392,25 +392,37 @@ impl NetworkConfig {
     fn load() -> Self {
         let l1 = ChainConfig {
             name: "Ethereum-L1".to_string(),
-            chain_id: get_env_var("CHAIN_ID_MAINNET", "1"),
-            rpc_url: get_env_var("RPC_1", "http://localhost:8545"),
-            fork_url: std::env::var("FORK_URL_MAINNET").ok(),
+            chain_id: ChainId::new(get_env_var("CHAIN_ID_MAINNET", "1"))
+                .expect("Default chain ID should be valid"),
+            rpc_url: RpcUrl::new(get_env_var("RPC_1", "http://localhost:8545"))
+                .expect("Default RPC URL should be valid"),
+            fork_url: std::env::var("FORK_URL_MAINNET")
+                .ok()
+                .and_then(|url| RpcUrl::new(url).ok()),
         };
 
         let l2 = ChainConfig {
             name: "Polygon-zkEVM".to_string(),
-            chain_id: get_env_var("CHAIN_ID_AGGLAYER_1", "1101"),
-            rpc_url: get_env_var("RPC_2", "http://localhost:8546"),
-            fork_url: std::env::var("FORK_URL_AGGLAYER_1").ok(),
+            chain_id: ChainId::new(get_env_var("CHAIN_ID_AGGLAYER_1", "1101"))
+                .expect("Default chain ID should be valid"),
+            rpc_url: RpcUrl::new(get_env_var("RPC_2", "http://localhost:8546"))
+                .expect("Default RPC URL should be valid"),
+            fork_url: std::env::var("FORK_URL_AGGLAYER_1")
+                .ok()
+                .and_then(|url| RpcUrl::new(url).ok()),
         };
 
         // L3 is optional for multi-L2 mode
         let l3 = if Path::new("docker-compose.multi-l2.yml").exists() {
             Some(ChainConfig {
-                name: "AggLayer-2".to_string(),
-                chain_id: get_env_var("CHAIN_ID_AGGLAYER_2", "1102"),
-                rpc_url: get_env_var("RPC_3", "http://localhost:8547"),
-                fork_url: std::env::var("FORK_URL_AGGLAYER_2").ok(),
+                name: "Agglayer-2".to_string(),
+                chain_id: ChainId::new(get_env_var("CHAIN_ID_AGGLAYER_2", "1102"))
+                    .expect("Default chain ID should be valid"),
+                rpc_url: RpcUrl::new(get_env_var("RPC_3", "http://localhost:8547"))
+                    .expect("Default RPC URL should be valid"),
+                fork_url: std::env::var("FORK_URL_AGGLAYER_2")
+                    .ok()
+                    .and_then(|url| RpcUrl::new(url).ok()),
             })
         } else {
             None
@@ -424,16 +436,26 @@ impl AccountConfig {
     fn load() -> Self {
         // Pre-configured test accounts (same as in logs.rs)
         let accounts = vec![
-            "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266".to_string(),
-            "0x70997970C51812dc3A010C7d01b50e0d17dc79C8".to_string(),
-            "0x3C44CdDdB6a900fa2b585dd299e03d12FA4293BC".to_string(),
-            "0x90F79bf6EB2c4f870365E785982E1f101E93b906".to_string(),
-            "0x15d34AAf54267DB7D7c367839AAf71A00a2C6A65".to_string(),
-            "0x9965507D1a55bcC2695C58ba16FB37d819B0A4dc".to_string(),
-            "0x976EA74026E726554dB657fA54763abd0C3a0aa9".to_string(),
-            "0x14dC79964da2C08b23698B3D3cc7Ca32193d9955".to_string(),
-            "0x23618e81E3f5cdF7f54C3d65f7FBc0aBf5B21E8f".to_string(),
-            "0xa0Ee7A142d267C1f36714E4a8F75612F20a79720".to_string(),
+            EthereumAddress::new("0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266")
+                .expect("Valid test address"),
+            EthereumAddress::new("0x70997970C51812dc3A010C7d01b50e0d17dc79C8")
+                .expect("Valid test address"),
+            EthereumAddress::new("0x3C44CdDdB6a900fa2b585dd299e03d12FA4293BC")
+                .expect("Valid test address"),
+            EthereumAddress::new("0x90F79bf6EB2c4f870365E785982E1f101E93b906")
+                .expect("Valid test address"),
+            EthereumAddress::new("0x15d34AAf54267DB7D7c367839AAf71A00a2C6A65")
+                .expect("Valid test address"),
+            EthereumAddress::new("0x9965507D1a55bcC2695C58ba16FB37d819B0A4dc")
+                .expect("Valid test address"),
+            EthereumAddress::new("0x976EA74026E726554dB657fA54763abd0C3a0aa9")
+                .expect("Valid test address"),
+            EthereumAddress::new("0x14dC79964da2C08b23698B3D3cc7Ca32193d9955")
+                .expect("Valid test address"),
+            EthereumAddress::new("0x23618e81E3f5cdF7f54C3d65f7FBc0aBf5B21E8f")
+                .expect("Valid test address"),
+            EthereumAddress::new("0xa0Ee7A142d267C1f36714E4a8F75612F20a79720")
+                .expect("Valid test address"),
         ];
 
         let private_keys = vec![
@@ -461,55 +483,90 @@ impl ContractConfig {
         let mut l1_contracts = HashMap::new();
         let mut l2_contracts = HashMap::new();
 
+        // Helper function to add contract if valid address
+        let add_contract =
+            |contracts: &mut HashMap<String, EthereumAddress>, env_var: &str, name: &str| {
+                if let Ok(addr) = std::env::var(env_var) {
+                    if let Ok(eth_addr) = EthereumAddress::new(addr) {
+                        contracts.insert(name.to_string(), eth_addr);
+                    }
+                }
+            };
+
         // L1 contracts
-        if let Ok(addr) = std::env::var("FFLONK_VERIFIER_L1") {
-            l1_contracts.insert("FflonkVerifier".to_string(), addr);
-        }
-        if let Ok(addr) = std::env::var("POLYGON_ZKEVM_L1") {
-            l1_contracts.insert("PolygonZkEVM".to_string(), addr);
-        }
-        if let Ok(addr) = std::env::var("POLYGON_ZKEVM_BRIDGE_L1") {
-            l1_contracts.insert("PolygonZkEVMBridge".to_string(), addr);
-        }
-        if let Ok(addr) = std::env::var("POLYGON_ZKEVM_TIMELOCK_L1") {
-            l1_contracts.insert("PolygonZkEVMTimelock".to_string(), addr);
-        }
-        if let Ok(addr) = std::env::var("POLYGON_ZKEVM_GLOBAL_EXIT_ROOT_L1") {
-            l1_contracts.insert("PolygonZkEVMGlobalExitRoot".to_string(), addr);
-        }
-        if let Ok(addr) = std::env::var("POLYGON_ROLLUP_MANAGER_L1") {
-            l1_contracts.insert("PolygonRollupManager".to_string(), addr);
-        }
-        if let Ok(addr) = std::env::var("AGG_ERC20_L1") {
-            l1_contracts.insert("AggERC20".to_string(), addr);
-        }
-        if let Ok(addr) = std::env::var("BRIDGE_EXTENSION_L1") {
-            l1_contracts.insert("BridgeExtension".to_string(), addr);
-        }
-        if let Ok(addr) = std::env::var("GLOBAL_EXIT_ROOT_MANAGER_L1") {
-            l1_contracts.insert("GlobalExitRootManager".to_string(), addr);
-        }
+        add_contract(&mut l1_contracts, "FFLONK_VERIFIER_L1", "FflonkVerifier");
+        add_contract(&mut l1_contracts, "POLYGON_ZKEVM_L1", "PolygonZkEVM");
+        add_contract(
+            &mut l1_contracts,
+            "POLYGON_ZKEVM_BRIDGE_L1",
+            "PolygonZkEVMBridge",
+        );
+        add_contract(
+            &mut l1_contracts,
+            "POLYGON_ZKEVM_TIMELOCK_L1",
+            "PolygonZkEVMTimelock",
+        );
+        add_contract(
+            &mut l1_contracts,
+            "POLYGON_ZKEVM_GLOBAL_EXIT_ROOT_L1",
+            "PolygonZkEVMGlobalExitRoot",
+        );
+        add_contract(
+            &mut l1_contracts,
+            "POLYGON_ROLLUP_MANAGER_L1",
+            "PolygonRollupManager",
+        );
+        add_contract(&mut l1_contracts, "AGG_ERC20_L1", "AggERC20");
+        add_contract(&mut l1_contracts, "BRIDGE_EXTENSION_L1", "BridgeExtension");
+        add_contract(
+            &mut l1_contracts,
+            "POLYGON_ZKEVM_GLOBAL_EXIT_ROOT_L1",
+            "GlobalExitRootManager",
+        );
 
         // L2 contracts
-        if let Ok(addr) = std::env::var("POLYGON_ZKEVM_BRIDGE_L2") {
-            l2_contracts.insert("PolygonZkEVMBridge".to_string(), addr);
-        }
-        if let Ok(addr) = std::env::var("POLYGON_ZKEVM_TIMELOCK_L2") {
-            l2_contracts.insert("PolygonZkEVMTimelock".to_string(), addr);
-        }
-        if let Ok(addr) = std::env::var("AGG_ERC20_L2") {
-            l2_contracts.insert("AggERC20".to_string(), addr);
-        }
-        if let Ok(addr) = std::env::var("BRIDGE_EXTENSION_L2") {
-            l2_contracts.insert("BridgeExtension".to_string(), addr);
-        }
-        if let Ok(addr) = std::env::var("GLOBAL_EXIT_ROOT_MANAGER_L2") {
-            l2_contracts.insert("GlobalExitRootManager".to_string(), addr);
-        }
+        add_contract(
+            &mut l2_contracts,
+            "POLYGON_ZKEVM_BRIDGE_L2",
+            "PolygonZkEVMBridge",
+        );
+        add_contract(
+            &mut l2_contracts,
+            "POLYGON_ZKEVM_TIMELOCK_L2",
+            "PolygonZkEVMTimelock",
+        );
+        add_contract(&mut l2_contracts, "AGG_ERC20_L2", "AggERC20");
+        add_contract(&mut l2_contracts, "BRIDGE_EXTENSION_L2", "BridgeExtension");
+        add_contract(
+            &mut l2_contracts,
+            "GLOBAL_EXIT_ROOT_MANAGER_L2",
+            "GlobalExitRootManager",
+        );
+
+        // L3 contracts
+        let mut l3_contracts = HashMap::new();
+        add_contract(
+            &mut l3_contracts,
+            "POLYGON_ZKEVM_BRIDGE_L3",
+            "PolygonZkEVMBridge",
+        );
+        add_contract(
+            &mut l3_contracts,
+            "POLYGON_ZKEVM_TIMELOCK_L3",
+            "PolygonZkEVMTimelock",
+        );
+        add_contract(&mut l3_contracts, "AGG_ERC20_L3", "AggERC20");
+        add_contract(&mut l3_contracts, "BRIDGE_EXTENSION_L3", "BridgeExtension");
+        add_contract(
+            &mut l3_contracts,
+            "GLOBAL_EXIT_ROOT_MANAGER_L3",
+            "GlobalExitRootManager",
+        );
 
         ContractConfig {
             l1_contracts,
             l2_contracts,
+            l3_contracts,
         }
     }
 
@@ -519,12 +576,17 @@ impl ContractConfig {
             "l1" => self
                 .l1_contracts
                 .get(name)
-                .cloned()
+                .map(|addr| addr.as_str().to_string())
                 .unwrap_or_else(|| "Not deployed".to_string()),
             "l2" => self
                 .l2_contracts
                 .get(name)
-                .cloned()
+                .map(|addr| addr.as_str().to_string())
+                .unwrap_or_else(|| "Not deployed".to_string()),
+            "l3" => self
+                .l3_contracts
+                .get(name)
+                .map(|addr| addr.as_str().to_string())
                 .unwrap_or_else(|| "Not deployed".to_string()),
             _ => "Not deployed".to_string(),
         }
@@ -571,17 +633,17 @@ impl Config {
         let mut urls = Vec::new();
 
         if let Some(url) = &self.networks.l1.fork_url {
-            urls.push(("Mainnet".to_string(), url.clone()));
+            urls.push(("Mainnet".to_string(), url.as_str().to_string()));
         }
 
         if let Some(url) = &self.networks.l2.fork_url {
-            urls.push(("AggLayer 1".to_string(), url.clone()));
+            urls.push(("Agglayer 1".to_string(), url.as_str().to_string()));
         }
 
         if multi_l2 {
             if let Some(l3) = &self.networks.l3 {
                 if let Some(url) = &l3.fork_url {
-                    urls.push(("AggLayer 2".to_string(), url.clone()));
+                    urls.push(("Agglayer 2".to_string(), url.as_str().to_string()));
                 }
             }
         }
@@ -611,9 +673,9 @@ mod tests {
         assert!(config.is_ok());
 
         let config = config.unwrap();
-        assert_eq!(config.networks.l1.chain_id, "1");
-        assert_eq!(config.networks.l2.chain_id, "1101");
-        assert_eq!(config.api.base_url, "http://localhost:5577");
+        assert_eq!(config.networks.l1.chain_id.as_str(), "1");
+        assert_eq!(config.networks.l2.chain_id.as_str(), "1101");
+        assert_eq!(config.api.base_url.as_str(), "http://localhost:5577");
     }
 
     #[test]
@@ -641,7 +703,7 @@ mod tests {
         let accounts = AccountConfig::load();
         assert_eq!(accounts.accounts.len(), 10);
         assert_eq!(accounts.private_keys.len(), 10);
-        assert!(accounts.accounts[0].starts_with("0x"));
+        assert!(accounts.accounts[0].as_str().starts_with("0x"));
         assert!(accounts.private_keys[0].starts_with("0x"));
     }
 
@@ -654,7 +716,7 @@ mod tests {
     #[test]
     fn test_api_config_defaults() {
         let api = ApiConfig::load().unwrap();
-        assert_eq!(api.base_url, "http://localhost:5577");
+        assert_eq!(api.base_url.as_str(), "http://localhost:5577");
         assert_eq!(api.timeout, Duration::from_millis(30000));
         assert_eq!(api.retry_attempts, 3);
     }
@@ -740,32 +802,53 @@ mod tests {
     fn test_get_api_base_url() {
         let config = Config::load().unwrap();
 
-        // Test default network IDs go to port 5577
-        assert_eq!(config.get_api_base_url(1), "http://localhost:5577");
-        assert_eq!(config.get_api_base_url(1101), "http://localhost:5577");
-        assert_eq!(config.get_api_base_url(31337), "http://localhost:5577");
+        // Test L1 (network 0) and L2 (network 1) go to port 5577
+        assert_eq!(
+            config.get_api_base_url(NetworkId::new(0).unwrap()),
+            "http://localhost:5577"
+        );
+        assert_eq!(
+            config.get_api_base_url(NetworkId::new(1).unwrap()),
+            "http://localhost:5577"
+        );
+        assert_eq!(
+            config.get_api_base_url(NetworkId::new(31337).unwrap()),
+            "http://localhost:5577"
+        );
 
-        // Test network IDs that should go to port 5578 (aggkit-l3)
-        assert_eq!(config.get_api_base_url(137), "http://localhost:5578");
-        assert_eq!(config.get_api_base_url(1102), "http://localhost:5578");
+        // Test network ID 2+ goes to port 5578 (aggkit-l3)
+        assert_eq!(
+            config.get_api_base_url(NetworkId::new(2).unwrap()),
+            "http://localhost:5578"
+        );
+        assert_eq!(
+            config.get_api_base_url(NetworkId::new(3).unwrap()),
+            "http://localhost:5578"
+        );
     }
 
     #[test]
     fn test_get_api_base_url_custom_host() {
         let mut config = Config::load().unwrap();
-        config.api.base_url = "https://custom.host.com:5577".to_string();
+        config.api.base_url = RpcUrl::new("https://custom.host.com:5577").unwrap();
 
-        // Test default network IDs use custom host with port 5577
-        assert_eq!(config.get_api_base_url(1), "https://custom.host.com:5577");
+        // Test L1 (network 0) and L2 (network 1) use custom host with port 5577
         assert_eq!(
-            config.get_api_base_url(1101),
+            config.get_api_base_url(NetworkId::new(0).unwrap()),
+            "https://custom.host.com:5577"
+        );
+        assert_eq!(
+            config.get_api_base_url(NetworkId::new(1).unwrap()),
             "https://custom.host.com:5577"
         );
 
-        // Test network IDs that should go to port 5578 on custom host
-        assert_eq!(config.get_api_base_url(137), "https://custom.host.com:5578");
+        // Test network ID 2+ goes to port 5578 on custom host
         assert_eq!(
-            config.get_api_base_url(1102),
+            config.get_api_base_url(NetworkId::new(2).unwrap()),
+            "https://custom.host.com:5578"
+        );
+        assert_eq!(
+            config.get_api_base_url(NetworkId::new(3).unwrap()),
             "https://custom.host.com:5578"
         );
     }
@@ -773,14 +856,26 @@ mod tests {
     #[test]
     fn test_get_api_base_url_custom_without_port() {
         let mut config = Config::load().unwrap();
-        config.api.base_url = "https://api.example.com".to_string();
+        config.api.base_url = RpcUrl::new("https://api.example.com").unwrap();
 
-        // Test default network IDs use original URL
-        assert_eq!(config.get_api_base_url(1), "https://api.example.com");
-        assert_eq!(config.get_api_base_url(1101), "https://api.example.com");
+        // Test L1 (network 0) and L2 (network 1) use original URL
+        assert_eq!(
+            config.get_api_base_url(NetworkId::new(0).unwrap()),
+            "https://api.example.com"
+        );
+        assert_eq!(
+            config.get_api_base_url(NetworkId::new(1).unwrap()),
+            "https://api.example.com"
+        );
 
-        // Test network IDs that should go to port 5578 construct new URL
-        assert_eq!(config.get_api_base_url(137), "http://api.example.com:5578");
-        assert_eq!(config.get_api_base_url(1102), "http://api.example.com:5578");
+        // Test network ID 2+ constructs new URL with port 5578
+        assert_eq!(
+            config.get_api_base_url(NetworkId::new(2).unwrap()),
+            "http://api.example.com:5578"
+        );
+        assert_eq!(
+            config.get_api_base_url(NetworkId::new(3).unwrap()),
+            "http://api.example.com:5578"
+        );
     }
 }

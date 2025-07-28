@@ -48,6 +48,7 @@ mod api_performance_benchmarks {
             contracts: ContractConfig {
                 l1_contracts: HashMap::new(),
                 l2_contracts: HashMap::new(),
+                l3_contracts: HashMap::new(),
             },
         }
     }
@@ -406,6 +407,7 @@ mod api_reliability_benchmarks {
             contracts: ContractConfig {
                 l1_contracts: HashMap::new(),
                 l2_contracts: HashMap::new(),
+                l3_contracts: HashMap::new(),
             },
         }
     }

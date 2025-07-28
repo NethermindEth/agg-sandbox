@@ -59,6 +59,7 @@ mod integration_tests {
                     contracts
                 },
                 l2_contracts: HashMap::new(),
+                l3_contracts: HashMap::new(),
             },
         }
     }

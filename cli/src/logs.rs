@@ -118,6 +118,138 @@ fn print_contract_addresses(config: &Config) {
     );
 }
 
+/// Print contract addresses section for multi-L2 mode (includes L3)
+fn print_multi_l2_contract_addresses(config: &Config) {
+    println!();
+    println!("{}", "Base Protocol Contracts:".cyan().bold());
+    println!("{}", "L1 Contracts:".green());
+    println!(
+        "  FflonkVerifier: {}",
+        config
+            .contracts
+            .get_contract("l1", "FflonkVerifier")
+            .white()
+    );
+    println!(
+        "  PolygonZkEVM: {}",
+        config.contracts.get_contract("l1", "PolygonZkEVM").white()
+    );
+    println!(
+        "  PolygonZkEVMBridge: {}",
+        config
+            .contracts
+            .get_contract("l1", "PolygonZkEVMBridge")
+            .white()
+    );
+    println!(
+        "  PolygonZkEVMTimelock: {}",
+        config
+            .contracts
+            .get_contract("l1", "PolygonZkEVMTimelock")
+            .white()
+    );
+    println!(
+        "  PolygonZkEVMGlobalExitRoot: {}",
+        config
+            .contracts
+            .get_contract("l1", "PolygonZkEVMGlobalExitRoot")
+            .white()
+    );
+    println!(
+        "  PolygonRollupManager: {}",
+        config
+            .contracts
+            .get_contract("l1", "PolygonRollupManager")
+            .white()
+    );
+    println!(
+        "  AggERC20: {}",
+        config.contracts.get_contract("l1", "AggERC20").white()
+    );
+    println!(
+        "  BridgeExtension: {}",
+        config
+            .contracts
+            .get_contract("l1", "BridgeExtension")
+            .white()
+    );
+    println!(
+        "  GlobalExitRootManager: {}",
+        config
+            .contracts
+            .get_contract("l1", "GlobalExitRootManager")
+            .white()
+    );
+
+    println!("{}", "L2-1 Contracts:".green());
+    println!(
+        "  PolygonZkEVMBridge: {}",
+        config
+            .contracts
+            .get_contract("l2", "PolygonZkEVMBridge")
+            .white()
+    );
+    println!(
+        "  PolygonZkEVMTimelock: {}",
+        config
+            .contracts
+            .get_contract("l2", "PolygonZkEVMTimelock")
+            .white()
+    );
+    println!(
+        "  AggERC20: {}",
+        config.contracts.get_contract("l2", "AggERC20").white()
+    );
+    println!(
+        "  BridgeExtension: {}",
+        config
+            .contracts
+            .get_contract("l2", "BridgeExtension")
+            .white()
+    );
+    println!(
+        "  GlobalExitRootManager: {}",
+        config
+            .contracts
+            .get_contract("l2", "GlobalExitRootManager")
+            .white()
+    );
+
+    println!("{}", "L2-2 Contracts:".green());
+    println!(
+        "  PolygonZkEVMBridge: {}",
+        config
+            .contracts
+            .get_contract("l3", "PolygonZkEVMBridge")
+            .white()
+    );
+    println!(
+        "  PolygonZkEVMTimelock: {}",
+        config
+            .contracts
+            .get_contract("l3", "PolygonZkEVMTimelock")
+            .white()
+    );
+    println!(
+        "  AggERC20: {}",
+        config.contracts.get_contract("l3", "AggERC20").white()
+    );
+    println!(
+        "  BridgeExtension: {}",
+        config
+            .contracts
+            .get_contract("l3", "BridgeExtension")
+            .white()
+    );
+    println!(
+        "  GlobalExitRootManager: {}",
+        config
+            .contracts
+            .get_contract("l3", "GlobalExitRootManager")
+            .white()
+    );
+}
+
 /// Print sandbox information for local mode
 pub fn print_sandbox_info(config: &Config) {
     print_accounts_and_keys(config);
@@ -259,7 +391,7 @@ pub fn print_multi_l2_info(config: &Config, fork: bool) {
     }
 
     // Add contract addresses section
-    print_contract_addresses(config);
+    print_multi_l2_contract_addresses(config);
 
     println!();
     println!("{}", "🔧 Next steps:".blue().bold());

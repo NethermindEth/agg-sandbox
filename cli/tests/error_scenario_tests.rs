@@ -164,6 +164,7 @@ mod network_failure_tests {
             contracts: ContractConfig {
                 l1_contracts: HashMap::new(),
                 l2_contracts: HashMap::new(),
+                l3_contracts: HashMap::new(),
             },
         }
     }

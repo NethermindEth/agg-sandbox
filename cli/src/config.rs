@@ -57,6 +57,7 @@ pub struct AccountConfig {
 pub struct ContractConfig {
     pub l1_contracts: HashMap<String, EthereumAddress>,
     pub l2_contracts: HashMap<String, EthereumAddress>,
+    pub l3_contracts: HashMap<String, EthereumAddress>,
 }
 
 /// Custom serialization for Duration to support TOML/YAML
@@ -519,7 +520,7 @@ impl ContractConfig {
         add_contract(&mut l1_contracts, "BRIDGE_EXTENSION_L1", "BridgeExtension");
         add_contract(
             &mut l1_contracts,
-            "GLOBAL_EXIT_ROOT_MANAGER_L1",
+            "POLYGON_ZKEVM_GLOBAL_EXIT_ROOT_L1",
             "GlobalExitRootManager",
         );
 
@@ -542,9 +543,30 @@ impl ContractConfig {
             "GlobalExitRootManager",
         );
 
+        // L3 contracts
+        let mut l3_contracts = HashMap::new();
+        add_contract(
+            &mut l3_contracts,
+            "POLYGON_ZKEVM_BRIDGE_L3",
+            "PolygonZkEVMBridge",
+        );
+        add_contract(
+            &mut l3_contracts,
+            "POLYGON_ZKEVM_TIMELOCK_L3",
+            "PolygonZkEVMTimelock",
+        );
+        add_contract(&mut l3_contracts, "AGG_ERC20_L3", "AggERC20");
+        add_contract(&mut l3_contracts, "BRIDGE_EXTENSION_L3", "BridgeExtension");
+        add_contract(
+            &mut l3_contracts,
+            "GLOBAL_EXIT_ROOT_MANAGER_L3",
+            "GlobalExitRootManager",
+        );
+
         ContractConfig {
             l1_contracts,
             l2_contracts,
+            l3_contracts,
         }
     }
 
@@ -558,6 +580,11 @@ impl ContractConfig {
                 .unwrap_or_else(|| "Not deployed".to_string()),
             "l2" => self
                 .l2_contracts
+                .get(name)
+                .map(|addr| addr.as_str().to_string())
+                .unwrap_or_else(|| "Not deployed".to_string()),
+            "l3" => self
+                .l3_contracts
                 .get(name)
                 .map(|addr| addr.as_str().to_string())
                 .unwrap_or_else(|| "Not deployed".to_string()),

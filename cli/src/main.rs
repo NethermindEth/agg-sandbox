@@ -149,6 +149,31 @@ enum Commands {
         #[arg(short = 'a', long, help = "Contract address to filter events (0x...)")]
         address: Option<String>,
     },
+    /// 💸  Sponsor a bridge claim (build proofs → POST to AggKit)
+    #[command(long_about = "Submit a bridge claim to the Claim-Sponsor bot.\n\
+        \n\
+        This command performs all steps automatically:\n\
+        1. Computes the global index from --deposit and --l2-from.\n\
+        2. Calls the AggKit REST API to fetch Merkle proofs.\n\
+        3. Assembles the JSON body required by `/bridge/v1/sponsor-claim`.\n\
+        4. Posts the claim.\n\
+        \n\
+        Examples:\n\
+        \n\
+        • L1 deposit #41 (origin network = 0):\n\
+        \x20  aggsandbox sponsor-claim --deposit 41\n\
+        \n\
+        • L2→L1 deposit #3 that originated on roll-up 1101:\n\
+        \x20  aggsandbox sponsor-claim --deposit 3 --l2-from 1101 --wait\n")]
+    SponsorClaim {
+        /// Deposit counter on the *origin* chain (starts at 0)
+        #[arg(short = 'd', long)]
+        deposit: u32,
+
+        /// Roll-up ID the deposit originated on (omit or 0 for L1)
+        #[arg(long, default_value_t = 0)]
+        l2_from: u32,
+    },
 }
 
 #[tokio::main]
@@ -254,6 +279,11 @@ async fn run(cli: Cli) -> Result<()> {
         } => {
             info!(network_id = ?network_id, chain = ?chain, blocks = blocks, address = ?address, "Executing events command");
             commands::handle_events(network_id, chain, blocks, address).await
+        }
+        Commands::SponsorClaim { deposit, l2_from } => {
+            info!(deposit, l2_from, "Executing sponsor-claim command");
+            commands::handle_sponsor_claim(deposit, l2_from).await?;
+            Ok(())
         }
     };
 

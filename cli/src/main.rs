@@ -15,7 +15,7 @@ mod progress;
 mod types;
 mod validation;
 
-use commands::{ShowCommands, BridgeCommands};
+use commands::{BridgeCommands, ShowCommands};
 use error::Result;
 use logging::LogConfig;
 use tracing::{error, info, warn};
@@ -128,7 +128,7 @@ enum Commands {
     },
     /// 🌉 Execute bridge operations (asset transfers, claims, messages)
     #[command(
-        long_about = "Execute bridge operations using lxly.js integration.\n\nPerform cross-chain asset transfers, claim bridged assets, and send messages\nbetween L1 and L2 networks with user-friendly commands.\n\nExamples:\n  aggsandbox bridge asset --network 1 --destination-network 1101 --amount 0.1 --token-address 0x0000...\n  aggsandbox bridge claim --network 1101 --tx-hash 0xabc... --source-network 1\n  aggsandbox bridge message --network 1 --destination-network 1101 --target 0x123... --data 0xabc..."
+        long_about = "Execute bridge operations using direct smart contract interactions.\n\nPerform cross-chain asset transfers, claim bridged assets, and send messages\nbetween L1 and L2 networks with user-friendly commands.\n\nExamples:\n  aggsandbox bridge asset --network 0 --destination-network 1 --amount 0.1 --token-address 0x0000...\n  aggsandbox bridge claim --network 1 --tx-hash 0xabc... --source-network 0\n  aggsandbox bridge message --network 0 --destination-network 1 --target 0x123... --data 0xabc..."
     )]
     Bridge {
         #[command(subcommand)]

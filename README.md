@@ -57,6 +57,7 @@ The Agglayer Sandbox provides a comprehensive development environment for testin
 - **Rust** >= 1.70.0 (for CLI compilation) - [Install Rust](https://rustup.rs/)
 - **Make** (for using Makefile targets) - usually pre-installed on Unix systems
 - **Git** (for cloning the repository)
+- **pnpm** (for bridge service dependencies) - [Install pnpm](https://pnpm.io/installation)
 
 ### PATH Configuration
 
@@ -80,6 +81,7 @@ docker compose version && echo "✅ Docker Compose installed"
 rustc --version && echo "✅ Rust installed"
 make --version && echo "✅ Make installed"
 git --version && echo "✅ Git installed"
+pnpm --version && echo "✅ pnpm installed"
 ```
 
 ## Quick Start
@@ -98,6 +100,11 @@ git --version && echo "✅ Git installed"
    ```bash
    make install
    ```
+
+   This will automatically:
+   - Build and install the CLI to `~/.local/bin`
+   - Set up the bridge service dependencies (requires `pnpm`)
+   - Configure bridge functionality for cross-chain operations
 
 3. **Verify installation:**
 
@@ -387,6 +394,52 @@ aggsandbox logs --follow anvil-l1
 # View logs with verbose output
 aggsandbox logs --verbose
 ```
+
+### Bridge Commands
+
+Perform cross-chain bridge operations using the integrated LXLY bridge:
+
+#### Bridge Operations
+
+```bash
+# Bridge ETH from L1 to L2
+aggsandbox bridge asset \
+  --network 0 \
+  --destination-network 1 \
+  --amount 0.1 \
+  --token-address 0x0000000000000000000000000000000000000000
+
+# Bridge ERC20 tokens from L2 to L1
+aggsandbox bridge asset \
+  --network 1 \
+  --destination-network 0 \
+  --amount 100 \
+  --token-address 0xA0b86a33E6776e39e6b37ddEC4F25B04Dd9Fc4DC
+
+# Claim bridged assets on destination network
+aggsandbox bridge claim \
+  --network 1 \
+  --tx-hash 0xb7118cfb20825861028ede1e9586814fc7ccf81745a325db5df355d382d96b4e \
+  --source-network 0
+
+# Bridge with contract call (bridgeAndCall)
+aggsandbox bridge message \
+  --network 0 \
+  --destination-network 1 \
+  --target 0x742d35Cc6965C592342c6c16fb8eaeb90a23b5C0 \
+  --data 0xa9059cbb000000000000000000000000742d35cc6965c592342c6c16fb8eaeb90a23b5c00000000000000000000000000000000000000000000000000de0b6b3a7640000
+```
+
+**Bridge Command Parameters:**
+- `--network, -n`: Source network ID (0=L1, 1=L2, 2=L3)
+- `--destination-network, -d`: Destination network ID
+- `--amount, -a`: Amount to bridge (in token units)
+- `--token-address, -t`: Token contract address (use `0x0000000000000000000000000000000000000000` for ETH)
+- `--tx-hash, -t`: Transaction hash for claim operations
+- `--target`: Target contract address for bridge messages
+- `--data, -D`: Contract call data (hex encoded)
+
+For detailed bridge documentation, see [LXLY.md](LXLY.md).
 
 ### Bridge Information Commands
 

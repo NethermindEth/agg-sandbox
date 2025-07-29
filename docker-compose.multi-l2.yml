@@ -72,7 +72,6 @@ services:
       - ./.env:/app/output/deployed-contracts.env
 
   # === AGGKIT INSTANCES ===
-
   # Contract verification service for AggKit startup
   aggkit-wait:
     image: alpine:latest

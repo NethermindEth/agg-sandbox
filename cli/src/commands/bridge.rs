@@ -93,6 +93,9 @@ pub enum BridgeCommands {
         /// Gas price override (in wei)
         #[arg(long, help = "Gas price in wei")]
         gas_price: Option<String>,
+        /// Private key to use for the transaction (hex string with 0x prefix)
+        #[arg(long, help = "Private key to use for the transaction")]
+        private_key: Option<String>,
     },
     /// 📥 Claim bridged assets on destination network
     #[command(
@@ -124,6 +127,9 @@ pub enum BridgeCommands {
         /// Gas price override (in wei)
         #[arg(long, help = "Gas price in wei")]
         gas_price: Option<String>,
+        /// Private key to use for the transaction (hex string with 0x prefix)
+        #[arg(long, help = "Private key to use for the transaction")]
+        private_key: Option<String>,
     },
     /// 📬 Bridge with contract call (bridgeAndCall)
     #[command(
@@ -154,6 +160,9 @@ pub enum BridgeCommands {
         /// Gas price override (in wei)
         #[arg(long, help = "Gas price in wei")]
         gas_price: Option<String>,
+        /// Private key to use for the transaction (hex string with 0x prefix)
+        #[arg(long, help = "Private key to use for the transaction")]
+        private_key: Option<String>,
     },
 }
 
@@ -201,6 +210,7 @@ pub async fn handle_bridge(subcommand: BridgeCommands) -> Result<()> {
             to_address,
             gas_limit,
             gas_price,
+            private_key,
         } => {
             info!(
                 network = network,
@@ -211,15 +221,16 @@ pub async fn handle_bridge(subcommand: BridgeCommands) -> Result<()> {
             );
 
             let gas_options = GasOptions::new(gas_limit, gas_price.as_deref());
-            bridge_asset(
-                &config,
-                network,
+            bridge_asset(BridgeAssetArgs {
+                config: &config,
+                source_network: network,
                 destination_network,
-                &amount,
-                &token_address,
-                to_address.as_deref(),
+                amount: &amount,
+                token_address: &token_address,
+                to_address: to_address.as_deref(),
                 gas_options,
-            )
+                private_key: private_key.as_deref(),
+            })
             .await
         }
         BridgeCommands::Claim {
@@ -229,6 +240,7 @@ pub async fn handle_bridge(subcommand: BridgeCommands) -> Result<()> {
             token_address,
             gas_limit,
             gas_price,
+            private_key,
         } => {
             info!(
                 network = network,
@@ -245,6 +257,7 @@ pub async fn handle_bridge(subcommand: BridgeCommands) -> Result<()> {
                 source_network,
                 token_address.as_deref(),
                 gas_options,
+                private_key.as_deref(),
             )
             .await
         }
@@ -257,6 +270,7 @@ pub async fn handle_bridge(subcommand: BridgeCommands) -> Result<()> {
             fallback_address,
             gas_limit,
             gas_price,
+            private_key,
         } => {
             info!(
                 network = network,
@@ -273,6 +287,7 @@ pub async fn handle_bridge(subcommand: BridgeCommands) -> Result<()> {
                 destination_network,
                 message_params,
                 gas_options,
+                private_key.as_deref(),
             )
             .await
         }
@@ -312,17 +327,22 @@ async fn get_provider(config: &Config, network_id: u64) -> Result<Arc<Provider<H
 async fn get_wallet_with_provider(
     config: &Config,
     network_id: u64,
+    private_key: Option<&str>,
 ) -> Result<SignerMiddleware<Arc<Provider<Http>>, LocalWallet>> {
     let provider = get_provider(config, network_id).await?;
 
-    // Use the first private key from config
-    let private_key = config.accounts.private_keys.first().ok_or_else(|| {
-        crate::error::AggSandboxError::Config(crate::error::ConfigError::validation_failed(
-            "No private keys configured",
-        ))
-    })?;
+    // Use provided private key or default to first one from config
+    let private_key_str = if let Some(pk) = private_key {
+        pk
+    } else {
+        config.accounts.private_keys.first().ok_or_else(|| {
+            crate::error::AggSandboxError::Config(crate::error::ConfigError::validation_failed(
+                "No private keys configured",
+            ))
+        })?
+    };
 
-    let wallet = LocalWallet::from_str(private_key).map_err(|e| {
+    let wallet = LocalWallet::from_str(private_key_str).map_err(|e| {
         crate::error::AggSandboxError::Config(crate::error::ConfigError::validation_failed(
             &format!("Invalid private key: {e}"),
         ))
@@ -430,23 +450,27 @@ fn network_id_to_chain_id(config: &Config, network_id: u64) -> Result<u32> {
     Ok(chain_id as u32)
 }
 
-/// Bridge assets between networks
-async fn bridge_asset(
-    config: &Config,
+struct BridgeAssetArgs<'a> {
+    config: &'a Config,
     source_network: u64,
     destination_network: u64,
-    amount: &str,
-    token_address: &str,
-    to_address: Option<&str>,
+    amount: &'a str,
+    token_address: &'a str,
+    to_address: Option<&'a str>,
     gas_options: GasOptions,
-) -> Result<()> {
-    let client = get_wallet_with_provider(config, source_network).await?;
-    let bridge_address = get_bridge_contract_address(config, source_network)?;
+    private_key: Option<&'a str>,
+}
+
+/// Bridge assets between networks
+async fn bridge_asset(args: BridgeAssetArgs<'_>) -> Result<()> {
+    let client =
+        get_wallet_with_provider(args.config, args.source_network, args.private_key).await?;
+    let bridge_address = get_bridge_contract_address(args.config, args.source_network)?;
     let bridge = BridgeContract::new(bridge_address, Arc::new(client.clone()));
 
-    let destination_chain_id = network_id_to_chain_id(config, destination_network)?;
+    let destination_chain_id = network_id_to_chain_id(args.config, args.destination_network)?;
 
-    let recipient = if let Some(addr) = to_address {
+    let recipient = if let Some(addr) = args.to_address {
         Address::from_str(addr).map_err(|e| {
             crate::error::AggSandboxError::Config(crate::error::ConfigError::validation_failed(
                 &format!("Invalid recipient address: {e}"),
@@ -456,21 +480,25 @@ async fn bridge_asset(
         client.address()
     };
 
-    let amount_wei = U256::from_dec_str(amount).map_err(|e| {
+    let amount_wei = U256::from_dec_str(args.amount).map_err(|e| {
         crate::error::AggSandboxError::Config(crate::error::ConfigError::validation_failed(
             &format!("Invalid amount: {e}"),
         ))
     })?;
 
-    let token_addr = Address::from_str(token_address).map_err(|e| {
+    let token_addr = Address::from_str(args.token_address).map_err(|e| {
         crate::error::AggSandboxError::Config(crate::error::ConfigError::validation_failed(
             &format!("Invalid token address: {e}"),
         ))
     })?;
 
     // Handle ETH vs ERC20 token bridging
-    if is_eth_address(token_address) {
-        info!("Bridging ETH from network {source_network} to network {destination_network}");
+    if is_eth_address(args.token_address) {
+        info!(
+            "Bridging ETH from network {} to network {}",
+            args.source_network, args.destination_network
+        );
+        println!("🔧 Bridging ETH - amount: {amount_wei} wei, destination_chain_id: {destination_chain_id}, recipient: {recipient:?}");
 
         let call = bridge
             .bridge_asset(
@@ -483,7 +511,7 @@ async fn bridge_asset(
             )
             .value(amount_wei);
 
-        let call = gas_options.apply_to_call_with_return(call);
+        let call = args.gas_options.apply_to_call_with_return(call);
 
         let tx = call.send().await.map_err(|e| {
             crate::error::AggSandboxError::Config(crate::error::ConfigError::validation_failed(
@@ -494,12 +522,25 @@ async fn bridge_asset(
         println!("✅ Bridge transaction submitted: {:#x}", tx.tx_hash());
     } else {
         info!(
-            "Bridging ERC20 token {token_address} from network {source_network} to network {destination_network}"
+            "Bridging ERC20 token {} from network {} to network {}",
+            args.token_address, args.source_network, args.destination_network
         );
+        println!("🔧 ERC20 Bridge Debug:");
+        println!("  - Token address: {}", args.token_address);
+        println!("  - Token address (parsed): {token_addr:?}");
+        println!("  - From address: {:?}", client.address());
+        println!("  - Bridge address: {bridge_address:?}");
+        println!("  - Amount: {} (Wei: {amount_wei})", args.amount);
+        println!("  - Destination chain ID: {destination_chain_id}");
+        println!("  - Recipient: {recipient:?}");
 
         // First check and approve if needed
         let token = ERC20Contract::new(token_addr, Arc::new(client.clone()));
 
+        println!(
+            "🔧 Checking allowance: token.allowance({:?}, {bridge_address:?})",
+            client.address()
+        );
         let allowance = token
             .allowance(client.address(), bridge_address)
             .call()
@@ -510,8 +551,11 @@ async fn bridge_asset(
                 ))
             })?;
 
+        println!("🔧 Current allowance: {allowance}, Required: {amount_wei}");
+
         if allowance < amount_wei {
-            info!("Approving bridge contract to spend {} tokens", amount);
+            info!("Approving bridge contract to spend {} tokens", args.amount);
+            println!("🔧 Calling approve: token.approve({bridge_address:?}, {amount_wei})");
             let approve_call = token.approve(bridge_address, amount_wei);
             let approve_tx = approve_call.send().await.map_err(|e| {
                 crate::error::AggSandboxError::Config(crate::error::ConfigError::validation_failed(
@@ -529,6 +573,13 @@ async fn bridge_asset(
         }
 
         // Now bridge the tokens
+        println!("🔧 Calling bridgeAsset:");
+        println!("  - destination_chain_id: {destination_chain_id}");
+        println!("  - recipient: {recipient:?}");
+        println!("  - amount_wei: {amount_wei}");
+        println!("  - token_addr: {token_addr:?}");
+        println!("  - forceUpdateGlobalExitRoot: true");
+
         let call = bridge.bridge_asset(
             destination_chain_id,
             recipient,
@@ -538,7 +589,7 @@ async fn bridge_asset(
             Bytes::new(), // empty permit data
         );
 
-        let call = gas_options.apply_to_call_with_return(call);
+        let call = args.gas_options.apply_to_call_with_return(call);
 
         let tx = call.send().await.map_err(|e| {
             crate::error::AggSandboxError::Config(crate::error::ConfigError::validation_failed(
@@ -549,7 +600,22 @@ async fn bridge_asset(
         println!("✅ Bridge transaction submitted: {:#x}", tx.tx_hash());
     }
 
-    println!("💡 Use 'aggsandbox bridge claim --network {destination_network} --tx-hash <tx_hash> --source-network {source_network}' to claim assets");
+    // Determine the correct source network for claiming
+    // For bridge-back scenarios (wrapped tokens), we need to use the original token's network
+    let claim_source_network = if !is_eth_address(args.token_address) {
+        // For ERC20 tokens, check if this might be a wrapped token bridge-back
+        // In bridge-back scenarios, the claim should use the original token's network (usually 0 for L1)
+        // This is a heuristic: if bridging from L2 to L1, it's likely a bridge-back
+        if args.source_network == 1 && args.destination_network == 0 {
+            0 // Bridge-back from L2 to L1, use L1 as source for claim
+        } else {
+            args.source_network // Normal bridging, use actual source network
+        }
+    } else {
+        args.source_network // ETH bridging, use actual source network
+    };
+
+    println!("💡 Use 'aggsandbox bridge claim --network {} --tx-hash <tx_hash> --source-network {claim_source_network}' to claim assets", args.destination_network);
 
     Ok(())
 }
@@ -562,17 +628,47 @@ async fn claim_asset(
     source_network: u64,
     _token_address: Option<&str>,
     gas_options: GasOptions,
+    private_key: Option<&str>,
 ) -> Result<()> {
-    let client = get_wallet_with_provider(config, network).await?;
+    let client = get_wallet_with_provider(config, network, private_key).await?;
     let bridge_address = get_bridge_contract_address(config, network)?;
     let bridge = BridgeContract::new(bridge_address, Arc::new(client.clone()));
     let api_client = OptimizedApiClient::global();
 
     println!("🔍 Looking for bridge transaction with hash: {tx_hash}");
 
-    // Get bridges from source network to find our transaction
+    // For bridge-back scenarios (L2→L1), we need special logic:
+    // - The bridge transaction is on the intermediate network (L2)
+    // - But the proof data comes from the original token's network (L1)
+    // Try to detect this by checking if we're claiming on L1 with source_network=0
+    let (bridge_tx_network, proof_source_network) = if network == 0 && source_network == 0 {
+        // Potential bridge-back scenario: L2→L1 claim
+        // First try to find the transaction on L2 (network 1)
+        let l2_bridges = api_client.get_bridges(config, 1).await.ok();
+        if let Some(l2_response) = l2_bridges {
+            if let Some(bridges) = l2_response["bridges"].as_array() {
+                if bridges
+                    .iter()
+                    .any(|bridge| bridge["tx_hash"].as_str() == Some(tx_hash))
+                {
+                    println!("🔍 Detected bridge-back scenario: transaction found on L2, using L2 for proof data");
+                    (1u64, 1u64) // Bridge tx is on L2, proof data from L2
+                } else {
+                    (source_network, source_network) // Normal scenario
+                }
+            } else {
+                (source_network, source_network) // Normal scenario
+            }
+        } else {
+            (source_network, source_network) // Normal scenario
+        }
+    } else {
+        (source_network, source_network) // Normal scenario
+    };
+
+    // Get bridges from the network where the transaction actually occurred
     let bridges_response = api_client
-        .get_bridges(config, source_network)
+        .get_bridges(config, bridge_tx_network)
         .await
         .map_err(|e| {
             crate::error::AggSandboxError::Config(crate::error::ConfigError::validation_failed(
@@ -604,10 +700,10 @@ async fn claim_asset(
 
     println!("📋 Found bridge with deposit count: {deposit_count}");
 
-    // Get L1 info tree index from the source network (where the bridge tx occurred)
-    // This is correct for both L1→L2 and L2→L1 scenarios
+    // Get L1 info tree index from the proof source network
+    // For bridge-back scenarios, this uses L2 (where the bridge tx occurred)
     let tree_index_response = api_client
-        .get_l1_info_tree_index(config, source_network, deposit_count)
+        .get_l1_info_tree_index(config, proof_source_network, deposit_count)
         .await
         .map_err(|e| {
             crate::error::AggSandboxError::Config(crate::error::ConfigError::validation_failed(
@@ -621,10 +717,10 @@ async fn claim_asset(
 
     println!("🌳 L1 info tree index: {leaf_index}");
 
-    // Get claim proof from the source network (where the bridge tx occurred)
-    // This is correct for both L1→L2 and L2→L1 scenarios
+    // Get claim proof from the proof source network
+    // For bridge-back scenarios, this uses L2 (where the bridge tx occurred)
     let proof_response = api_client
-        .get_claim_proof(config, source_network, leaf_index, deposit_count)
+        .get_claim_proof(config, proof_source_network, leaf_index, deposit_count)
         .await
         .map_err(|e| {
             crate::error::AggSandboxError::Config(crate::error::ConfigError::validation_failed(
@@ -714,7 +810,7 @@ async fn claim_asset(
         })?
     } else {
         // For first-time bridges, fetch and encode ERC20 token details
-        let source_client = get_wallet_with_provider(config, source_network).await?;
+        let source_client = get_wallet_with_provider(config, proof_source_network, None).await?;
         let token_contract = ERC20Contract::new(origin_addr, Arc::new(source_client));
 
         // Fetch token details
@@ -784,8 +880,9 @@ async fn bridge_message(
     destination_network: u64,
     params: BridgeMessageParams,
     gas_options: GasOptions,
+    private_key: Option<&str>,
 ) -> Result<()> {
-    let client = get_wallet_with_provider(config, source_network).await?;
+    let client = get_wallet_with_provider(config, source_network, private_key).await?;
     let bridge_ext_address = get_bridge_extension_address(config, source_network)?;
     let bridge_ext = BridgeExtensionContract::new(bridge_ext_address, Arc::new(client.clone()));
 

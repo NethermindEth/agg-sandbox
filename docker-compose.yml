@@ -48,28 +48,48 @@ services:
     volumes:
       - ./.env:/app/output/deployed-contracts.env
 
-  aggkit-delay:
-    image: busybox:latest
-    command: sleep 20
+  aggkit-wait:
+    image: alpine:latest
     depends_on:
-      anvil-l1:
-        condition: service_healthy
-      anvil-l2:
-        condition: service_healthy
       contract-deployer:
         condition: service_completed_successfully
     networks:
       - anvil-network
+    command:
+      - sh
+      - -c
+      - |
+        apk add curl jq
+        echo 'Waiting for contracts to be deployed and accessible...'
+        for i in $$(seq 1 30); do
+          if [ -f '/app/output/deployed-contracts.env' ]; then
+            source /app/output/deployed-contracts.env
+            if [ -n "$$POLYGON_ROLLUP_MANAGER_L1" ]; then
+              RESPONSE=$$(curl -s -X POST http://anvil-l1:8545 -H 'Content-Type: application/json' -d "{\"jsonrpc\":\"2.0\",\"method\":\"eth_getCode\",\"params\":[\"$$POLYGON_ROLLUP_MANAGER_L1\",\"latest\"],\"id\":1}" 2>/dev/null || echo '{"result":"0x"}')
+              CODE=$$(echo "$$RESPONSE" | jq -r '.result' 2>/dev/null || echo "0x")
+              if echo "$$CODE" | grep -q '^0x[0-9a-fA-F]\{3,\}$$'; then
+                echo "Contract verified at address $$POLYGON_ROLLUP_MANAGER_L1"
+                exit 0
+              fi
+            fi
+          fi
+          echo "Attempt $$i/30: Contract not ready, waiting..."
+          sleep 5
+        done
+        echo 'Contract verification failed after 150s'
+        exit 1
+    volumes:
+      - ./.env:/app/output/deployed-contracts.env:ro
 
   aggkit:
-    image: ametelnethermind/aggsandbox-aggkit:latest
+    image: ametelnethermind/aggkit:claimsponsor
     depends_on:
-      aggkit-delay:
+      aggkit-wait:
         condition: service_completed_successfully
     ports:
-      - "5577:5577"  # REST API
-      - "8080:8080"  # Telemetry
-      - "8555:8555"  # RPC
+      - "5577:5577" # REST API
+      - "8080:8080" # Telemetry
+      - "8555:8555" # RPC
     networks:
       - anvil-network
     volumes:
@@ -81,22 +101,23 @@ services:
       # Basic configuration
       - AGGKIT_SANDBOX_ENABLED=true
       - AGGKIT_LOG_LEVEL=info
-      - AGGKIT_COMPONENTS=bridge,aggoracle
-      
+      - AGGKIT_COMPONENTS=bridge,aggoracle,claim-sponsor
+      - AGGKIT_CLAIMSPONSOR_ENABLED=true
+
       # Network configuration
       - AGGKIT_L1_URL=http://anvil-l1:8545
       - AGGKIT_L2_URL=http://anvil-l2:8545
       - AGGKIT_L1_CHAIN_ID=${CHAIN_ID_MAINNET:-1}
       - AGGKIT_L2_CHAIN_ID=${CHAIN_ID_AGGLAYER_1:-1101}
-      
+
       # Service ports
       - AGGKIT_REST_PORT=5577
       - AGGKIT_RPC_PORT=8555
       - AGGKIT_TELEMETRY_PORT=8080
-      
+
       # Database
       - AGGKIT_DATABASE_NAME=/app/data/aggkit.db
-      
+
       # Contract addresses (from .env file)
       - POLYGON_ZKEVM_BRIDGE_L1=${POLYGON_ZKEVM_BRIDGE_L1}
       - POLYGON_ZKEVM_BRIDGE_L2=${POLYGON_ZKEVM_BRIDGE_L2}
@@ -109,4 +130,4 @@ networks:
     driver: bridge
 
 volumes:
-  aggkit-data: 
+  aggkit-data:

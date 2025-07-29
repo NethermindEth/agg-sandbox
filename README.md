@@ -39,7 +39,7 @@ The Agglayer Sandbox provides a comprehensive development environment for testin
 ## Features
 
 - **🏠 Local Mode**: Run completely local blockchain nodes for development
-- **🍴 Fork Mode**: Fork existing blockchains to test against real network state  
+- **🍴 Fork Mode**: Fork existing blockchains to test against real network state
 - **🔗 Multi-L2 Mode**: Run with a second L2 chain for multi-chain testing (supports both local and fork modes)
 - **🎨 Enhanced CLI** with rich help messages, progress tracking, and intelligent error handling
 - **📊 JSON Scripting Support** with `--json` flag for clean machine-readable output and automation
@@ -125,7 +125,7 @@ pnpm --version && echo "✅ pnpm installed"
 **Create .env:**
 
 ```bash
-cp .env.example .env
+cp .env.example .env && source .env
 ```
 
 **Start the sandbox in local mode:**
@@ -215,8 +215,8 @@ For multi-chain testing with dual AggKit instances:
    │ Port: 8545  │                     │ Port: 8546  │
    │Chain ID: 1  │                     │Chain ID:1101│
    └─────────────┘                     └─────────────┘
-              │                                   
-              │      ┌─────────────────────┐      
+              │
+              │      ┌─────────────────────┐
               └──────┤     AggKit-L3       ├──────┐
                      │  REST API: 5578     │      │
                      │  RPC: 8556          │      │
@@ -252,7 +252,7 @@ aggsandbox start --detach
 
 #### Features
 
-- ✅ Fast startup and execution  
+- ✅ Fast startup and execution
 - ✅ Deterministic behavior
 - ✅ No external dependencies
 - ✅ Ideal for development and CI/CD
@@ -283,8 +283,8 @@ aggsandbox start --detach
    ```bash
    # Ethereum mainnet fork URL (Alchemy, Infura, etc.)
    FORK_URL_MAINNET=https://eth-mainnet.g.alchemy.com/v2/YOUR_API_KEY
-   
-   # Polygon PoS fork URL  
+
+   # Polygon PoS fork URL
    FORK_URL_AGGLAYER_1=https://polygon-mainnet.g.alchemy.com/v2/YOUR_API_KEY
    ```
 
@@ -334,7 +334,7 @@ aggsandbox start --multi-l2 --fork --detach
 #### Features
 
 - ✅ Test multi-chain scenarios
-- ✅ Cross-L2 bridging operations  
+- ✅ Cross-L2 bridging operations
 - ✅ Complex DeFi interactions
 - ✅ Full production-ready implementation
 - ⚠️ Higher resource requirements
@@ -451,7 +451,7 @@ Query bridge endpoints with enhanced formatting and detailed explanations:
 # Show bridges for L1 (Ethereum)
 aggsandbox show bridges --network-id 0
 
-# Show bridges for first L2 (Polygon zkEVM)  
+# Show bridges for first L2 (Polygon zkEVM)
 aggsandbox show bridges --network-id 1
 
 # Show bridges for second L2 (if running multi-L2 mode)
@@ -543,7 +543,7 @@ aggsandbox show claim-proof --help
 These commands query the bridge service at `http://localhost:5577` and display:
 
 - **bridges**: Available bridges for the specified network
-- **claims**: Claims information for the specified network  
+- **claims**: Claims information for the specified network
 - **claim-proof**: Claim proof data with configurable parameters
 - **l1-info-tree-index**: L1 info tree index data with configurable network and deposit count
 
@@ -606,7 +606,7 @@ Each event displays:
 
 ```bash
 --detach, -d       # Run in detached mode
---build, -b        # Build images before starting  
+--build, -b        # Build images before starting
 --fork, -f         # Enable fork mode (uses real blockchain data)
 --multi-l2, -m     # Enable multi-L2 mode (runs with second L2 chain)
 ```
@@ -698,7 +698,7 @@ Pre-configured test accounts with known private keys for immediate testing:
 ACCOUNT_ADDRESS_1=0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266
 PRIVATE_KEY_1=0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80
 
-# Secondary test account (Anvil account #1)  
+# Secondary test account (Anvil account #1)
 ACCOUNT_ADDRESS_2=0x70997970C51812dc3A010C7d01b50e0d17dc79C8
 PRIVATE_KEY_2=0x59c6995e998f97a5a0044966f0945389dc9e86dae88c7a8412f4603b6b78690d
 ```
@@ -835,7 +835,7 @@ This allows for flexible overrides while maintaining reasonable defaults.
 *Standard Mode:*
 
 - **8545**: L1 Ethereum RPC endpoint
-- **8546**: L2 Polygon zkEVM RPC endpoint  
+- **8546**: L2 Polygon zkEVM RPC endpoint
 - **5577**: AggKit REST API endpoint
 - **8555**: AggKit RPC endpoint
 - **8080**: AggKit Telemetry endpoint
@@ -853,7 +853,7 @@ This allows for flexible overrides while maintaining reasonable defaults.
 # In docker-compose.yml or docker-compose.override.yml
 ports:
   - "8545:8545"  # L1
-  - "8546:8546"  # L2  
+  - "8546:8546"  # L2
   - "8547:8547"  # L3 (multi-L2)
   - "5577:5577"  # Bridge service
 ```
@@ -886,7 +886,7 @@ aggsandbox start --detach --quiet
 
 # Different log formats
 aggsandbox start --detach --log-format json     # Machine-readable JSON logs
-aggsandbox start --detach --log-format compact  # Compact format  
+aggsandbox start --detach --log-format compact  # Compact format
 aggsandbox start --detach --log-format pretty   # Default human-readable format
 ```
 
@@ -979,7 +979,7 @@ make help
 # Install CLI tool
 make install
 
-# Uninstall CLI tool  
+# Uninstall CLI tool
 make uninstall
 
 # Build Docker images
@@ -998,7 +998,7 @@ The CLI provides comprehensive error handling with context-specific guidance. Mo
 When errors occur, you'll see:
 
 1. **Clear Error Description**: What went wrong
-2. **Issue Category**: Docker, Configuration, API, or Event-related  
+2. **Issue Category**: Docker, Configuration, API, or Event-related
 3. **Quick Fix Steps**: Specific commands to resolve the issue
 4. **Additional Help**: Links to detailed troubleshooting
 
@@ -1026,7 +1026,7 @@ When errors occur, you'll see:
 **Manual troubleshooting:**
 
 - Ensure your fork URLs are accessible and support the required RPC methods
-- Check that your API keys (if required) are properly configured  
+- Check that your API keys (if required) are properly configured
 - Some RPC providers have rate limits that may affect performance
 - Test fork URLs independently before using them with the sandbox
 
@@ -1052,7 +1052,7 @@ When errors occur, you'll see:
 ```bash
 ❌ Error: Port 8545 already in use
 
-🐳 Docker Issue  
+🐳 Docker Issue
 💡 Quick Fix:
    1. Stop existing containers:
       aggsandbox stop

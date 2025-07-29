@@ -72,33 +72,50 @@ services:
       - ./.env:/app/output/deployed-contracts.env
 
   # === AGGKIT INSTANCES ===
-  
-  # Delay service for AggKit startup
-  aggkit-delay:
-    image: busybox:latest
-    command: sleep 20
+  # Contract verification service for AggKit startup
+  aggkit-wait:
+    image: alpine:latest
     depends_on:
-      anvil-l1:
-        condition: service_healthy
-      anvil-l2:
-        condition: service_healthy
-      anvil-l3:
-        condition: service_healthy
       contract-deployer:
         condition: service_completed_successfully
     networks:
       - anvil-network
+    command:
+      - sh
+      - -c
+      - |
+        apk add curl jq
+        echo 'Waiting for contracts to be deployed and accessible...'
+        for i in $$(seq 1 30); do
+          if [ -f '/app/output/deployed-contracts.env' ]; then
+            source /app/output/deployed-contracts.env
+            if [ -n "$$POLYGON_ROLLUP_MANAGER_L1" ]; then
+              RESPONSE=$$(curl -s -X POST http://anvil-l1:8545 -H 'Content-Type: application/json' -d "{\"jsonrpc\":\"2.0\",\"method\":\"eth_getCode\",\"params\":[\"$$POLYGON_ROLLUP_MANAGER_L1\",\"latest\"],\"id\":1}" 2>/dev/null || echo '{"result":"0x"}')
+              CODE=$$(echo "$$RESPONSE" | jq -r '.result' 2>/dev/null || echo "0x")
+              if echo "$$CODE" | grep -q '^0x[0-9a-fA-F]\{3,\}$$'; then
+                echo "Contract verified at address $$POLYGON_ROLLUP_MANAGER_L1"
+                exit 0
+              fi
+            fi
+          fi
+          echo "Attempt $$i/30: Contract not ready, waiting..."
+          sleep 5
+        done
+        echo 'Contract verification failed after 150s'
+        exit 1
+    volumes:
+      - ./.env:/app/output/deployed-contracts.env:ro
 
   # AggKit for L2 (L1 ↔ L2 bridge)
   aggkit-l2:
-    image: ametelnethermind/aggsandbox-aggkit:latest
+    image: ametelnethermind/aggkit:claimsponsor
     depends_on:
-      aggkit-delay:
+      aggkit-wait:
         condition: service_completed_successfully
     ports:
-      - "5577:5577"  # REST API
-      - "8080:8080"  # Telemetry
-      - "8555:8555"  # RPC
+      - "5577:5577" # REST API
+      - "8080:8080" # Telemetry
+      - "8555:8555" # RPC
     networks:
       - anvil-network
     volumes:
@@ -111,21 +128,21 @@ services:
       - AGGKIT_SANDBOX_ENABLED=true
       - AGGKIT_LOG_LEVEL=info
       - AGGKIT_COMPONENTS=bridge,aggoracle
-      
+
       # Network configuration
       - AGGKIT_L1_URL=http://anvil-l1:8545
       - AGGKIT_L2_URL=http://anvil-l2:8545
       - AGGKIT_L1_CHAIN_ID=${CHAIN_ID_MAINNET:-1}
       - AGGKIT_L2_CHAIN_ID=${CHAIN_ID_AGGLAYER_1:-1101}
-      
+
       # Service ports
       - AGGKIT_REST_PORT=5577
       - AGGKIT_RPC_PORT=8555
       - AGGKIT_TELEMETRY_PORT=8080
-      
+
       # Database
       - AGGKIT_DATABASE_NAME=/app/data/aggkit_l2.db
-      
+
       # Contract addresses (from .env file)
       - POLYGON_ZKEVM_BRIDGE_L1=${POLYGON_ZKEVM_BRIDGE_L1}
       - POLYGON_ZKEVM_BRIDGE_L2=${POLYGON_ZKEVM_BRIDGE_L2}
@@ -136,14 +153,14 @@ services:
 
   # AggKit for L3 (L1 ↔ L3 bridge)
   aggkit-l3:
-    image: ametelnethermind/aggsandbox-aggkit:latest
+    image: ametelnethermind/aggkit:claimsponsor
     depends_on:
-      aggkit-delay:
+      aggkit-wait:
         condition: service_completed_successfully
     ports:
-      - "5578:5578"  # REST API (different external and internal port)
-      - "8081:8081"  # Telemetry (different external and internal port)
-      - "8556:8556"  # RPC (different external and internal port)
+      - "5578:5578" # REST API (different external and internal port)
+      - "8081:8081" # Telemetry (different external and internal port)
+      - "8556:8556" # RPC (different external and internal port)
     networks:
       - anvil-network
     volumes:
@@ -156,21 +173,21 @@ services:
       - AGGKIT_SANDBOX_ENABLED=true
       - AGGKIT_LOG_LEVEL=info
       - AGGKIT_COMPONENTS=bridge,aggoracle
-      
+
       # Network configuration
       - AGGKIT_L1_URL=http://anvil-l1:8545
       - AGGKIT_L2_URL=http://anvil-l3:8545
       - AGGKIT_L1_CHAIN_ID=${CHAIN_ID_MAINNET:-1}
       - AGGKIT_L2_CHAIN_ID=${CHAIN_ID_AGGLAYER_2:-137}
-      
+
       # Service ports (different internal ports to avoid conflicts)
       - AGGKIT_REST_PORT=5578
       - AGGKIT_RPC_PORT=8556
       - AGGKIT_TELEMETRY_PORT=8081
-      
+
       # Database (different path to avoid conflicts)
       - AGGKIT_DATABASE_NAME=/app/data/aggkit_l3.db
-      
+
       # Contract addresses for L3 (you'll need to deploy separate contracts for L3)
       # These will need to be different from L2 contracts
       - POLYGON_ZKEVM_BRIDGE_L1=${POLYGON_ZKEVM_BRIDGE_L1}
@@ -186,4 +203,4 @@ networks:
 
 volumes:
   aggkit-l2-data:
-  aggkit-l3-data: 
+  aggkit-l3-data:

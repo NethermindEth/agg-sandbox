@@ -150,8 +150,7 @@ enum Commands {
         address: Option<String>,
     },
     /// 💸  Sponsor a bridge claim (build proofs → POST to AggKit)
-    #[command(
-        long_about = "Submit a bridge claim to the Claim-Sponsor bot.\n\
+    #[command(long_about = "Submit a bridge claim to the Claim-Sponsor bot.\n\
         \n\
         This command performs all steps automatically:\n\
         1. Computes the global index from --deposit and --l2-from.\n\
@@ -165,8 +164,7 @@ enum Commands {
         \x20  aggsandbox sponsor-claim --deposit 41\n\
         \n\
         • L2→L1 deposit #3 that originated on roll-up 1101:\n\
-        \x20  aggsandbox sponsor-claim --deposit 3 --l2-from 1101 --wait\n"
-    )]
+        \x20  aggsandbox sponsor-claim --deposit 3 --l2-from 1101 --wait\n")]
     SponsorClaim {
         /// Deposit counter on the *origin* chain (starts at 0)
         #[arg(short = 'd', long)]

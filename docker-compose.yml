@@ -82,7 +82,7 @@ services:
       - ./.env:/app/output/deployed-contracts.env:ro
 
   aggkit:
-    image: aggkit:claimsponsor
+    image: ametelnethermind/aggkit:claimsponsor
     depends_on:
       aggkit-wait:
         condition: service_completed_successfully

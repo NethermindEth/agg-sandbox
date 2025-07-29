@@ -12,6 +12,7 @@ mod events;
 mod logging;
 mod logs;
 mod progress;
+mod types;
 mod validation;
 
 use commands::ShowCommands;
@@ -21,12 +22,12 @@ use tracing::{error, info, warn};
 
 #[derive(Parser)]
 #[command(name = "aggsandbox")]
-#[command(about = "🚀 CLI for managing AggLayer sandbox environment")]
+#[command(about = "🚀 CLI for managing Agglayer sandbox environment")]
 #[command(
-    long_about = "AggSandbox CLI provides comprehensive tools for managing your AggLayer sandbox environment.\n\nThis tool helps you start, stop, monitor, and interact with your sandbox infrastructure\nincluding L1/L2 chains, bridge services, and blockchain events.\n\nExamples:\n  aggsandbox start --detach           # Start sandbox in background\n  aggsandbox start --fork --multi-l2  # Start with real data and multiple L2s\n  aggsandbox logs -f bridge-service   # Follow bridge service logs\n  aggsandbox show bridges --network 1 # Show bridge information\n  aggsandbox events --chain anvil-l1  # Show recent blockchain events"
+    long_about = "AggSandbox CLI provides comprehensive tools for managing your Agglayer sandbox environment.\n\nThis tool helps you start, stop, monitor, and interact with your sandbox infrastructure\nincluding L1/L2 chains, bridge services, and blockchain events.\n\nExamples:\n  aggsandbox start --detach             # Start sandbox in background\n  aggsandbox start --fork --multi-l2    # Start with real data and multiple L2s\n  aggsandbox logs -f aggkit             # Follow aggkit logs\n  aggsandbox show bridges --network-id 0 # Show L1 bridge information\n  aggsandbox events --chain anvil-l1    # Show recent blockchain events"
 )]
 #[command(version = "0.1.0")]
-#[command(author = "AggLayer Team")]
+#[command(author = "Agglayer Team")]
 #[command(
     help_template = "{before-help}{name} {version}\n{about-with-newline}\n{usage-heading} {usage}\n\n{all-args}{after-help}"
 )]
@@ -53,7 +54,7 @@ struct Cli {
 enum Commands {
     /// 🚀 Start the sandbox environment
     #[command(
-        long_about = "Start the AggLayer sandbox environment with Docker Compose.\n\nThis command initializes and starts all required services including:\n- L1 Ethereum node (Anvil)\n- L2 Polygon zkEVM node (Anvil)\n- Bridge service\n- Agglayer service\n\nExamples:\n  aggsandbox start                     # Start with default settings\n  aggsandbox start --detach            # Start in background\n  aggsandbox start --build             # Rebuild images before starting\n  aggsandbox start --fork              # Use real blockchain data\n  aggsandbox start --fork --multi-l2   # Fork mode with multiple L2 chains"
+        long_about = "Start the Agglayer sandbox environment with Docker Compose.\n\nThis command initializes and starts all required services including:\n- L1 Ethereum node (Anvil)\n- L2 Polygon zkEVM node (Anvil)\n- Bridge service\n- Agglayer service\n\nExamples:\n  aggsandbox start                     # Start with default settings\n  aggsandbox start --detach            # Start in background\n  aggsandbox start --build             # Rebuild images before starting\n  aggsandbox start --fork              # Use real blockchain data\n  aggsandbox start --fork --multi-l2   # Fork mode with multiple L2 chains"
     )]
     Start {
         /// Run services in detached mode (background)
@@ -97,14 +98,14 @@ enum Commands {
     Status,
     /// 📋 Show logs from services
     #[command(
-        long_about = "Display logs from sandbox services.\n\nView logs from all services or filter by specific service name.\nUse --follow to stream logs in real-time.\n\nExamples:\n  aggsandbox logs                    # Show all logs\n  aggsandbox logs bridge-service     # Show bridge service logs\n  aggsandbox logs -f                 # Follow all logs\n  aggsandbox logs -f anvil-l1        # Follow L1 node logs"
+        long_about = "Display logs from sandbox services.\n\nView logs from all services or filter by specific service name.\nUse --follow to stream logs in real-time.\n\nExamples:\n  aggsandbox logs                    # Show all logs\n  aggsandbox logs aggkit             # Show aggkit logs (bridge, oracle, etc.)\n  aggsandbox logs -f                 # Follow all logs\n  aggsandbox logs -f anvil-l1        # Follow L1 node logs\n  aggsandbox logs -f aggkit          # Follow aggkit logs in real-time"
     )]
     Logs {
         /// Follow log output in real-time
         #[arg(short, long, help = "Stream logs continuously (like 'tail -f')")]
         follow: bool,
         /// Specific service name to show logs for
-        #[arg(help = "Service name (e.g., bridge-service, anvil-l1, anvil-l2, agglayer)")]
+        #[arg(help = "Service name (e.g., aggkit, anvil-l1, anvil-l2, contract-deployer)")]
         service: Option<String>,
     },
     /// 🔄 Restart the sandbox environment
@@ -119,7 +120,7 @@ enum Commands {
     Info,
     /// 🌉 Show bridge and blockchain information
     #[command(
-        long_about = "Access bridge data and blockchain information.\n\nQuery bridges, claims, proofs, and other bridge-related data\nfrom the AggLayer bridge service API.\n\nExamples:\n  aggsandbox show bridges --network 1     # List bridges for network 1\n  aggsandbox show claims --network 1101   # Show claims for L2\n  aggsandbox show proof --network 1 --leaf-index 0 --deposit-count 1"
+        long_about = "Access bridge data and blockchain information.\n\nQuery bridges, claims, proofs, and other bridge-related data\nfrom the Agglayer bridge service API.\n\nExamples:\n  aggsandbox show bridges --network-id 0     # List bridges for L1\n  aggsandbox show claims --network-id 1      # Show claims for first L2\n  aggsandbox show proof --network-id 0 --leaf-index 0 --deposit-count 1"
     )]
     Show {
         #[command(subcommand)]
@@ -127,12 +128,15 @@ enum Commands {
     },
     /// 📡 Fetch and display blockchain events
     #[command(
-        long_about = "Monitor blockchain events from L1 and L2 chains.\n\nFetch and display recent events from specified blockchain,\nwith options to filter by contract address and block range.\n\nExamples:\n  aggsandbox events --chain anvil-l1              # Recent L1 events\n  aggsandbox events --chain anvil-l2 --blocks 20  # Last 20 L2 blocks\n  aggsandbox events --chain anvil-l1 --address 0x123 # Events from specific contract"
+        long_about = "Monitor blockchain events from L1 and L2 chains.\n\nFetch and display recent events from specified blockchain,\nwith options to filter by contract address and block range.\n\nExamples:\n  aggsandbox events --network-id 0                # Recent L1 events\n  aggsandbox events --network-id 1 --blocks 20    # Last 20 blocks from first L2\n  aggsandbox events --network-id 0 --address 0x123 # Events from specific contract\n\nLegacy (deprecated) examples:\n  aggsandbox events --chain anvil-l1              # Use --network-id 0 instead"
     )]
     Events {
-        /// Blockchain to fetch events from
-        #[arg(short, long, value_parser = ["anvil-l1", "anvil-l2", "anvil-l3"], help = "Chain to query (anvil-l1, anvil-l2, or anvil-l3)")]
-        chain: String,
+        /// Network ID to fetch events from (preferred over --chain)
+        #[arg(short = 'n', long, help = "Network ID to query (0=L1, 1=L2, 2=L3)")]
+        network_id: Option<u64>,
+        /// Blockchain to fetch events from (deprecated, use --network-id instead)
+        #[arg(short, long, value_parser = ["anvil-l1", "anvil-l2", "anvil-l3"], help = "Chain to query (anvil-l1, anvil-l2, or anvil-l3) - DEPRECATED: use --network-id")]
+        chain: Option<String>,
         /// Number of recent blocks to scan for events
         #[arg(
             short,
@@ -270,12 +274,13 @@ async fn run(cli: Cli) -> Result<()> {
             commands::handle_show(subcommand).await
         }
         Commands::Events {
+            network_id,
             chain,
             blocks,
             address,
         } => {
-            info!(chain = %chain, blocks = blocks, address = ?address, "Executing events command");
-            commands::handle_events(chain, blocks, address).await
+            info!(network_id = ?network_id, chain = ?chain, blocks = blocks, address = ?address, "Executing events command");
+            commands::handle_events(network_id, chain, blocks, address).await
         }
         Commands::SponsorClaim { deposit, l2_from } => {
             info!(deposit, l2_from, "Executing sponsor-claim command");
@@ -377,7 +382,7 @@ fn print_error(error: &error::AggSandboxError) {
                     eprintln!("   1. Check Docker is running:");
                     eprintln!("      {}", "docker --version".cyan());
                     eprintln!("   2. Verify Docker Compose:");
-                    eprintln!("      {}", "docker-compose --version".cyan());
+                    eprintln!("      {}", "docker compose version".cyan());
                     eprintln!("   3. Stop any existing containers:");
                     eprintln!("      {}", "aggsandbox stop".cyan());
                     eprintln!("   4. Check for port conflicts:");
@@ -414,7 +419,7 @@ fn print_error(error: &error::AggSandboxError) {
                     eprintln!("   • API service is starting up");
                     eprintln!("   • Wait 30-60 seconds and try again");
                     eprintln!("   • Check service health:");
-                    eprintln!("     {}", "aggsandbox logs bridge-service".cyan());
+                    eprintln!("     {}", "aggsandbox logs aggkit".cyan());
                 }
                 error::ApiError::RequestFailed { status, .. } => {
                     eprintln!("{}", "💡 HTTP Error Help:".blue().bold());

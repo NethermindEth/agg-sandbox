@@ -7,7 +7,7 @@ use colored::*;
 pub async fn handle_info() -> Result<()> {
     let config = Config::load()?;
 
-    println!("{}", "📋 AggLayer Sandbox Information".blue().bold());
+    println!("{}", "📋 Agglayer Sandbox Information".blue().bold());
     logs::print_sandbox_info(&config);
 
     Ok(())

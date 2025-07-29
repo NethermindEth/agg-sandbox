@@ -2,65 +2,190 @@
 
 This document provides the commands and endpoints needed to perform a complete asset bridging flow from L1 to L2 using the Polygon ZkEVM bridge.
 
+## Table of Contents
+
+- [Prerequisites](#prerequisites)
+  - [System Requirements](#system-requirements)
+  - [Environment Setup](#environment-setup)
+  - [Environment Validation](#environment-validation)
+- [Quick Start Guide](#quick-start-guide)
+- [Basic L1 to L2 Bridge Flow](#basic-l1-to-l2-bridge-flow)
+  - [Step 1: Approve Bridge Contract](#step-1-approve-bridge-contract-to-spend-tokens)
+  - [Step 2: Bridge Assets](#step-2-bridge-assets-from-l1-to-l2)
+  - [Step 3: Prepare Token Metadata](#step-3-prepare-token-metadata)
+  - [Step 4: Get Claim Proof](#step-4-get-claim-proof)
+  - [Step 5: Claim Bridged Assets](#step-5-claim-bridged-assets-on-l2)
+  - [Step 6: Verify Token Balance](#step-6-verify-token-balance)
+- [Bidirectional Bridge (L2 to L1)](#step-7-bridge-back-to-l1)
+- [Advanced Features](#bridge-and-call)
+  - [Bridge and Call Overview](#bridge-and-call-overview)
+  - [Step-by-Step Process](#step-by-step-bridge-and-call-process)
+  - [Use Cases](#use-cases-for-bridge-and-call)
+- [Manual Claiming (Advanced)](#manual-claiming-advanced)
+- [API Reference](#aggkit-api-endpoints)
+- [Troubleshooting](#troubleshooting)
+
 ## Prerequisites
+
+### System Requirements
+
+- **Rust** >= 1.70.0
+- **Foundry** (cast CLI)
+- **Docker** and Docker Compose
+- **jq** (for JSON processing)
+
+### Environment Setup
 
 Before starting the bridging process, make sure to start the agg-sandbox environment and source your environment variables:
 
 ```bash
-cp .env.example .env
-```
+# Copy environment template
+cp .env.example .env && source .env
 
-```bash
+# Start the sandbox
 aggsandbox start --detach
+
+# Source environment variables
+source .env
 ```
 
+### Environment Validation
+
+Verify that all required environment variables are properly set:
+
 ```bash
-source .env
+# Verify required variables are set
+echo "Verifying environment variables..."
+required_vars=("AGG_ERC20_L1" "POLYGON_ZKEVM_BRIDGE_L1" "PRIVATE_KEY_1" "ACCOUNT_ADDRESS_1" "RPC_1" "RPC_2")
+for var in "${required_vars[@]}"; do
+  if [ -z "${!var}" ]; then
+    echo "❌ Missing required variable: $var"
+    exit 1
+  else
+    echo "✅ $var is set"
+  fi
+done
+
+# Test RPC connectivity
+echo "Testing RPC connections..."
+cast block-number --rpc-url $RPC_1 && echo "✅ L1 RPC connected"
+cast block-number --rpc-url $RPC_2 && echo "✅ L2 RPC connected"
 ```
 
 This ensures all the required environment variables (like `$AGG_ERC20_L1`, `$POLYGON_ZKEVM_BRIDGE_L1`, `$PRIVATE_KEY_1`, etc.) are available in your shell session.
 
-## Step 1: Approve Bridge Contract to Spend Tokens
+## Quick Start Guide
+
+For experienced users, here's the complete L1→L2 bridge flow:
+
+```bash
+# 1. Setup and approve
+source .env
+cast send $AGG_ERC20_L1 \
+  "approve(address,uint256)" \
+  $POLYGON_ZKEVM_BRIDGE_L1 100 \
+  --private-key $PRIVATE_KEY_1 \
+  --rpc-url $RPC_1
+
+# 2. Bridge assets
+cast send $POLYGON_ZKEVM_BRIDGE_L1 \
+  "bridgeAsset(uint32,address,uint256,address,bool,bytes)" \
+  $CHAIN_ID_AGGLAYER_1 $ACCOUNT_ADDRESS_2 10 $AGG_ERC20_L1 true 0x \
+  --private-key $PRIVATE_KEY_1 \
+  --rpc-url $RPC_1
+
+# 3. Get proof data
+DEPOSIT_COUNT=$(aggsandbox show bridges --network-id 0 --json | jq -r '.bridges[0].deposit_count')
+LEAF_INDEX=$(aggsandbox show l1-info-tree-index --network-id 0 --deposit-count $DEPOSIT_COUNT --json | jq -r '.')
+PROOF_DATA=$(aggsandbox show claim-proof --network-id 0 --leaf-index $LEAF_INDEX --deposit-count $DEPOSIT_COUNT --json)
+
+# 4. Extract proof values
+MAINNET_EXIT_ROOT=$(echo $PROOF_DATA | jq -r '.l1_info_tree_leaf.mainnet_exit_root')
+ROLLUP_EXIT_ROOT=$(echo $PROOF_DATA | jq -r '.l1_info_tree_leaf.rollup_exit_root')
+
+# 5. Claim on L2
+METADATA=$(cast abi-encode "f(string,string,uint8)" "AggERC20" "AGGERC20" 18)
+cast send $POLYGON_ZKEVM_BRIDGE_L2 \
+  "claimAsset(uint256,bytes32,bytes32,uint32,address,uint32,address,uint256,bytes)" \
+  $DEPOSIT_COUNT $MAINNET_EXIT_ROOT $ROLLUP_EXIT_ROOT \
+  1 $AGG_ERC20_L1 $CHAIN_ID_AGGLAYER_1 $ACCOUNT_ADDRESS_2 10 $METADATA \
+  --private-key $PRIVATE_KEY_2 \
+  --rpc-url $RPC_2 \
+  --gas-limit 3000000
+```
+
+## Basic L1 to L2 Bridge Flow
+
+### Step 1: Approve Bridge Contract to Spend Tokens
 
 Before bridging assets, you need to approve the bridge contract to spend your tokens on your behalf.
 
-```bash
-cast call $AGG_ERC20_L1 "balanceOf(address)" $ACCOUNT_ADDRESS_1 --rpc-url $RPC_1
-```
+#### Check Current Balance
 
 ```bash
-cast send $AGG_ERC20_L1 "approve(address,uint256)" $POLYGON_ZKEVM_BRIDGE_L1 100 --private-key $PRIVATE_KEY_1 --rpc-url $RPC_1
+cast call $AGG_ERC20_L1 \
+  "balanceOf(address)" \
+  $ACCOUNT_ADDRESS_1 \
+  --rpc-url $RPC_1
+```
+
+#### Approve Bridge Contract
+
+```bash
+cast send $AGG_ERC20_L1 \
+  "approve(address,uint256)" \
+  $POLYGON_ZKEVM_BRIDGE_L1 100 \
+  --private-key $PRIVATE_KEY_1 \
+  --rpc-url $RPC_1
+```
+
+#### Verify Approval
+
+```bash
+cast call $AGG_ERC20_L1 \
+  "allowance(address,address)" \
+  $ACCOUNT_ADDRESS_1 $POLYGON_ZKEVM_BRIDGE_L1 \
+  --rpc-url $RPC_1
 ```
 
 **Explanation**: This command approves the Polygon ZkEVM bridge contract on L1 to spend 100 tokens from your account. The `approve` function is a standard ERC20 function that allows another contract (the bridge) to transfer tokens on your behalf.
 
-## Step 2: Bridge Assets from L1 to L2
+### Step 2: Bridge Assets from L1 to L2
 
 Initiate the bridging process by calling the bridge contract to transfer assets to the destination chain.
 
 ```bash
-cast send $POLYGON_ZKEVM_BRIDGE_L1 "bridgeAsset(uint32,address,uint256,address,bool,bytes)" $CHAIN_ID_AGGLAYER_1 $ACCOUNT_ADDRESS_2 10 $AGG_ERC20_L1 true 0x --private-key $PRIVATE_KEY_1 --rpc-url $RPC_1
+cast send $POLYGON_ZKEVM_BRIDGE_L1 \
+  "bridgeAsset(uint32,address,uint256,address,bool,bytes)" \
+  $CHAIN_ID_AGGLAYER_1 $ACCOUNT_ADDRESS_2 10 $AGG_ERC20_L1 true 0x \
+  --private-key $PRIVATE_KEY_1 \
+  --rpc-url $RPC_1
 ```
+
+**Parameters:**
+
+1. `$CHAIN_ID_AGGLAYER_1` - The destination chain ID
+2. `$ACCOUNT_ADDRESS_2` - The recipient address on L2
+3. `10` - Amount of tokens to bridge
+4. `$AGG_ERC20_L1` - The token contract address
+5. `true` - Whether to force the bridge (bypass some checks)
+6. `0x` - Additional data (empty in this case)
+
+#### Verify Balance After Bridge
 
 ```bash
-cast call $AGG_ERC20_L1 "balanceOf(address)" $ACCOUNT_ADDRESS_1 --rpc-url $RPC_1
+cast call $AGG_ERC20_L1 \
+  "balanceOf(address)" \
+  $ACCOUNT_ADDRESS_1 \
+  --rpc-url $RPC_1
 ```
 
-**Explanation**: This command initiates the bridging of 10 tokens from L1 to the destination L2 chain. The parameters are:
-
-- `$CHAIN_ID_AGGLAYER_1`: The destination chain ID
-- `$ACCOUNT_ADDRESS_2`: The recipient address on L2
-- `10`: Amount of tokens to bridge
-- `$AGG_ERC20_L1`: The token contract address
-- `true`: Whether to force the bridge (bypass some checks)
-- `0x`: Additional data (empty in this case)
-
-### Check Bridge Details
+#### Check Bridge Details
 
 After initiating the bridge, you can check the bridge details using the CLI command:
 
 ```bash
-aggsandbox show bridges --chain-id 1
+aggsandbox show bridges --network-id 0
 ```
 
 This will return bridge information including transaction details, deposit count, and metadata. Example response:
@@ -84,27 +209,29 @@ This will return bridge information including transaction details, deposit count
       "metadata": "0x000000000000000000000000000000000000000000000000000000000000006000000000000000000000000000000000000000000000000000000000000000a000000000000000000000000000000000000000000000000000000000000000120000000000000000000000000000000000000000000000000000000000000008416767455243323000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000084147474552433230000000000000000000000000000000000000000000000000",
       "deposit_count": 0,
       "is_native_token": false,
-      "bridge_hash": "0xbdc21b1ceb90347c5fe8abdbbf8996fe062241770ea5bcf8b4e654e79848144b",
-  ],
+      "bridge_hash": "0xbdc21b1ceb90347c5fe8abdbbf8996fe062241770ea5bcf8b4e654e79848144b"
+    }
+  ]
 }
 ```
 
 **Key information from the response:**
 
-- `deposit_count`: Use this value in the claimAsset command
-- `bridge_hash`: The unique identifier for this bridge transaction
-- `tx_hash`: The transaction hash on L1
-- `sandbox_metadata`: Indicates this is running in sandbox mode with instant claims enabled
+- `deposit_count` - Use this value in the claimAsset command
+- `bridge_hash` - The unique identifier for this bridge transaction
+- `tx_hash` - The transaction hash on L1
+- `sandbox_metadata` - Indicates this is running in sandbox mode with instant claims enabled
 
-### Get L1 Info Tree Index
+#### Get L1 Info Tree Index
 
 After getting the deposit count, you need to retrieve the L1 info tree index to use in the claim-proof endpoint:
 
 ```bash
-aggsandbox show l1-info-tree-index --chain-id 1 --deposit-count 0
+# Replace <DEPOSIT_COUNT> with deposit_count from bridge response
+aggsandbox show l1-info-tree-index --network-id 0 --deposit-count <DEPOSIT_COUNT>
 ```
 
-This will return the L1 info tree index data. Example response:
+Example response:
 
 ```json
 {
@@ -114,9 +241,9 @@ This will return the L1 info tree index data. Example response:
 
 **Key information from the response:**
 
-- `l1_info_tree_index`: Use this value as the `leaf_index` parameter in the claim-proof endpoint
+- `l1_info_tree_index` - Use this value as the `leaf_index` parameter in the claim-proof endpoint
 
-## Step 3: Prepare Token Metadata
+### Step 3: Prepare Token Metadata
 
 Create the metadata needed for claiming the bridged tokens on L2.
 
@@ -126,12 +253,14 @@ METADATA=$(cast abi-encode "f(string,string,uint8)" "AggERC20" "AGGERC20" 18)
 
 **Explanation**: This command encodes the token metadata (name, symbol, and decimals) into the format expected by the bridge. The metadata is used when claiming tokens on the destination chain to ensure the correct token properties are set.
 
-## Step 4: Get Claim Proof
+### Step 4: Get Claim Proof
 
 Before claiming assets, you need to get the proof data using the CLI command. Use the `l1_info_tree_index` value from the previous step as the `leaf_index` parameter:
 
 ```bash
-aggsandbox show claim-proof --chain-id 1 --leaf-index 0 --deposit-count 0
+# Replace <LEAF_INDEX> with l1_info_tree_index from previous response
+# Replace <DEPOSIT_COUNT> with deposit_count from bridge response
+aggsandbox show claim-proof --network-id 0 --leaf-index <LEAF_INDEX> --deposit-count <DEPOSIT_COUNT>
 ```
 
 This will return the proof data including the `mainnet_exit_root` and `rollup_exit_root` needed for the claimAsset call. Example response:
@@ -147,15 +276,15 @@ This will return the proof data including the `mainnet_exit_root` and `rollup_ex
     "mainnet_exit_root": "0x50b0cc5cad7791d8f04f43e13c74b4849b42497b1b17185e6641265c98daa686",
     "rollup_exit_root": "0x0000000000000000000000000000000000000000000000000000000000000000",
     "global_exit_root": "0x5246c6ddb93c3075c3521042950639ba6fb01c7f6e92377bc0590fffef75025c",
-    "hash": "0x105fbdbf7fb2642958334a88a4dab4af1d4981023a6dc62c4dd5f533ef81e068",
+    "hash": "0x105fbdbf7fb2642958334a88a4dab4af1d4981023a6dc62c4dd5f533ef81e068"
   }
 }
 ```
 
 **Key values to extract:**
 
-- `mainnet_exit_root`: Use this as the merkle root in claimAsset
-- `rollup_exit_root`: Use this as the nullifier in claimAsset
+- `mainnet_exit_root` - Use this as the merkle root in claimAsset
+- `rollup_exit_root` - Use this as the nullifier in claimAsset
 
 ## Using claimsponsor
 
@@ -176,28 +305,40 @@ curl "http://localhost:5577/bridge/v1/sponsored-claim-status?global_index=0"
 Claim the bridged tokens on the destination L2 chain using the proof generated by the bridge.
 
 ```bash
-cast send $POLYGON_ZKEVM_BRIDGE_L2 "claimAsset(uint256,bytes32,bytes32,uint32,address,uint32,address,uint256,bytes)" 0 0x50b0cc5cad7791d8f04f43e13c74b4849b42497b1b17185e6641265c98daa686 0x0000000000000000000000000000000000000000000000000000000000000000 1 $AGG_ERC20_L1 1101 $ACCOUNT_ADDRESS_2 10 $METADATA --private-key $PRIVATE_KEY_2 --rpc-url $RPC_2   --gas-limit 3000000
+cast send $POLYGON_ZKEVM_BRIDGE_L2 \
+  "claimAsset(uint256,bytes32,bytes32,uint32,address,uint32,address,uint256,bytes)" \
+  <DEPOSIT_COUNT> \
+  <MAINNET_EXIT_ROOT> \
+  <ROLLUP_EXIT_ROOT> \
+  $CHAIN_ID_MAINNET \
+  $AGG_ERC20_L1 \
+  $CHAIN_ID_AGGLAYER_1 \
+  $ACCOUNT_ADDRESS_2 \
+  10 \
+  $METADATA \
+  --private-key $PRIVATE_KEY_2 \
+  --rpc-url $RPC_2 \
+  --gas-limit 3000000
 ```
 
-**Explanation**: This command claims the bridged tokens on L2. The parameters include:
+**Parameters:**
 
-- `1`: Deposit count (unique identifier for the bridge transaction)
-- `0x50b0cc5cad7791d8f04f43e13c74b4849b42497b1b17185e6641265c98daa686`: Merkle root for the proof
-- `0x0000000000000000000000000000000000000000000000000000000000000000`: Nullifier (prevents double-spending)
-- `1`: Origin network ID
-- `$AGG_ERC20_L1`: Token address
-- `1101`: Destination network ID
-- `$ACCOUNT_ADDRESS_2`: Recipient address
-- `10`: Amount to claim
-- `$METADATA`: Token metadata
-- `--gas-limit 3000000`: Higher gas limit for complex claim operation
+1. `<DEPOSIT_COUNT>` - Deposit count from bridge response
+2. `<MAINNET_EXIT_ROOT>` - Mainnet exit root from claim proof
+3. `<ROLLUP_EXIT_ROOT>` - Rollup exit root from claim proof
+4. `CHAIN_ID_MAINNET` - Origin chain ID
+5. `$AGG_ERC20_L1` - Token contract address
+6. `CHAIN_ID_AGGLAYER_1` - Destination chain ID
+7. `$ACCOUNT_ADDRESS_2` - Recipient address
+8. `10` - Amount to claim
+9. `$METADATA` - Token metadata
 
-### Verify Claim Processing
+#### Verify Claim Processing
 
 After claiming assets, you can verify the claim was processed using the CLI command:
 
 ```bash
-aggsandbox show claims --chain-id 1101
+aggsandbox show claims --network-id 1
 ```
 
 This will return information about processed claims. Example response:
@@ -225,17 +366,44 @@ This will return information about processed claims. Example response:
 
 **Key information from the response:**
 
-- `tx_hash`: The L2 transaction hash for the claim
-- `amount`: The amount that was claimed
-- `destination_address`: The address that received the tokens
-- `block_timestamp`: When the claim was processed
+- `tx_hash` - The L2 transaction hash for the claim
+- `amount` - The amount that was claimed
+- `destination_address` - The address that received the tokens
+- `block_timestamp` - When the claim was processed
 
-## Step 6: Verify Token Balance
+### Step 6: Verify Token Balance
 
-Check that the tokens were successfully received on the destination chain.
+Fetch the events on L2 to retrieve the new TokenWrapped address:
 
 ```bash
-cast call 0xe806a11ebf128faa3d1a3aa94c2db46c5f1b60b4 "balanceOf(address)" $ACCOUNT_ADDRESS_2 --rpc-url $RPC_2
+aggsandbox events --network-id 1
+```
+
+You'll see the following event:
+
+```bash
+⏰ Time: 2025-07-21 19:49:54 UTC
+🧱 Block: 7
+📄 Transaction: 0x2fc393c97d42fe4eff3e52b29fa62663eabc30cc913c6e98af4ef28530c8137b
+📍 Contract: 0x5fbdb2315678afecb367f032d93f642f64180aa3
+🎯 Event: NewWrappedToken(uint32,address,address,bytes)
+  🪙 New Wrapped Token:
+  🌐 Origin Network: 1
+  📍 Origin Token: 0xdc64a140aa3e981100a9beca4e685f962f0cf6c9
+  🎁 Wrapped Token: 0x19e2b7738a026883d08c3642984ab6d7510ca238 # <-- New token address (may be different for you)
+```
+
+Check that the tokens were successfully received on the destination chain:
+
+```bash
+# Set the wrapped token address from the event
+export TOKENWRAPPED=0x19e2b7738a026883d08c3642984ab6d7510ca238
+
+# Check balance
+cast call $TOKENWRAPPED \
+  "balanceOf(address)" \
+  $ACCOUNT_ADDRESS_2 \
+  --rpc-url $RPC_2
 ```
 
 ## Step 7: Bridge Back to L1
@@ -247,27 +415,35 @@ To complete the round-trip bridging process, you can bridge the tokens back from
 First, approve the L2 bridge contract to spend your tokens:
 
 ```bash
-cast send 0xe806a11ebf128faa3d1a3aa94c2db46c5f1b60b4 "approve(address,uint256)" $POLYGON_ZKEVM_BRIDGE_L2 10 --private-key $PRIVATE_KEY_2 --rpc-url $RPC_2
+cast send $TOKENWRAPPED \
+  "approve(address,uint256)" \
+  $POLYGON_ZKEVM_BRIDGE_L2 10 \
+  --private-key $PRIVATE_KEY_2 \
+  --rpc-url $RPC_2
 ```
 
-**Explanation**: This approves the L2 bridge contract to spend 10 tokens from your L2 account. The token address `0xe806a11ebf128faa3d1a3aa94c2db46c5f1b60b4` is the L2 representation of your original token.
+**Explanation**: This approves the L2 bridge contract to spend 10 tokens from your L2 account. The token address `$TOKENWRAPPED` is the L2 representation of your original token.
 
 ### Step 7b: Bridge Assets from L2 to L1
 
 Initiate the bridge back to L1:
 
 ```bash
-cast send $POLYGON_ZKEVM_BRIDGE_L2 "bridgeAsset(uint32,address,uint256,address,bool,bytes)" $CHAIN_ID_MAINNET $ACCOUNT_ADDRESS_1 10 0xe806a11ebf128faa3d1a3aa94c2db46c5f1b60b4 true 0x --private-key $PRIVATE_KEY_2 --rpc-url $RPC_2
+cast send $POLYGON_ZKEVM_BRIDGE_L2 \
+  "bridgeAsset(uint32,address,uint256,address,bool,bytes)" \
+  $CHAIN_ID_MAINNET $ACCOUNT_ADDRESS_1 10 $TOKENWRAPPED true 0x \
+  --private-key $PRIVATE_KEY_2 \
+  --rpc-url $RPC_2
 ```
 
-**Explanation**: This bridges 10 tokens from L2 back to L1. The parameters are:
+**Parameters:**
 
-- `$CHAIN_ID_MAINNET`: Destination chain ID (1 for Ethereum mainnet)
-- `$ACCOUNT_ADDRESS_1`: Recipient address on L1 (your original account)
-- `10`: Amount of tokens to bridge
-- `0xe806a11ebf128faa3d1a3aa94c2db46c5f1b60b4`: L2 token contract address
-- `true`: Force bridge flag
-- `0x`: Additional data (empty)
+1. `$CHAIN_ID_MAINNET` - Destination chain ID (1 for Ethereum mainnet)
+2. `$ACCOUNT_ADDRESS_1` - Recipient address on L1 (your original account)
+3. `10` - Amount of tokens to bridge
+4. `$TOKENWRAPPED` - L2 token contract address
+5. `true` - Force bridge flag
+6. `0x` - Additional data (empty)
 
 ### Step 7c: Get Bridge Details and Proof for L2→L1
 
@@ -275,7 +451,13 @@ Follow the same process as before to get the claim proof:
 
 ```bash
 # Get bridge details
-aggsandbox show bridges --network-id 1101
+aggsandbox show bridges --network-id 1
+
+# Get L1 info tree index
+aggsandbox show l1-info-tree-index --network-id 1 --deposit-count <DEPOSIT_COUNT>
+
+# Get claim proof
+aggsandbox show claim-proof --network-id 1 --leaf-index <LEAF_INDEX> --deposit-count <DEPOSIT_COUNT>
 ```
 
 ### Step 7d: Claim Assets on L1
@@ -283,13 +465,26 @@ aggsandbox show bridges --network-id 1101
 Claim the bridged tokens back on L1:
 
 ```bash
-cast send $POLYGON_ZKEVM_BRIDGE_L1 "claimAsset(uint256,bytes32,bytes32,uint32,address,uint32,address,uint256,bytes)" 0 0x50b0cc5cad7791d8f04f43e13c74b4849b42497b1b17185e6641265c98daa686 0x0000000000000000000000000000000000000000000000000000000000000000 1 $AGG_ERC20_L1 1 $ACCOUNT_ADDRESS_1 10 0x --private-key $PRIVATE_KEY_1 --rpc-url $RPC_1 --gas-limit 3000000
+cast send $POLYGON_ZKEVM_BRIDGE_L1 \
+  "claimAsset(uint256,bytes32,bytes32,uint32,address,uint32,address,uint256,bytes)" \
+  <DEPOSIT_COUNT> \
+  <MAINNET_EXIT_ROOT> \
+  <ROLLUP_EXIT_ROOT> \
+  $CHAIN_ID_MAINNET \
+  $AGG_ERC20_L1 \
+  $CHAIN_ID_MAINNET \
+  $ACCOUNT_ADDRESS_1 \
+  10 \
+  0x \
+  --private-key $PRIVATE_KEY_1 \
+  --rpc-url $RPC_1 \
+  --gas-limit 3000000
 ```
 
-**Explanation**: This claims the tokens back on L1. Note the parameter changes:
+**Parameter notes:**
 
-- `1101`: Origin network ID (L2 chain ID)
-- `1`: Destination network ID (L1 chain ID)
+- `CHAIN_ID_MAINNET` - Origin network ID of the token (L1 chain ID)
+- `CHAIN_ID_MAINNET` - Destination network ID (L1 chain ID)
 - The merkle root and nullifier values come from the claim-proof endpoint
 
 ### Step 7e: Verify Final Balance
@@ -297,28 +492,44 @@ cast send $POLYGON_ZKEVM_BRIDGE_L1 "claimAsset(uint256,bytes32,bytes32,uint32,ad
 Check that the tokens have been successfully bridged back:
 
 ```bash
-cast call $AGG_ERC20_L1 "balanceOf(address)" $ACCOUNT_ADDRESS_1 --rpc-url $RPC_1
+cast call $AGG_ERC20_L1 \
+  "balanceOf(address)" \
+  $ACCOUNT_ADDRESS_1 \
+  --rpc-url $RPC_1
 ```
 
 **Explanation**: This verifies that your L1 account has received the tokens back, completing the round-trip bridge.
 
-**Explanation**: This command checks the token balance of the recipient address on L2 to confirm the bridging was successful. The `balanceOf` function is a standard ERC20 function that returns the token balance for a given address.
-
 ## Bridge and Call
+
+### Bridge and Call Overview
+
+**Warning**: The following commands assume that you restarted the aggsandbox with:
+
+```bash
+aggsandbox stop --volumes
+aggsandbox start --detach
+```
 
 The "Bridge and Call" feature allows you to bridge assets and simultaneously execute a function call on the destination chain in a single transaction. This is useful for complex DeFi operations that require both asset transfer and contract interaction.
 
-### Step 1: Approve Bridge Extension Contract
+### Step-by-Step Bridge and Call Process
+
+#### Step 1: Approve Bridge Extension Contract
 
 First, approve the bridge extension contract to spend your tokens:
 
 ```bash
-cast send $AGG_ERC20_L1 "approve(address,uint256)" $BRIDGE_EXTENSION_L1 100 --private-key $PRIVATE_KEY_1 --rpc-url $RPC_1
+cast send $AGG_ERC20_L1 \
+  "approve(address,uint256)" \
+  $BRIDGE_EXTENSION_L1 100 \
+  --private-key $PRIVATE_KEY_1 \
+  --rpc-url $RPC_1
 ```
 
 **Explanation**: This approves the bridge extension contract (different from the main bridge contract) to spend 100 tokens from your L1 account.
 
-### Step 2: Execute Bridge and Call
+#### Step 2: Execute Bridge and Call
 
 Bridge tokens and execute a function call on the destination chain:
 
@@ -326,24 +537,31 @@ Bridge tokens and execute a function call on the destination chain:
 # Encode the transfer call data (transfer 1 token to ACCOUNT_ADDRESS_1)
 TRANSFER_DATA=$(cast calldata "transfer(address,uint256)" $ACCOUNT_ADDRESS_1 1)
 
-# Get the precalculated L2 token address 
-L2_TOKEN_ADDRESS=$(cast call $POLYGON_ZKEVM_BRIDGE_L2 "precalculatedWrapperAddress(uint32,address,string,string,uint8)" 1 $AGG_ERC20_L1 "AggERC20" "AGGERC20" 18 --rpc-url $RPC_2 | sed 's/0x000000000000000000000000/0x/')
+# Get the precalculated L2 token address
+L2_TOKEN_ADDRESS=$(cast call $POLYGON_ZKEVM_BRIDGE_L2 \
+  "precalculatedWrapperAddress(uint32,address,string,string,uint8)" \
+  1 $AGG_ERC20_L1 "AggERC20" "AGGERC20" 18 \
+  --rpc-url $RPC_2 | sed 's/0x000000000000000000000000/0x/')
 
 # Execute bridge and call
-cast send $BRIDGE_EXTENSION_L1 "bridgeAndCall(address,uint256,uint32,address,address,bytes,bool)" $AGG_ERC20_L1 10 $CHAIN_ID_AGGLAYER_1 $L2_TOKEN_ADDRESS $ACCOUNT_ADDRESS_2 $TRANSFER_DATA true --private-key $PRIVATE_KEY_1 --rpc-url $RPC_1
+cast send $BRIDGE_EXTENSION_L1 \
+  "bridgeAndCall(address,uint256,uint32,address,address,bytes,bool)" \
+  $AGG_ERC20_L1 10 $CHAIN_ID_AGGLAYER_1 $L2_TOKEN_ADDRESS $ACCOUNT_ADDRESS_2 $TRANSFER_DATA true \
+  --private-key $PRIVATE_KEY_1 \
+  --rpc-url $RPC_1
 ```
 
-**Explanation**: This command bridges 10 tokens and schedules a transfer call on the destination chain. The parameters are:
+**Parameters:**
 
-- `$AGG_ERC20_L1`: Token contract address to bridge
-- `10`: Amount to bridge
-- `$CHAIN_ID_AGGLAYER_1`: Destination chain ID
-- `$L2_TOKEN_ADDRESS`: Target contract address on L2 (precalculated wrapped token address)
-- `$ACCOUNT_ADDRESS_2`: Fallback address if call fails
-- `$TRANSFER_DATA`: Encoded transfer function call
-- `true`: Force bridge flag
+1. `$AGG_ERC20_L1` - Token contract address to bridge
+2. `10` - Amount to bridge
+3. `$CHAIN_ID_AGGLAYER_1` - Destination chain ID
+4. `$L2_TOKEN_ADDRESS` - Target contract address on L2 (precalculated wrapped token address)
+5. `$ACCOUNT_ADDRESS_2` - Fallback address if call fails
+6. `$TRANSFER_DATA` - Encoded transfer function call
+7. `true` - Force bridge flag
 
-### Step 3: Get Bridge Information and Claim Asset
+#### Step 3: Get Bridge Information and Claim Asset
 
 **Important**: `bridgeAndCall` creates two bridge transactions:
 
@@ -352,12 +570,12 @@ cast send $BRIDGE_EXTENSION_L1 "bridgeAndCall(address,uint256,uint32,address,add
 
 **⚠️ Critical**: The asset bridge MUST be claimed first before the message can be processed.
 
-#### Get Bridge Information
+##### Get Bridge Information
 
 Check the bridges to get the deposit counts and proof data:
 
 ```bash
-aggsandbox show bridges --network-id 1
+aggsandbox show bridges --network-id 0
 ```
 
 Look for both bridge entries in the response. Note the `deposit_count` values:
@@ -365,96 +583,92 @@ Look for both bridge entries in the response. Note the `deposit_count` values:
 - **First bridge entry** (asset): `deposit_count = 0`
 - **Second bridge entry** (message): `deposit_count = 1`
 
-#### Get L1 Info Tree Index for Asset Bridge
-
-```bash
-aggsandbox show l1-info-tree-index --network-id 1 --deposit-count 0
-```
-
-#### Get Claim Proof for Asset Bridge
-
-```bash
-aggsandbox show claim-proof --network-id 1 --leaf-index [L1_INFO_TREE_INDEX] --deposit-count 0
-```
-
-#### Step 3a: Claim the Asset Bridge
+##### Step 3a: Claim the Asset Bridge
 
 First, claim the asset bridge to the JumpPoint address:
 
 ```bash
-# Generate the required data for JumpPoint address calculation
-TRANSFER_DATA=$(cast calldata "transfer(address,uint256)" $ACCOUNT_ADDRESS_1 1)
-L2_TOKEN_ADDRESS=$(cast call $POLYGON_ZKEVM_BRIDGE_L2 "precalculatedWrapperAddress(uint32,address,string,string,uint8)" 1 $AGG_ERC20_L1 "AggERC20" "AGGERC20" 18 --rpc-url $RPC_2 | sed 's/0x000000000000000000000000/0x/')
+# Get L1 info tree index for asset bridge
+aggsandbox show l1-info-tree-index --network-id 0 --deposit-count 0
 
-# The asset was automatically bridged to a precalculated JumpPoint address by bridgeAndCall()
-# We need to manually claim it first before the message can be processed
-# In production, this might be auto-claimed by the system
-CLAIM_TO_ADDRESS=$ACCOUNT_ADDRESS_2
+# Get claim proof for asset bridge
+aggsandbox show claim-proof --network-id 1 --leaf-index <L1_INFO_TREE_INDEX> --deposit-count 0
 
 # Prepare token metadata for asset claim
 METADATA=$(cast abi-encode "f(string,string,uint8)" "AggERC20" "AGGERC20" 18)
 
-# Claim the asset bridge (use values from claim-proof response)
-cast send $POLYGON_ZKEVM_BRIDGE_L2 "claimAsset(uint256,bytes32,bytes32,uint32,address,uint32,address,uint256,bytes)" \
-    0 \
-    [MAINNET_EXIT_ROOT_FROM_PROOF] \
-    [ROLLUP_EXIT_ROOT_FROM_PROOF] \
-    1 \
-    $AGG_ERC20_L1 \
-    $CHAIN_ID_AGGLAYER_1 \
-    $CLAIM_TO_ADDRESS \
-    10 \
-    $METADATA \
-    --private-key $PRIVATE_KEY_2 \
-    --rpc-url $RPC_2 \
-    --gas-limit 3000000
+# Claim the asset bridge (replace placeholders with actual values from claim-proof response)
+cast send $POLYGON_ZKEVM_BRIDGE_L2 \
+  "claimAsset(uint256,bytes32,bytes32,uint32,address,uint32,address,uint256,bytes)" \
+  0 \
+  <MAINNET_EXIT_ROOT_FROM_PROOF> \
+  <ROLLUP_EXIT_ROOT_FROM_PROOF> \
+  $CHAIN_ID_MAINNET \
+  $AGG_ERC20_L1 \
+  $CHAIN_ID_AGGLAYER_1 \
+  $ACCOUNT_ADDRESS_2 \
+  10 \
+  $METADATA \
+  --private-key $PRIVATE_KEY_2 \
+  --rpc-url $RPC_2 \
+  --gas-limit 3000000
 ```
 
-#### Step 3b: Get Message Bridge Claim Proof
+##### Step 3b: Get Message Bridge Claim Proof
 
 Get the proof data for the message bridge:
 
 ```bash
 # Get L1 info tree index for message bridge
-aggsandbox show l1-info-tree-index --network-id 1 --deposit-count 1
+aggsandbox show l1-info-tree-index --network-id 0 --deposit-count 1
 
 # Get claim proof for message bridge
-aggsandbox show claim-proof --network-id 1 --leaf-index [L1_INFO_TREE_INDEX_MESSAGE] --deposit-count 1
+aggsandbox show claim-proof --network-id 1 --leaf-index <L1_INFO_TREE_INDEX_MESSAGE> --deposit-count 1
 ```
 
-#### Step 3c: Claim the Message Bridge
+##### Step 3c: Claim the Message Bridge
 
 Execute the message claim to trigger the automatic execution:
 
 ```bash
-# Generate the required data
-TRANSFER_DATA=$(cast calldata "transfer(address,uint256)" $ACCOUNT_ADDRESS_1 1)
-L2_TOKEN_ADDRESS=$(cast call $POLYGON_ZKEVM_BRIDGE_L2 "precalculatedWrapperAddress(uint32,address,string,string,uint8)" 1 $AGG_ERC20_L1 "AggERC20" "AGGERC20" 18 --rpc-url $RPC_2 | sed 's/0x000000000000000000000000/0x/')
-
 # Create the metadata for the bridge extension call
-METADATA=$(cast abi-encode "f(uint256,address,address,uint32,address,bytes)" 0 $L2_TOKEN_ADDRESS $ACCOUNT_ADDRESS_2 1 $AGG_ERC20_L1 $TRANSFER_DATA)
+METADATA=$(cast abi-encode "f(uint256,address,address,uint32,address,bytes)" \
+  0 $L2_TOKEN_ADDRESS $ACCOUNT_ADDRESS_2 1 $AGG_ERC20_L1 $TRANSFER_DATA)
 
-# Claim the message bridge with actual values from your environment
-cast send $POLYGON_ZKEVM_BRIDGE_L2 "claimMessage(uint256,bytes32,bytes32,uint32,address,uint32,address,uint256,bytes)" 1 0xab6ef7caf19b63961aa41f0a10c8c30fec8d747342f8d49aa836406230cae965 0x0000000000000000000000000000000000000000000000000000000000000000 1 $BRIDGE_EXTENSION_L1 $CHAIN_ID_AGGLAYER_1 $BRIDGE_EXTENSION_L2 0 $METADATA --private-key $PRIVATE_KEY_2 --rpc-url $RPC_2 --gas-limit 3000000
+# Claim the message bridge (replace placeholders with actual values from your environment)
+cast send $POLYGON_ZKEVM_BRIDGE_L2 \
+  "claimMessage(uint256,bytes32,bytes32,uint32,address,uint32,address,uint256,bytes)" \
+  $CHAIN_ID_MAINNET \
+  <MAINNET_EXIT_ROOT_FROM_MESSAGE_PROOF> \
+  <ROLLUP_EXIT_ROOT_FROM_MESSAGE_PROOF> \
+  1 \
+  $BRIDGE_EXTENSION_L1 \
+  $CHAIN_ID_AGGLAYER_1 \
+  $BRIDGE_EXTENSION_L2 \
+  0 \
+  $METADATA \
+  --private-key $PRIVATE_KEY_2 \
+  --rpc-url $RPC_2 \
+  --gas-limit 3000000
 ```
 
-**Parameter Explanation**:
+**Parameters:**
 
-- `1`: Global index for message bridge (deposit_count = 1)
-- `[MAINNET_EXIT_ROOT_FROM_MESSAGE_PROOF]`: Use the mainnet exit root from the message claim proof
-- `[ROLLUP_EXIT_ROOT_FROM_MESSAGE_PROOF]`: Use the rollup exit root from the message claim proof
-- `1`: Origin network (L1)
-- `$BRIDGE_EXTENSION_L1`: Origin address (Bridge Extension on L1)
-- `$CHAIN_ID_AGGLAYER_1`: Destination network
-- `$BRIDGE_EXTENSION_L2`: Destination address (Bridge Extension on L2)
-- `0`: Amount (no ether with message)
-- `$METADATA`: Encoded parameters containing:
-  - `dependsOnIndex`: The asset bridge deposit count (0)
-  - `callAddress`: Target contract address (L2 token)
-  - `fallbackAddress`: Fallback address if call fails
-  - `assetOriginalNetwork`: Original asset network (1)
-  - `assetOriginalAddress`: Original asset address (L1 token)
-  - `callData`: Encoded function call to execute
+1. `1` - Global index for message bridge (deposit_count = 1)
+2. `<MAINNET_EXIT_ROOT_FROM_MESSAGE_PROOF>` - Use the mainnet exit root from the message claim proof
+3. `<ROLLUP_EXIT_ROOT_FROM_MESSAGE_PROOF>` - Use the rollup exit root from the message claim proof
+4. `CHAIN_ID_MAINNET` - Origin chain ID (L1)
+5. `$BRIDGE_EXTENSION_L1` - Origin address (Bridge Extension on L1)
+6. `$CHAIN_ID_AGGLAYER_1` - Destination chain ID
+7. `$BRIDGE_EXTENSION_L2` - Destination address (Bridge Extension on L2)
+8. `0` - Amount (no ether with message)
+9. `$METADATA` - Encoded parameters containing:
+   - `dependsOnIndex`: The asset bridge deposit count (0)
+   - `callAddress`: Target contract address (L2 token)
+   - `fallbackAddress`: Fallback address if call fails
+   - `assetOriginalNetwork`: Original asset network (1)
+   - `assetOriginalAddress`: Original asset address (L1 token)
+   - `callData`: Encoded function call to execute
 
 #### What Happens During Execution
 
@@ -474,16 +688,16 @@ This feature is particularly useful for:
 - **Yield Farming**: Bridge tokens and stake them in a yield farm in a single transaction
 - **Cross-Chain Governance**: Bridge governance tokens and immediately vote on proposals
 
-### Monitoring Execution
+#### Monitoring Execution
 
 You can monitor the execution by checking bridge events:
 
 ```bash
 # Get bridge details to see both asset and message bridges
-aggsandbox show bridges --network-id 1
+aggsandbox show bridges --network-id 0
 
 # Check claims to see execution status
-aggsandbox show claims --network-id 1101
+aggsandbox show claims --network-id 1
 ```
 
 The system creates two bridge events:
@@ -518,19 +732,20 @@ For regular bridge messages (not from `bridgeAndCall`), you can claim manually:
 
 ```bash
 # Example: Claiming a regular bridge message
-cast send $POLYGON_ZKEVM_BRIDGE_L2 "claimMessage(uint256,bytes32,bytes32,uint32,address,uint32,address,uint256,bytes)" \
-    1 \
-    0x6974b4e71fdf57bb87aca8d85ce07a6eb1269064076c25476226fc1b7182076c \
-    0x0000000000000000000000000000000000000000000000000000000000000000 \
-    1 \
-    $BRIDGE_EXTENSION_L1 \
-    $CHAIN_ID_AGGLAYER_1 \
-    $BRIDGE_EXTENSION_L2 \
-    0 \
-    $METADATA \
-    --private-key $PRIVATE_KEY_2 \
-    --rpc-url $RPC_2 \
-    --gas-limit 3000000
+cast send $POLYGON_ZKEVM_BRIDGE_L2 \
+  "claimMessage(uint256,bytes32,bytes32,uint32,address,uint32,address,uint256,bytes)" \
+  1 \
+  0x6974b4e71fdf57bb87aca8d85ce07a6eb1269064076c25476226fc1b7182076c \
+  0x0000000000000000000000000000000000000000000000000000000000000000 \
+  $CHAIN_ID_MAINNET \
+  $BRIDGE_EXTENSION_L1 \
+  $CHAIN_ID_AGGLAYER_1 \
+  $BRIDGE_EXTENSION_L2 \
+  0 \
+  $METADATA \
+  --private-key $PRIVATE_KEY_2 \
+  --rpc-url $RPC_2 \
+  --gas-limit 3000000
 ```
 
 ### Key Differences
@@ -557,16 +772,16 @@ The AggKit provides REST API endpoints for interacting with the bridge system an
 
 ```bash
 # Get available bridges
-aggsandbox show bridges --network-id 1
+aggsandbox show bridges --network-id 0
 
 # Get L1 info tree index
-aggsandbox show l1-info-tree-index --network-id 1 --deposit-count 0
+aggsandbox show l1-info-tree-index --network-id 0 --deposit-count 0
 
 # Get claim proof
-aggsandbox show claim-proof --network-id 1 --leaf-index 0 --deposit-count 1
+aggsandbox show claim-proof --network-id 0 --leaf-index 0 --deposit-count 1
 
 # Get claims
-aggsandbox show claims --network-id 1101
+aggsandbox show claims --network-id 1
 ```
 
 ### Direct API Endpoints
@@ -584,7 +799,7 @@ http://localhost:5577/bridge/v1/bridges?network_id=1
 #### L1 Info Tree Index
 
 ```url
-http://localhost:5577/bridge/v1/l1-info-tree-index?network_id=1&deposit_count=0
+http://localhost:5577/bridge/v1/l1-info-tree-index?network_id=0&deposit_count=0
 ```
 
 **Explanation**: This endpoint retrieves the L1 info tree index for a given deposit count. The returned index is used as the `leaf_index` parameter in the claim-proof endpoint to generate the correct merkle proof for claiming bridged assets.
@@ -592,7 +807,7 @@ http://localhost:5577/bridge/v1/l1-info-tree-index?network_id=1&deposit_count=0
 #### Get Claim Proof
 
 ```url
-http://localhost:5577/bridge/v1/claim-proof?network_id=1&leaf_index=0&deposit_count=1
+http://localhost:5577/bridge/v1/claim-proof?network_id=0&leaf_index=0&deposit_count=1
 ```
 
 **Explanation**: This endpoint generates the merkle proof needed to claim bridged assets. The proof is required to verify that the bridge transaction was included in the bridge's merkle tree and is used in the `claimAsset` function.
@@ -600,7 +815,109 @@ http://localhost:5577/bridge/v1/claim-proof?network_id=1&leaf_index=0&deposit_co
 #### Get Claims
 
 ```url
-http://localhost:5577/bridge/v1/claims?network_id=1101
+http://localhost:5577/bridge/v1/claims?network_id=1
 ```
 
 **Explanation**: This endpoint returns a list of all claims (successful bridge transactions) for the specified network ID. It can be used to track bridge activity and verify the status of bridge transactions.
+
+## Troubleshooting
+
+### Common Issues
+
+#### Transaction Failures
+
+**Gas limit too low**
+
+```bash
+# Solution: Increase gas limit for complex operations
+--gas-limit 3000000
+```
+
+**Insufficient balance**
+
+```bash
+# Check token balance before bridging
+cast call $AGG_ERC20_L1 "balanceOf(address)" $ACCOUNT_ADDRESS_1 --rpc-url $RPC_1
+```
+
+**Approval not set**
+
+```bash
+# Verify bridge contract is approved to spend tokens
+cast call $AGG_ERC20_L1 "allowance(address,address)" $ACCOUNT_ADDRESS_1 $POLYGON_ZKEVM_BRIDGE_L1 --rpc-url $RPC_1
+```
+
+#### Bridge State Issues
+
+**Deposit count mismatch**
+
+```bash
+# Use aggsandbox to get correct deposit count
+DEPOSIT_COUNT=$(aggsandbox show bridges --network-id 1 | jq -r '.bridges[0].deposit_count')
+```
+
+**Invalid proof data**
+
+```bash
+# Regenerate proof using correct leaf index and deposit count
+aggsandbox show claim-proof --network-id 1 --leaf-index <LEAF_INDEX> --deposit-count <DEPOSIT_COUNT>
+```
+
+**Timing issues**
+
+```bash
+# Wait for block confirmations before claiming
+cast block-number --rpc-url $RPC_1
+cast block-number --rpc-url $RPC_2
+```
+
+#### Environment Problems
+
+```bash
+# Debug environment variables
+echo "L1 RPC: $RPC_1"
+echo "L2 RPC: $RPC_2"
+echo "Bridge L1: $POLYGON_ZKEVM_BRIDGE_L1"
+echo "Bridge L2: $POLYGON_ZKEVM_BRIDGE_L2"
+
+# Test RPC connectivity
+cast block-number --rpc-url $RPC_1 && echo "✅ L1 RPC connected"
+cast block-number --rpc-url $RPC_2 && echo "✅ L2 RPC connected"
+```
+
+#### Bridge and Call Issues
+
+**Asset bridge not claimed first**
+
+```bash
+# Ensure asset bridge (deposit_count = 0) is claimed before message bridge (deposit_count = 1)
+aggsandbox show claims --network-id 1
+```
+
+**JumpPoint deployment fails**
+
+```bash
+# Check that the precalculated address calculation is correct
+L2_TOKEN_ADDRESS=$(cast call $POLYGON_ZKEVM_BRIDGE_L2 \
+  "precalculatedWrapperAddress(uint32,address,string,string,uint8)" \
+  1 $AGG_ERC20_L1 "AggERC20" "AGGERC20" 18 \
+  --rpc-url $RPC_2)
+```
+
+### Error Codes
+
+| Error Code | Description | Solution |
+|------------|-------------|----------|
+| `0x37e391c3` | MessageFailed | Don't manually claim BridgeExtension messages |
+| Gas estimation failed | Insufficient gas | Increase `--gas-limit` parameter |
+| Insufficient balance | Not enough tokens | Check balance and approve more tokens |
+| Invalid proof | Wrong merkle proof | Regenerate proof with correct parameters |
+
+### Getting Help
+
+If you encounter issues not covered in this guide:
+
+1. Check the Agglayer documentation
+2. Verify all environment variables are correctly set
+3. Ensure you're using the latest version of the CLI tools
+4. Check that the sandbox is running and accessible

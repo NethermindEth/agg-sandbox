@@ -1,4 +1,4 @@
-/// Command handlers for the AggLayer sandbox CLI
+/// Command handlers for the Agglayer sandbox CLI
 ///
 /// This module contains all command handlers, extracted from main.rs
 /// for better code organization and maintainability.

@@ -1,16 +1,139 @@
-# Clippy configuration for consistent behavior
-# Only includes settings that are supported in clippy.toml
+# Clippy configuration for consistent behavior aligned with Rust best practices
+# Based on the generic Rust project context standards
+# Only includes settings that are actually supported by clippy.toml
 
-# Set cognitive complexity threshold
-cognitive-complexity-threshold = 30
+# Set cognitive complexity threshold (lowered from 30 for better maintainability)
+cognitive-complexity-threshold = 20
 
-# Disallow certain potentially problematic methods
+# Set type complexity threshold (lowered for cleaner type signatures)
+type-complexity-threshold = 200
+
+# Disallow mixed uninlined format args for consistency
+allow-mixed-uninlined-format-args = false
+
+# Maximum number of single char bindings in scope
+single-char-binding-names-threshold = 4
+
+# Maximum number of lines a function can have
+too-many-lines-threshold = 100
+
+# Maximum number of arguments for a function
+too-many-arguments-threshold = 7
+
+# Disallow potentially problematic methods
 disallowed-methods = [
-    # Add any methods you want to disallow
+    # Panic-inducing methods that should use Result instead
+    "std::option::Option::unwrap",
+    # "std::option::Option::expect",
+    "std::result::Result::unwrap",
+    "std::result::Result::unwrap_err",
+    "std::result::Result::expect_err",
+
+    # Thread spawning without proper error handling in async contexts
+    "std::thread::spawn",
+
+    # Memory unsafe operations (use safe alternatives)
+    "std::ptr::read_unaligned",
+    "std::ptr::write_unaligned",
+    "std::slice::from_raw_parts",
+    "std::slice::from_raw_parts_mut",
+
+    # Prefer structured error handling over process::exit
+    "std::process::exit",
+    "std::process::abort",
+
+    # Prefer async-safe alternatives in async contexts
+    "std::thread::sleep",
 ]
 
-# Set type complexity threshold
-type-complexity-threshold = 250
+# Disallow certain types that should be wrapped or avoided
+disallowed-types = [
+    # Prefer anyhow::Error or custom error types
+    "Box<dyn std::error::Error>",
+    "Box<dyn std::error::Error + Send + Sync>",
 
-# Enable checking for mixed uninlined format args
-allow-mixed-uninlined-format-args = false 
+    # In async contexts, prefer tokio::sync::Mutex
+    "std::sync::Mutex",
+    "std::sync::RwLock",
+
+    # Prefer more specific collection types when possible
+    "std::collections::LinkedList",
+]
+
+# Disallow certain macros for consistency
+# Note: Disallowed macros feature is limited - most macros need manual allows
+# disallowed-macros = []
+
+# Enforce documentation standards
+missing-docs-in-crate-items = true
+
+# Memory and performance related thresholds
+pass-by-value-size-limit = 256
+
+# Vec initialization patterns
+vec-box-size-threshold = 4096
+
+# Enable more strict checks for arithmetic operations
+arithmetic-side-effects-allowed = [
+    # Allow basic arithmetic in tests
+    "*test*",
+    # Allow in benchmark code
+    "*bench*",
+]
+
+# Configuration for specific lint behavior
+allow-comparison-to-zero = false
+check-private-items = true
+
+# Prefer explicit over implicit
+warn-on-all-wildcard-imports = true
+
+# Stack size threshold for large arrays
+stack-size-threshold = 512000 # 512KB
+
+# Maximum number of struct fields that can be bool
+max-struct-bools = 3
+
+# Maximum number of function parameters that can be bool
+max-fn-params-bools = 3
+
+# Array size threshold for large arrays
+array-size-threshold = 512000
+
+# Future size threshold for async functions
+future-size-threshold = 16384
+
+# Allow certain patterns that are common in domain-specific code
+allowed-prefixes = [
+    "to",
+    "into",
+    "from",
+    "with",
+    "without",
+    "is",
+    "has",
+    "can",
+    "should",
+    "will",
+]
+
+# Enum variant name threshold
+enum-variant-name-threshold = 3
+
+# Configuration for specific domains (uncomment as needed)
+# For CLI applications that need println!
+allow-print-in-tests = true
+
+# For applications that need unwrap in tests
+allow-unwrap-in-tests = true
+allow-expect-in-tests = true
+
+# For applications that need panic in tests
+# allow-panic-in-tests = true
+
+# For applications that need dbg! in tests
+# allow-dbg-in-tests = true
+
+# Allow tracing macros to use internal expect/unwrap
+# Note: These are false positives from tracing macro expansion
+# We'll use #[allow(clippy::disallowed_methods)] on functions with tracing

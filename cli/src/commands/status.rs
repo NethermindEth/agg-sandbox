@@ -1,6 +1,7 @@
 use colored::*;
 
 /// Handle the status command
+#[allow(clippy::disallowed_methods)] // Allow std::process::exit for command handler
 pub fn handle_status() {
     use crate::docker::{create_auto_docker_builder, execute_docker_command_with_output};
 

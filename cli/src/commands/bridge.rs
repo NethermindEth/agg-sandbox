@@ -198,6 +198,7 @@ abigen!(
 );
 
 /// Handle bridge commands using direct Rust implementation
+#[allow(clippy::disallowed_methods)] // Allow tracing macros
 pub async fn handle_bridge(subcommand: BridgeCommands) -> Result<()> {
     let config = Config::load()?;
 
@@ -462,6 +463,7 @@ struct BridgeAssetArgs<'a> {
 }
 
 /// Bridge assets between networks
+#[allow(clippy::disallowed_methods)] // Allow tracing macros
 async fn bridge_asset(args: BridgeAssetArgs<'_>) -> Result<()> {
     let client =
         get_wallet_with_provider(args.config, args.source_network, args.private_key).await?;

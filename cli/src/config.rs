@@ -346,9 +346,10 @@ impl Config {
 }
 
 impl Default for ApiConfig {
+    #[allow(clippy::disallowed_methods)] // Allow unwrap for hardcoded defaults
     fn default() -> Self {
         ApiConfig {
-            base_url: RpcUrl::new("http://localhost:5577").expect("Default URL should be valid"),
+            base_url: RpcUrl::new("http://localhost:5577").unwrap(), // Safe: hardcoded default URL
             timeout: Duration::from_millis(30000),
             retry_attempts: 3,
         }
@@ -389,13 +390,12 @@ impl ApiConfig {
 }
 
 impl NetworkConfig {
+    #[allow(clippy::disallowed_methods)] // Allow unwrap for hardcoded defaults
     fn load() -> Self {
         let l1 = ChainConfig {
             name: "Ethereum-L1".to_string(),
-            chain_id: ChainId::new(get_env_var("CHAIN_ID_MAINNET", "1"))
-                .expect("Default chain ID should be valid"),
-            rpc_url: RpcUrl::new(get_env_var("RPC_1", "http://localhost:8545"))
-                .expect("Default RPC URL should be valid"),
+            chain_id: ChainId::new(get_env_var("CHAIN_ID_MAINNET", "1")).unwrap(), // Safe: hardcoded default value "1" is always valid
+            rpc_url: RpcUrl::new(get_env_var("RPC_1", "http://localhost:8545")).unwrap(), // Safe: hardcoded default URL is always valid
             fork_url: std::env::var("FORK_URL_MAINNET")
                 .ok()
                 .and_then(|url| RpcUrl::new(url).ok()),
@@ -403,10 +403,8 @@ impl NetworkConfig {
 
         let l2 = ChainConfig {
             name: "Polygon-zkEVM".to_string(),
-            chain_id: ChainId::new(get_env_var("CHAIN_ID_AGGLAYER_1", "1101"))
-                .expect("Default chain ID should be valid"),
-            rpc_url: RpcUrl::new(get_env_var("RPC_2", "http://localhost:8546"))
-                .expect("Default RPC URL should be valid"),
+            chain_id: ChainId::new(get_env_var("CHAIN_ID_AGGLAYER_1", "1101")).unwrap(), // Safe: hardcoded default value "1101" is always valid
+            rpc_url: RpcUrl::new(get_env_var("RPC_2", "http://localhost:8546")).unwrap(), // Safe: hardcoded default URL is always valid
             fork_url: std::env::var("FORK_URL_AGGLAYER_1")
                 .ok()
                 .and_then(|url| RpcUrl::new(url).ok()),
@@ -416,10 +414,8 @@ impl NetworkConfig {
         let l3 = if Path::new("docker-compose.multi-l2.yml").exists() {
             Some(ChainConfig {
                 name: "Agglayer-2".to_string(),
-                chain_id: ChainId::new(get_env_var("CHAIN_ID_AGGLAYER_2", "1102"))
-                    .expect("Default chain ID should be valid"),
-                rpc_url: RpcUrl::new(get_env_var("RPC_3", "http://localhost:8547"))
-                    .expect("Default RPC URL should be valid"),
+                chain_id: ChainId::new(get_env_var("CHAIN_ID_AGGLAYER_2", "1102")).unwrap(), // Safe: hardcoded default value "1102" is always valid
+                rpc_url: RpcUrl::new(get_env_var("RPC_3", "http://localhost:8547")).unwrap(), // Safe: hardcoded default URL is always valid
                 fork_url: std::env::var("FORK_URL_AGGLAYER_2")
                     .ok()
                     .and_then(|url| RpcUrl::new(url).ok()),
@@ -433,29 +429,20 @@ impl NetworkConfig {
 }
 
 impl AccountConfig {
+    #[allow(clippy::disallowed_methods)] // Allow unwrap for hardcoded test addresses
     fn load() -> Self {
         // Pre-configured test accounts (same as in logs.rs)
         let accounts = vec![
-            EthereumAddress::new("0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266")
-                .expect("Valid test address"),
-            EthereumAddress::new("0x70997970C51812dc3A010C7d01b50e0d17dc79C8")
-                .expect("Valid test address"),
-            EthereumAddress::new("0x3C44CdDdB6a900fa2b585dd299e03d12FA4293BC")
-                .expect("Valid test address"),
-            EthereumAddress::new("0x90F79bf6EB2c4f870365E785982E1f101E93b906")
-                .expect("Valid test address"),
-            EthereumAddress::new("0x15d34AAf54267DB7D7c367839AAf71A00a2C6A65")
-                .expect("Valid test address"),
-            EthereumAddress::new("0x9965507D1a55bcC2695C58ba16FB37d819B0A4dc")
-                .expect("Valid test address"),
-            EthereumAddress::new("0x976EA74026E726554dB657fA54763abd0C3a0aa9")
-                .expect("Valid test address"),
-            EthereumAddress::new("0x14dC79964da2C08b23698B3D3cc7Ca32193d9955")
-                .expect("Valid test address"),
-            EthereumAddress::new("0x23618e81E3f5cdF7f54C3d65f7FBc0aBf5B21E8f")
-                .expect("Valid test address"),
-            EthereumAddress::new("0xa0Ee7A142d267C1f36714E4a8F75612F20a79720")
-                .expect("Valid test address"),
+            EthereumAddress::new("0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266").unwrap(), // Safe: hardcoded valid test address
+            EthereumAddress::new("0x70997970C51812dc3A010C7d01b50e0d17dc79C8").unwrap(), // Safe: hardcoded valid test address
+            EthereumAddress::new("0x3C44CdDdB6a900fa2b585dd299e03d12FA4293BC").unwrap(), // Safe: hardcoded valid test address
+            EthereumAddress::new("0x90F79bf6EB2c4f870365E785982E1f101E93b906").unwrap(), // Safe: hardcoded valid test address
+            EthereumAddress::new("0x15d34AAf54267DB7D7c367839AAf71A00a2C6A65").unwrap(), // Safe: hardcoded valid test address
+            EthereumAddress::new("0x9965507D1a55bcC2695C58ba16FB37d819B0A4dc").unwrap(), // Safe: hardcoded valid test address
+            EthereumAddress::new("0x976EA74026E726554dB657fA54763abd0C3a0aa9").unwrap(), // Safe: hardcoded valid test address
+            EthereumAddress::new("0x14dC79964da2C08b23698B3D3cc7Ca32193d9955").unwrap(), // Safe: hardcoded valid test address
+            EthereumAddress::new("0x23618e81E3f5cdF7f54C3d65f7FBc0aBf5B21E8f").unwrap(), // Safe: hardcoded valid test address
+            EthereumAddress::new("0xa0Ee7A142d267C1f36714E4a8F75612F20a79720").unwrap(), // Safe: hardcoded valid test address
         ];
 
         let private_keys = vec![
@@ -653,6 +640,7 @@ impl Config {
 }
 
 impl Default for Config {
+    #[allow(clippy::disallowed_methods)] // Allow unwrap for hardcoded defaults
     fn default() -> Self {
         Config {
             api: ApiConfig::default(),

@@ -185,6 +185,7 @@ enum Commands {
 }
 
 #[tokio::main]
+#[allow(clippy::disallowed_methods)] // Allow std::process::exit in main and tracing macros
 async fn main() {
     let cli = Cli::parse();
 
@@ -200,6 +201,7 @@ async fn main() {
     }
 }
 
+#[allow(clippy::disallowed_methods)] // Allow tracing macros
 async fn run(cli: Cli) -> Result<()> {
     info!("Starting AggSandbox CLI v0.1.0");
 
@@ -307,7 +309,8 @@ async fn run(cli: Cli) -> Result<()> {
     result
 }
 
-/// Initialize logging based on CLI configuration
+/// Initialize logging based on CLI configuration  
+#[allow(clippy::disallowed_methods)] // Allow for error propagation and print functions
 fn initialize_logging(cli: &Cli) -> Result<()> {
     let level = logging::level_from_verbosity(cli.verbose, cli.quiet);
     let format = logging::format_from_str(&cli.log_format).map_err(|e| {

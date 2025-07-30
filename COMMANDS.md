@@ -288,16 +288,35 @@ This will return the proof data including the `mainnet_exit_root` and `rollup_ex
 
 ## Using claimsponsor
 
-Up to this point, all the data required to be passed as argument to sponsor the claim has been added to `claim.json` file
-
+After `bridgeAsset` transaction is done, it's possible to directly ask claimsponsor to sponsor the claim using the following command:
 ```bash
-curl -X POST "http://localhost:5577/bridge/v1/sponsor-claim" --data @claim.json
+aggsandbox sponsor-claim --deposit <DEPOSIT_COUNT>
 ```
 
-Check claim status using this command
+This command gets all the information needed to generate the body of the claim and submits it through a POST request to the Aggkit API service.
+It will output the claim body and whether the claim was sponsored, along with the `global_index` of the claim. example response:
+```bash
+ Claim body for POST request:
+{
+  "LeafType": 0,
+  "GlobalIndex": 0,
+  "MainnetExitRoot": "0x50b0cc5cad7791d8f04f43e13c74b4849b42497b1b17185e6641265c98daa686",
+  "RollupExitRoot": "0x0000000000000000000000000000000000000000000000000000000000000000",
+  "OriginNetwork": 0,
+  "OriginTokenAddress": "0x5fbdb2315678afecb367f032d93f642f64180aa3",
+  "DestinationNetwork": 1,
+  "DestinationAddress": "0x70997970c51812dc3a010c7d01b50e0d17dc79c8",
+  "Amount": 10,
+  "Metadata": "0x000000000000000000000000000000000000000000000000000000000000006000000000000000000000000000000000000000000000000000000000000000a000000000000000000000000000000000000000000000000000000000000000120000000000000000000000000000000000000000000000000000000000000008416767455243323000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000084147474552433230000000000000000000000000000000000000000000000000"
+}
+🚀 Claim sent to sponsor-bot
+✅  Sponsor-claim submitted (globalIndex = 0)
+```
+
+The `global_index` can be used to check the status of the claim:
 
 ```bash
-curl "http://localhost:5577/bridge/v1/sponsored-claim-status?global_index=0"
+aggsandbox claim-status --global-index 0
 ```
 
 ## Step 5: Claim Bridged Assets on L2

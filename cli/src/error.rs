@@ -144,6 +144,12 @@ impl From<anyhow::Error> for AggSandboxError {
     }
 }
 
+impl From<serde_json::Error> for AggSandboxError {
+    fn from(err: serde_json::Error) -> Self {
+        AggSandboxError::Api(ApiError::from(err))
+    }
+}
+
 /// Result type alias for AggSandbox operations
 pub type Result<T> = std::result::Result<T, AggSandboxError>;
 

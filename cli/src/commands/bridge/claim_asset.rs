@@ -7,8 +7,8 @@ use std::str::FromStr;
 use std::sync::Arc;
 
 use super::{
-    get_bridge_contract_address, get_bridge_extension_address, get_wallet_with_provider,
-    BridgeContract, ERC20Contract, GasOptions,
+    common::validation_error, get_bridge_contract_address, get_bridge_extension_address,
+    get_wallet_with_provider, BridgeContract, ERC20Contract, GasOptions,
 };
 
 /// Arguments for claiming bridged assets
@@ -240,9 +240,7 @@ impl<'a> ClaimAssetArgsBuilder<'a> {
 
     /// Build and convert to crate's Result type
     pub fn build_with_crate_error(self) -> Result<ClaimAssetArgs<'a>> {
-        self.build().map_err(|e| {
-            crate::error::AggSandboxError::Config(crate::error::ConfigError::validation_failed(e))
-        })
+        self.build().map_err(validation_error)
     }
 }
 
@@ -292,17 +290,11 @@ pub async fn claim_asset(args: ClaimAssetArgs<'_>) -> Result<()> {
     let bridges_response = api_client
         .get_bridges(args.config, bridge_tx_network)
         .await
-        .map_err(|e| {
-            crate::error::AggSandboxError::Config(crate::error::ConfigError::validation_failed(
-                &format!("Failed to get bridges: {e}"),
-            ))
-        })?;
+        .map_err(|e| validation_error(&format!("Failed to get bridges: {e}")))?;
 
-    let bridges = bridges_response["bridges"].as_array().ok_or_else(|| {
-        crate::error::AggSandboxError::Config(crate::error::ConfigError::validation_failed(
-            "Invalid bridges response",
-        ))
-    })?;
+    let bridges = bridges_response["bridges"]
+        .as_array()
+        .ok_or_else(|| validation_error("Invalid bridges response"))?;
 
     // Find our bridge transaction
     let bridge_info = if let Some(specific_deposit_count) = args.deposit_count {

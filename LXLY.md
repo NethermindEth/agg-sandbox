@@ -10,6 +10,7 @@ The LXLY bridge integration provides comprehensive cross-chain operations:
 - **Claim Assets**: Claim previously bridged assets on the destination network
 - **Bridge Messages**: Bridge with contract calls (bridgeAndCall functionality)
 - **Bridge and Call**: Advanced bridgeAndCall with automatic token approval and two-phase claiming using existing claim command
+- **Bridge Utilities**: Advanced utilities for bridge operations including payload building, index calculations, and token mapping
 
 ## Architecture
 
@@ -230,6 +231,183 @@ When the message bridge is claimed, the BridgeExtension contract:
 3. Executes the contract call with the bridged tokens
 4. Handles fallback if the call fails
 
+## Bridge Utilities
+
+The bridge utilities provide advanced functions for bridge operations, helpful for developers and advanced users.
+
+### Available Utilities
+
+#### Build Claim Payload
+
+Build complete claim payload data from a bridge transaction hash:
+
+```bash
+# Build claim payload from bridge transaction
+aggsandbox bridge utils build-payload \
+  --tx-hash 0xb7118cfb20825861028ede1e9586814fc7ccf81745a325db5df355d382d96b4e \
+  --source-network 0
+
+# Output as JSON
+aggsandbox bridge utils build-payload \
+  --tx-hash 0xb7118cfb20825861028ede1e9586814fc7ccf81745a325db5df355d382d96b4e \
+  --source-network 0 \
+  --bridge-index 1 \
+  --json
+```
+
+**Parameters:**
+- `--tx-hash, -t`: Bridge transaction hash
+- `--source-network, -s`: Source network ID (0=Mainnet, 1=AggLayer-1, 2=AggLayer-2)
+- `--bridge-index`: Bridge index for multi-bridge transactions (optional)
+- `--json`: Output as JSON format
+
+#### Compute Global Index
+
+Calculate global bridge index from local index and network:
+
+```bash
+# Calculate global index for L1 bridge
+aggsandbox bridge utils compute-index \
+  --local-index 42 \
+  --source-network 0
+
+# Output: Global Index = 2147483690 (42 + 2^31)
+
+# Calculate global index for L2 bridge with JSON output
+aggsandbox bridge utils compute-index \
+  --local-index 100 \
+  --source-network 1 \
+  --json
+```
+
+**Global Index Formula:**
+- **Mainnet (network 0)**: `globalIndex = localIndex + 2^31`
+- **AggLayer networks (network 1+)**: `globalIndex = localIndex + (networkId - 1) * 2^32`
+
+#### Get Mapped Token Address
+
+Get the wrapped token address for an origin token:
+
+```bash
+# Get AggLayer-1 wrapped token address for Mainnet token
+aggsandbox bridge utils get-mapped \
+  --network 1 \
+  --origin-network 0 \
+  --origin-token 0xA0b86a33E6776e39e6b37ddEC4F25B04Dd9Fc4DC
+
+# Get AggLayer-2 wrapped token address for Mainnet token
+aggsandbox bridge utils get-mapped \
+  --network 2 \
+  --origin-network 0 \
+  --origin-token 0xA0b86a33E6776e39e6b37ddEC4F25B04Dd9Fc4DC \
+  --json
+```
+
+**Parameters:**
+- `--network, -n`: Target network ID where you want the wrapped token address
+- `--origin-network`: Origin network ID where the original token exists
+- `--origin-token`: Origin token contract address
+- `--private-key`: Private key (optional, uses default if not provided)
+- `--json`: Output as JSON format
+
+#### Pre-calculate Token Address
+
+Pre-calculate what the wrapped token address will be before deployment:
+
+```bash
+# Pre-calculate L2 token address for L1 token
+aggsandbox bridge utils precalculate \
+  --network 1 \
+  --origin-network 0 \
+  --origin-token 0xA0b86a33E6776e39e6b37ddEC4F25B04Dd9Fc4DC
+
+# With JSON output  
+aggsandbox bridge utils precalculate \
+  --network 1 \
+  --origin-network 0 \
+  --origin-token 0xA0b86a33E6776e39e6b37ddEC4F25B04Dd9Fc4DC \
+  --json
+```
+
+This is useful for knowing the token address before any tokens are bridged and the wrapper is deployed.
+
+#### Get Origin Token Information
+
+Get original token information from a wrapped token address:
+
+```bash
+# Get origin info for wrapped token
+aggsandbox bridge utils get-origin \
+  --network 1 \
+  --wrapped-token 0x742d35Cc6965C592342c6c16fb8eaeb90a23b5C0
+
+# With JSON output
+aggsandbox bridge utils get-origin \
+  --network 1 \
+  --wrapped-token 0x742d35Cc6965C592342c6c16fb8eaeb90a23b5C0 \
+  --json
+```
+
+**Returns:**
+- Origin network ID
+- Origin token contract address
+
+#### Check Claim Status
+
+Check if a bridge has been claimed:
+
+```bash
+# Check if bridge is claimed
+aggsandbox bridge utils is-claimed \
+  --network 1 \
+  --index 42 \
+  --source-network 0
+
+# With JSON output
+aggsandbox bridge utils is-claimed \
+  --network 1 \
+  --index 42 \
+  --source-network 0 \
+  --json
+```
+
+**Parameters:**
+- `--network, -n`: Network ID to check
+- `--index`: Bridge index to check
+- `--source-network`: Source bridge network ID
+- `--private-key`: Private key (optional)
+- `--json`: Output as JSON format
+
+### Utility Command Reference
+
+All bridge utility commands support:
+- **Validation**: Automatic validation of network IDs (0=Mainnet, 1=AggLayer-1, 2=AggLayer-2) and Ethereum addresses
+- **JSON Output**: Use `--json` flag for machine-readable output
+- **Error Handling**: Comprehensive error messages with suggestions
+- **Help Text**: Use `--help` on any command for detailed information
+
+```bash
+# List all available utilities
+aggsandbox bridge utils --help
+
+# Get help for specific utility
+aggsandbox bridge utils build-payload --help
+```
+
+### JSON Output Format
+
+All utilities support JSON output for integration with scripts and tools:
+
+```json
+{
+  "local_index": 42,
+  "source_network": 0,
+  "global_index": "2147483690"
+}
+```
+
+JSON output is consistent across all utilities and includes all relevant information for programmatic use.
+
 ## Network Configuration
 
 ### Network ID Mapping
@@ -238,9 +416,9 @@ The bridge service maps sandbox network IDs to actual chain IDs:
 
 | Network ID | Chain ID | Description |
 |------------|----------|-------------|
-| 0 | 1 | Ethereum L1 (Mainnet simulation) |
-| 1 | 1101 | Polygon zkEVM L2 |
-| 2 | 137 | Polygon PoS L2 (Multi-L2 mode) |
+| 0 | 1 | Mainnet (L1 simulation) |
+| 1 | 1101 | AggLayer-1 (zkEVM L2) |
+| 2 | 137 | AggLayer-2 (Multi-L2 mode) |
 
 ### Contract Addresses
 
@@ -263,13 +441,19 @@ Bridge contracts are automatically deployed and configured:
 The bridge functionality is implemented directly in the Rust CLI:
 
 ```bash
-cli/src/commands/
-├── bridge.rs                          # Bridge command implementation
-│   ├── bridge_asset()                 # Asset bridging with ERC20 approval
-│   ├── claim_asset()                  # Asset claiming with proof verification
-│   ├── bridge_message()               # Message bridging with contract calls
-│   ├── bridge_and_call_with_approval() # Advanced bridgeAndCall with approval
-│   └── get_precalculated_l2_token_address() # Get L2 token address helper
+cli/src/commands/bridge/
+├── mod.rs                             # Bridge command module and CLI integration
+├── bridge_asset.rs                    # Asset bridging with ERC20 approval
+├── bridge_call.rs                     # Message bridging and bridgeAndCall operations
+├── claim_asset.rs                     # Asset claiming with proof verification
+├── claim_message.rs                   # Message claiming operations
+└── utilities.rs                       # Bridge utility functions (NEW)
+    ├── build_payload_for_claim()      # Build complete claim payloads
+    ├── compute_global_index()         # Calculate global bridge indices
+    ├── get_mapped_token_info()        # Get wrapped token addresses
+    ├── precalculated_mapped_token_info() # Pre-calculate token addresses
+    ├── get_origin_token_info()        # Get origin token from wrapped token
+    └── is_claimed()                   # Check bridge claim status
 ```
 
 ### Key Features
@@ -284,6 +468,10 @@ cli/src/commands/
 8. **Gas Optimization**: Configurable gas limits and prices
 9. **Direct Smart Contract Interaction**: Uses ethers.rs for direct contract calls
 10. **JumpPoint Contract Integration**: Supports CREATE2-based temporary contract execution
+11. **Bridge Utilities**: Advanced utility functions for developers and power users
+12. **JSON Output Support**: Machine-readable output for all utility commands
+13. **Input Validation**: Automatic validation of addresses, network IDs, and parameters
+14. **Global Index Calculations**: Accurate lxly.js-compatible global index computations
 
 ### Configuration
 

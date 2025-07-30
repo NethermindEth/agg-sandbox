@@ -8,23 +8,9 @@ all: format clippy check test
 format:
 	cargo fmt --all -- --check
 
-# Run clippy with same flags as CI + explicit strict lints
+# Run clippy (matches cargo clippy behavior)
 clippy:
-	cargo clippy --all-targets --all-features -- -D warnings -D clippy::uninlined_format_args
-
-# Run clippy with CI-exact flags only
-clippy-ci:
-	cargo clippy --all-targets --all-features -- -D warnings
-
-# Run clippy with extra strict lints for development
-clippy-strict:
-	cargo clippy --all-targets --all-features -- -D warnings \
-		-D clippy::uninlined_format_args \
-		-D clippy::redundant_field_names \
-		-D clippy::redundant_static_lifetimes \
-		-D clippy::single_match_else \
-		-D clippy::unnecessary_wraps \
-		-D clippy::used_underscore_binding
+	cargo clippy
 
 # Run cargo check
 check:

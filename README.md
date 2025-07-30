@@ -57,7 +57,6 @@ The Agglayer Sandbox provides a comprehensive development environment for testin
 - **Rust** >= 1.70.0 (for CLI compilation) - [Install Rust](https://rustup.rs/)
 - **Make** (for using Makefile targets) - usually pre-installed on Unix systems
 - **Git** (for cloning the repository)
-- **pnpm** (for bridge service dependencies) - [Install pnpm](https://pnpm.io/installation)
 
 ### PATH Configuration
 
@@ -81,7 +80,6 @@ docker compose version && echo "✅ Docker Compose installed"
 rustc --version && echo "✅ Rust installed"
 make --version && echo "✅ Make installed"
 git --version && echo "✅ Git installed"
-pnpm --version && echo "✅ pnpm installed"
 ```
 
 ## Quick Start

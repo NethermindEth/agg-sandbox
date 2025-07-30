@@ -6,8 +6,8 @@ use std::sync::Arc;
 use tracing::info;
 
 use super::{
-    get_bridge_contract_address, get_wallet_with_provider, is_eth_address, BridgeContract,
-    ERC20Contract,
+    common::validation_error, get_bridge_contract_address, get_wallet_with_provider,
+    is_eth_address, BridgeContract, ERC20Contract,
 };
 
 /// Gas options for transactions
@@ -245,9 +245,7 @@ impl<'a> BridgeAssetArgsBuilder<'a> {
 
     /// Build and convert to crate's Result type
     pub fn build_with_crate_error(self) -> Result<BridgeAssetArgs<'a>> {
-        self.build().map_err(|e| {
-            crate::error::AggSandboxError::Config(crate::error::ConfigError::validation_failed(e))
-        })
+        self.build().map_err(validation_error)
     }
 }
 

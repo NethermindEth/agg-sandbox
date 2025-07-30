@@ -6,8 +6,10 @@ pub mod claim_message;
 
 // Re-export main types and functions
 pub use bridge_asset::{bridge_asset, BridgeAssetArgs, GasOptions};
-pub use bridge_call::{bridge_and_call_with_approval, bridge_message, BridgeMessageParams};
-pub use claim_asset::claim_asset;
+pub use bridge_call::{
+    bridge_and_call_with_approval, bridge_message, BridgeAndCallArgs, BridgeMessageParams,
+};
+pub use claim_asset::{claim_asset, ClaimAssetArgs};
 
 use crate::config::Config;
 use crate::error::Result;
@@ -226,17 +228,23 @@ pub async fn handle_bridge(subcommand: BridgeCommands) -> Result<()> {
             );
 
             let gas_options = GasOptions::new(gas_limit, gas_price.as_deref());
-            bridge_asset(BridgeAssetArgs {
-                config: &config,
-                source_network: network,
-                destination_network,
-                amount: &amount,
-                token_address: &token_address,
-                to_address: to_address.as_deref(),
-                gas_options,
-                private_key: private_key.as_deref(),
-            })
-            .await
+            let mut builder = BridgeAssetArgs::builder()
+                .config(&config)
+                .source_network(network)
+                .destination_network(destination_network)
+                .amount(&amount)
+                .token_address(&token_address)
+                .gas_options(gas_options);
+
+            if let Some(addr) = to_address.as_deref() {
+                builder = builder.recipient_address(addr);
+            }
+            if let Some(key) = private_key.as_deref() {
+                builder = builder.private_key(key);
+            }
+
+            let args = builder.build_with_crate_error()?;
+            bridge_asset(args).await
         }
         BridgeCommands::Claim {
             network,
@@ -257,18 +265,28 @@ pub async fn handle_bridge(subcommand: BridgeCommands) -> Result<()> {
             );
 
             let gas_options = GasOptions::new(gas_limit, gas_price.as_deref());
-            claim_asset(
-                &config,
-                network,
-                &tx_hash,
-                source_network,
-                deposit_count,
-                token_address.as_deref(),
-                gas_options,
-                private_key.as_deref(),
-                data.as_deref(),
-            )
-            .await
+            let mut builder = ClaimAssetArgs::builder()
+                .config(&config)
+                .network(network)
+                .tx_hash(&tx_hash)
+                .source_network(source_network)
+                .gas_options(gas_options);
+
+            if let Some(count) = deposit_count {
+                builder = builder.deposit_count(Some(count));
+            }
+            if let Some(addr) = token_address.as_deref() {
+                builder = builder.token_address(Some(addr));
+            }
+            if let Some(key) = private_key.as_deref() {
+                builder = builder.private_key(key);
+            }
+            if let Some(custom_data) = data.as_deref() {
+                builder = builder.custom_data(Some(custom_data));
+            }
+
+            let args = builder.build_with_crate_error()?;
+            claim_asset(args).await
         }
         BridgeCommands::Message {
             network,
@@ -289,7 +307,16 @@ pub async fn handle_bridge(subcommand: BridgeCommands) -> Result<()> {
             );
 
             let gas_options = GasOptions::new(gas_limit, gas_price.as_deref());
-            let message_params = BridgeMessageParams::new(target, data, amount, fallback_address);
+            let mut builder = BridgeMessageParams::builder().target(&target).data(&data);
+
+            if let Some(amt) = &amount {
+                builder = builder.amount(amt);
+            }
+            if let Some(addr) = &fallback_address {
+                builder = builder.fallback_address(addr);
+            }
+
+            let message_params = builder.build_with_crate_error()?;
             bridge_message(
                 &config,
                 network,
@@ -322,19 +349,23 @@ pub async fn handle_bridge(subcommand: BridgeCommands) -> Result<()> {
             );
 
             let gas_options = GasOptions::new(gas_limit, gas_price.as_deref());
-            bridge_and_call_with_approval(
-                &config,
-                network,
-                destination_network,
-                &token,
-                &amount,
-                &target,
-                &data,
-                &fallback,
-                gas_options,
-                private_key.as_deref(),
-            )
-            .await
+            let mut builder = BridgeAndCallArgs::builder()
+                .config(&config)
+                .source_network(network)
+                .destination_network(destination_network)
+                .token_address(&token)
+                .amount(&amount)
+                .target(&target)
+                .data(&data)
+                .fallback(&fallback)
+                .gas_options(gas_options);
+
+            if let Some(key) = private_key.as_deref() {
+                builder = builder.private_key(key);
+            }
+
+            let args = builder.build_with_crate_error()?;
+            bridge_and_call_with_approval(args).await
         }
     }
 }

@@ -41,6 +41,32 @@ impl GasOptions {
     }
 }
 
+/// Arguments for bridging assets between networks
+///
+/// Use the builder pattern to construct this struct:
+/// ```rust
+/// // Basic usage with required fields
+/// let args = BridgeAssetArgs::builder()
+///     .config(&config)
+///     .source_network(0)
+///     .destination_network(1)
+///     .amount("1000000000000000000")
+///     .token_address("0x0000000000000000000000000000000000000000")
+///     .build_with_crate_error()?;
+///
+/// // Advanced usage with optional fields
+/// let args = BridgeAssetArgs::builder()
+///     .config(&config)
+///     .source_network(0)
+///     .destination_network(1)
+///     .amount("1000000000000000000")
+///     .token_address("0xA0b86a33E6776e39e6b37ddEC4F25B04Dd9Fc4DC")
+///     .to_address("0x1234567890123456789012345678901234567890")
+///     .gas_limit(300000)
+///     .gas_price("20000000000")
+///     .private_key("0x1234567890123456789012345678901234567890123456789012345678901234")
+///     .build_with_crate_error()?;
+/// ```
 pub struct BridgeAssetArgs<'a> {
     pub config: &'a Config,
     pub source_network: u64,
@@ -50,6 +76,179 @@ pub struct BridgeAssetArgs<'a> {
     pub to_address: Option<&'a str>,
     pub gas_options: GasOptions,
     pub private_key: Option<&'a str>,
+}
+
+impl<'a> BridgeAssetArgs<'a> {
+    /// Create a new builder instance
+    pub fn builder() -> BridgeAssetArgsBuilder<'a> {
+        BridgeAssetArgsBuilder::default()
+    }
+
+    /// Create a builder with common defaults for ETH bridging
+    #[allow(dead_code)]
+    pub fn eth_bridge_builder(
+        config: &'a Config,
+        source_network: u64,
+        destination_network: u64,
+        amount: &'a str,
+    ) -> BridgeAssetArgsBuilder<'a> {
+        BridgeAssetArgsBuilder::default()
+            .config(config)
+            .source_network(source_network)
+            .destination_network(destination_network)
+            .amount(amount)
+            .token_address("0x0000000000000000000000000000000000000000")
+    }
+}
+
+/// Builder for constructing BridgeAssetArgs with validation
+///
+/// The builder pattern provides several benefits:
+/// - Type-safe construction with compile-time validation
+/// - Fluent API for easy chaining of method calls
+/// - Clear separation between required and optional fields
+/// - Built-in validation during the build process
+/// - Prevents construction of invalid configurations
+pub struct BridgeAssetArgsBuilder<'a> {
+    config: Option<&'a Config>,
+    source_network: Option<u64>,
+    destination_network: Option<u64>,
+    amount: Option<&'a str>,
+    token_address: Option<&'a str>,
+    to_address: Option<&'a str>,
+    gas_options: Option<GasOptions>,
+    private_key: Option<&'a str>,
+}
+
+impl<'a> Default for BridgeAssetArgsBuilder<'a> {
+    fn default() -> Self {
+        Self {
+            config: None,
+            source_network: None,
+            destination_network: None,
+            amount: None,
+            token_address: None,
+            to_address: None,
+            gas_options: Some(GasOptions::new(None, None)),
+            private_key: None,
+        }
+    }
+}
+
+impl<'a> BridgeAssetArgsBuilder<'a> {
+    /// Set the configuration
+    pub fn config(mut self, config: &'a Config) -> Self {
+        self.config = Some(config);
+        self
+    }
+
+    /// Set the source network ID
+    pub fn source_network(mut self, source_network: u64) -> Self {
+        self.source_network = Some(source_network);
+        self
+    }
+
+    /// Set the destination network ID
+    pub fn destination_network(mut self, destination_network: u64) -> Self {
+        self.destination_network = Some(destination_network);
+        self
+    }
+
+    /// Set the amount to bridge (in wei as string)
+    pub fn amount(mut self, amount: &'a str) -> Self {
+        self.amount = Some(amount);
+        self
+    }
+
+    /// Set the token address to bridge
+    pub fn token_address(mut self, token_address: &'a str) -> Self {
+        self.token_address = Some(token_address);
+        self
+    }
+
+    /// Set the recipient address (optional)
+    pub fn recipient_address(mut self, to_address: &'a str) -> Self {
+        self.to_address = Some(to_address);
+        self
+    }
+
+    /// Set gas options
+    pub fn gas_options(mut self, gas_options: GasOptions) -> Self {
+        self.gas_options = Some(gas_options);
+        self
+    }
+
+    /// Set gas limit
+    #[allow(dead_code)]
+    pub fn gas_limit(mut self, gas_limit: u64) -> Self {
+        let gas_options = self
+            .gas_options
+            .get_or_insert_with(|| GasOptions::new(None, None));
+        gas_options.gas_limit = Some(gas_limit);
+        self
+    }
+
+    /// Set gas price (as string)
+    #[allow(dead_code)]
+    pub fn gas_price(mut self, gas_price: &str) -> Self {
+        let gas_options = self
+            .gas_options
+            .get_or_insert_with(|| GasOptions::new(None, None));
+        gas_options.gas_price = Some(gas_price.to_string());
+        self
+    }
+
+    /// Set private key for signing transactions
+    pub fn private_key(mut self, private_key: &'a str) -> Self {
+        self.private_key = Some(private_key);
+        self
+    }
+
+    pub fn build(self) -> std::result::Result<BridgeAssetArgs<'a>, &'static str> {
+        let config = self.config.ok_or("Config is required")?;
+        let source_network = self.source_network.ok_or("Source network is required")?;
+        let destination_network = self
+            .destination_network
+            .ok_or("Destination network is required")?;
+        let amount = self.amount.ok_or("Amount is required")?;
+        let token_address = self.token_address.ok_or("Token address is required")?;
+        let gas_options = self.gas_options.ok_or("Gas options are required")?;
+
+        // Validate amount format
+        if U256::from_dec_str(amount).is_err() {
+            return Err("Invalid amount format");
+        }
+
+        // Validate token address format
+        if Address::from_str(token_address).is_err() {
+            return Err("Invalid token address format");
+        }
+
+        // Validate to_address if provided
+        if let Some(addr) = self.to_address {
+            if Address::from_str(addr).is_err() {
+                return Err("Invalid recipient address format");
+            }
+        }
+
+        Ok(BridgeAssetArgs {
+            config,
+            source_network,
+            destination_network,
+            amount,
+            token_address,
+            to_address: self.to_address,
+            gas_options,
+            private_key: self.private_key,
+        })
+    }
+
+    /// Build and convert to crate's Result type
+    pub fn build_with_crate_error(self) -> Result<BridgeAssetArgs<'a>> {
+        self.build().map_err(|e| {
+            crate::error::AggSandboxError::Config(crate::error::ConfigError::validation_failed(e))
+        })
+    }
 }
 
 /// Bridge assets between networks

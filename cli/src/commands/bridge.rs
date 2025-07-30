@@ -99,7 +99,7 @@ pub enum BridgeCommands {
     },
     /// 📥 Claim bridged assets on destination network
     #[command(
-        long_about = "Claim assets that were bridged from another network.\n\nUse the transaction hash from the original bridge operation to claim\nthe corresponding assets on the destination network.\n\nClaiming typically requires waiting for the bridge to process the deposit\nand generate the necessary proofs.\n\nExamples:\n  aggsandbox bridge claim --network 1 --tx-hash 0xabc123... --source-network 0\n  aggsandbox bridge claim -n 1 -t 0xdef456... -s 0 --token-address 0x456..."
+        long_about = "Claim assets that were bridged from another network.\n\nUse the transaction hash from the original bridge operation to claim\nthe corresponding assets on the destination network.\n\nFor bridgeAndCall operations that create multiple bridges with the same tx_hash,\nuse the --deposit-count parameter to specify which bridge to claim:\n  • 0 = Asset bridge (must be claimed first)\n  • 1 = Message bridge (claimed after asset bridge)\n\nFor BridgeExtension message claims, use --data to provide custom metadata.\n\nClaiming typically requires waiting for the bridge to process the deposit\nand generate the necessary proofs.\n\nExamples:\n  aggsandbox bridge claim --network 1 --tx-hash 0xabc123... --source-network 0\n  aggsandbox bridge claim -n 1 -t 0xdef456... -s 0 --deposit-count 0  # Claim asset bridge\n  aggsandbox bridge claim -n 1 -t 0xdef456... -s 0 --deposit-count 1 --data 0x123...  # Claim message bridge with custom data"
     )]
     Claim {
         /// Network to claim assets on
@@ -115,6 +115,13 @@ pub enum BridgeCommands {
         /// Source network of the original bridge
         #[arg(short = 's', long, help = "Source network ID of original bridge")]
         source_network: u64,
+        /// Deposit count for the specific bridge (0=asset, 1=message, auto-detected if not provided)
+        #[arg(
+            short = 'c',
+            long,
+            help = "Deposit count for the specific bridge (0=asset, 1=message, auto-detected if not provided)"
+        )]
+        deposit_count: Option<u64>,
         /// Token contract address that was bridged (auto-detected if not provided)
         #[arg(
             long,
@@ -130,10 +137,16 @@ pub enum BridgeCommands {
         /// Private key to use for the transaction (hex string with 0x prefix)
         #[arg(long, help = "Private key to use for the transaction")]
         private_key: Option<String>,
+        /// Custom metadata for message bridge claims (hex encoded)
+        #[arg(
+            long,
+            help = "Custom metadata for message bridge claims (hex encoded, for BridgeExtension messages)"
+        )]
+        data: Option<String>,
     },
     /// 📬 Bridge with contract call (bridgeAndCall)
     #[command(
-        long_about = "Bridge assets or ETH with a contract call on the destination network.\n\nThis combines bridging with executing a contract call, allowing for\ncomplex cross-chain interactions in a single transaction.\n\nThe call data should be hex-encoded function call data for the target contract.\nIf the contract call fails, assets will be sent to the fallback address.\n\nExamples:\n  aggsandbox bridge message --network 1 --destination-network 1101 --target 0x123... --data 0xabc...\n  aggsandbox bridge message -n 1 -d 1101 -t 0x456... -D 0xdef... --amount 0.1 --fallback-address 0x789..."
+        long_about = "Bridge assets or ETH with a contract call on the destination network.\n\nThis combines bridging with executing a contract call, allowing for\ncomplex cross-chain interactions in a single transaction.\n\nThe call data should be hex-encoded function call data for the target contract.\nIf the contract call fails, assets will be sent to the fallback address.\n\nExamples:\n  aggsandbox bridge message --network 1 --destination-network 1101 --target 0x123... --data 0xabc...\n  aggsandbox bridge message -n 1 -d 1101 -t 0x456... --data 0xdef... --amount 0.1 --fallback-address 0x789..."
     )]
     Message {
         /// Source network ID
@@ -146,7 +159,7 @@ pub enum BridgeCommands {
         #[arg(short, long, help = "Target contract address")]
         target: String,
         /// Call data for the contract (hex encoded)
-        #[arg(short = 'D', long, help = "Contract call data (hex encoded)")]
+        #[arg(long, help = "Contract call data (hex encoded)")]
         data: String,
         /// Amount of ETH to send with the call
         #[arg(short, long, help = "Amount of ETH to send")]
@@ -154,6 +167,42 @@ pub enum BridgeCommands {
         /// Fallback address if contract call fails
         #[arg(long, help = "Fallback address if call fails")]
         fallback_address: Option<String>,
+        /// Gas limit override
+        #[arg(long, help = "Gas limit for the transaction")]
+        gas_limit: Option<u64>,
+        /// Gas price override (in wei)
+        #[arg(long, help = "Gas price in wei")]
+        gas_price: Option<String>,
+        /// Private key to use for the transaction (hex string with 0x prefix)
+        #[arg(long, help = "Private key to use for the transaction")]
+        private_key: Option<String>,
+    },
+    /// 🔗 Bridge tokens and execute contract call (bridgeAndCall with token approval)
+    #[command(
+        long_about = "Bridge ERC20 tokens and execute a contract call on the destination network.\\n\\nThis command handles the complete bridgeAndCall workflow:\\n1. Approves the bridge extension contract to spend tokens\\n2. Executes bridgeAndCall to bridge tokens and create a call message\\n3. Provides instructions for claiming the asset and message bridges\\n\\nNote: This creates TWO bridge transactions:\\n- Asset bridge (deposit_count = 0) - must be claimed first\\n- Message bridge (deposit_count = 1) - contains call instructions\\n\\nExamples:\\n  aggsandbox bridge bridge-and-call --network 0 --destination-network 1 --token 0x123... --amount 10 --target 0x456... --data 0xabc... --fallback 0x789...\\n  aggsandbox bridge bridge-and-call -n 0 -d 1 -t 0x123... -a 10 --target 0x456... --data 0xdef... --fallback 0x789..."
+    )]
+    BridgeAndCall {
+        /// Source network ID (0=L1, 1=L2, etc.)
+        #[arg(short, long, help = "Source network ID")]
+        network: u64,
+        /// Destination network ID
+        #[arg(short = 'd', long, help = "Destination network ID")]
+        destination_network: u64,
+        /// Token contract address to bridge
+        #[arg(short = 't', long, help = "Token contract address")]
+        token: String,
+        /// Amount to bridge (in token units)
+        #[arg(short, long, help = "Amount to bridge")]
+        amount: String,
+        /// Target contract address on destination network
+        #[arg(long, help = "Target contract address for call")]
+        target: String,
+        /// Call data for the contract (hex encoded)
+        #[arg(long, help = "Contract call data (hex encoded)")]
+        data: String,
+        /// Fallback address if contract call fails
+        #[arg(long, help = "Fallback address if call fails")]
+        fallback: String,
         /// Gas limit override
         #[arg(long, help = "Gas limit for the transaction")]
         gas_limit: Option<u64>,
@@ -185,7 +234,8 @@ abigen!(
     r#"[
         function bridgeAsset(uint32 destinationNetwork, address destinationAddress, uint256 amount, address token, bool forceUpdateGlobalExitRoot, bytes permitData) external payable
         function claimAsset(uint256 globalIndex, bytes32 mainnetExitRoot, bytes32 rollupExitRoot, uint32 originNetwork, address originTokenAddress, uint32 destinationNetwork, address destinationAddress, uint256 amount, bytes metadata) external
-        function claimMessage(bytes32[32] smtProofLocalExitRoot, bytes32[32] smtProofRollupExitRoot, uint256 globalIndex, bytes32 mainnetExitRoot, bytes32 rollupExitRoot, uint32 originNetwork, address originAddress, uint32 destinationNetwork, address destinationAddress, uint256 amount, bytes message) external
+        function claimMessage(uint256 globalIndex, bytes32 mainnetExitRoot, bytes32 rollupExitRoot, uint32 originNetwork, address originAddress, uint32 destinationNetwork, address destinationAddress, uint256 amount, bytes metadata) external
+        function precalculatedWrapperAddress(uint32 originNetwork, address originTokenAddress, string name, string symbol, uint8 decimals) external view returns (address)
     ]"#,
 );
 
@@ -238,10 +288,12 @@ pub async fn handle_bridge(subcommand: BridgeCommands) -> Result<()> {
             network,
             tx_hash,
             source_network,
+            deposit_count,
             token_address,
             gas_limit,
             gas_price,
             private_key,
+            data,
         } => {
             info!(
                 network = network,
@@ -256,9 +308,11 @@ pub async fn handle_bridge(subcommand: BridgeCommands) -> Result<()> {
                 network,
                 &tx_hash,
                 source_network,
+                deposit_count,
                 token_address.as_deref(),
                 gas_options,
                 private_key.as_deref(),
+                data.as_deref(),
             )
             .await
         }
@@ -287,6 +341,42 @@ pub async fn handle_bridge(subcommand: BridgeCommands) -> Result<()> {
                 network,
                 destination_network,
                 message_params,
+                gas_options,
+                private_key.as_deref(),
+            )
+            .await
+        }
+        BridgeCommands::BridgeAndCall {
+            network,
+            destination_network,
+            token,
+            amount,
+            target,
+            data,
+            fallback,
+            gas_limit,
+            gas_price,
+            private_key,
+        } => {
+            info!(
+                network = network,
+                destination_network = destination_network,
+                token = %token,
+                amount = %amount,
+                target = %target,
+                "Executing bridge and call command"
+            );
+
+            let gas_options = GasOptions::new(gas_limit, gas_price.as_deref());
+            bridge_and_call_with_approval(
+                &config,
+                network,
+                destination_network,
+                &token,
+                &amount,
+                &target,
+                &data,
+                &fallback,
                 gas_options,
                 private_key.as_deref(),
             )
@@ -628,9 +718,11 @@ async fn claim_asset(
     network: u64,
     tx_hash: &str,
     source_network: u64,
+    deposit_count: Option<u64>,
     _token_address: Option<&str>,
     gas_options: GasOptions,
     private_key: Option<&str>,
+    custom_data: Option<&str>,
 ) -> Result<()> {
     let client = get_wallet_with_provider(config, network, private_key).await?;
     let bridge_address = get_bridge_contract_address(config, network)?;
@@ -685,14 +777,30 @@ async fn claim_asset(
     })?;
 
     // Find our bridge transaction
-    let bridge_info = bridges
-        .iter()
-        .find(|bridge| bridge["tx_hash"].as_str() == Some(tx_hash))
-        .ok_or_else(|| {
-            crate::error::AggSandboxError::Config(crate::error::ConfigError::validation_failed(
-                &format!("Bridge transaction {tx_hash} not found"),
-            ))
-        })?;
+    let bridge_info = if let Some(specific_deposit_count) = deposit_count {
+        println!("🔍 Looking for bridge with tx_hash: {tx_hash} and deposit_count: {specific_deposit_count}");
+        bridges
+            .iter()
+            .find(|bridge| {
+                bridge["tx_hash"].as_str() == Some(tx_hash)
+                    && bridge["deposit_count"].as_u64() == Some(specific_deposit_count)
+            })
+            .ok_or_else(|| {
+                crate::error::AggSandboxError::Config(crate::error::ConfigError::validation_failed(
+                    &format!("Bridge transaction {tx_hash} with deposit_count {specific_deposit_count} not found"),
+                ))
+            })?
+    } else {
+        println!("🔍 Looking for bridge with tx_hash: {tx_hash} (deposit_count auto-detected)");
+        bridges
+            .iter()
+            .find(|bridge| bridge["tx_hash"].as_str() == Some(tx_hash))
+            .ok_or_else(|| {
+                crate::error::AggSandboxError::Config(crate::error::ConfigError::validation_failed(
+                    &format!("Bridge transaction {tx_hash} not found"),
+                ))
+            })?
+    };
 
     let deposit_count = bridge_info["deposit_count"].as_u64().ok_or_else(|| {
         crate::error::AggSandboxError::Config(crate::error::ConfigError::validation_failed(
@@ -701,6 +809,10 @@ async fn claim_asset(
     })?;
 
     println!("📋 Found bridge with deposit count: {deposit_count}");
+
+    // Determine bridge type from bridge info
+    let leaf_type = bridge_info["leaf_type"].as_u64().unwrap_or(0) as u8;
+    println!("🔍 Bridge leaf type: {} (0=Asset, 1=Message)", leaf_type);
 
     // Get L1 info tree index from the proof source network
     // For bridge-back scenarios, this uses L2 (where the bridge tx occurred)
@@ -754,34 +866,66 @@ async fn claim_asset(
         .as_u64()
         .map(|n| n as u32)
         .unwrap_or_else(|| network_id_to_chain_id(config, source_network).unwrap_or(1));
-    let origin_address = bridge_info["origin_address"].as_str().ok_or_else(|| {
-        crate::error::AggSandboxError::Config(crate::error::ConfigError::validation_failed(
-            "Missing origin_address in bridge info",
-        ))
-    })?;
     let destination_network_id = bridge_info["destination_network"]
         .as_u64()
         .map(|n| n as u32)
         .unwrap_or_else(|| network_id_to_chain_id(config, network).unwrap_or(1101));
-    let destination_address = bridge_info["destination_address"].as_str().ok_or_else(|| {
-        crate::error::AggSandboxError::Config(crate::error::ConfigError::validation_failed(
-            "Missing destination_address in bridge info",
-        ))
-    })?;
+
+    // For message bridges (leaf_type = 1), use BridgeExtension addresses
+    // For asset bridges (leaf_type = 0), use the original bridge addresses
+    let (origin_address, destination_address) = if leaf_type == 1 {
+        // Message bridge - use BridgeExtension addresses
+        let origin_bridge_ext = get_bridge_extension_address(config, source_network)?;
+        let dest_bridge_ext = get_bridge_extension_address(config, network)?;
+        println!("🔗 Using BridgeExtension addresses for message bridge:");
+        println!(
+            "   Origin: {:#x} (network {})",
+            origin_bridge_ext, source_network
+        );
+        println!(
+            "   Destination: {:#x} (network {})",
+            dest_bridge_ext, network
+        );
+        (
+            format!("{:#x}", origin_bridge_ext),
+            format!("{:#x}", dest_bridge_ext),
+        )
+    } else {
+        // Asset bridge - use original addresses from bridge_info
+        let origin_addr = bridge_info["origin_address"].as_str().ok_or_else(|| {
+            crate::error::AggSandboxError::Config(crate::error::ConfigError::validation_failed(
+                "Missing origin_address in bridge info",
+            ))
+        })?;
+        let dest_addr = bridge_info["destination_address"].as_str().ok_or_else(|| {
+            crate::error::AggSandboxError::Config(crate::error::ConfigError::validation_failed(
+                "Missing destination_address in bridge info",
+            ))
+        })?;
+        println!("🏦 Using original bridge addresses for asset bridge:");
+        println!("   Origin: {} (network {})", origin_addr, source_network);
+        println!("   Destination: {} (network {})", dest_addr, network);
+        (origin_addr.to_string(), dest_addr.to_string())
+    };
     let amount = bridge_info["amount"].as_str().ok_or_else(|| {
         crate::error::AggSandboxError::Config(crate::error::ConfigError::validation_failed(
             "Missing amount in bridge info",
         ))
     })?;
-    let metadata = bridge_info["metadata"].as_str().unwrap_or("0x");
+    let metadata = if let Some(custom) = custom_data {
+        println!("🔧 Using custom metadata: {custom}");
+        custom
+    } else {
+        bridge_info["metadata"].as_str().unwrap_or("0x")
+    };
 
     // Convert addresses and amount
-    let origin_addr = Address::from_str(origin_address).map_err(|e| {
+    let origin_addr = Address::from_str(&origin_address).map_err(|e| {
         crate::error::AggSandboxError::Config(crate::error::ConfigError::validation_failed(
             &format!("Invalid origin address: {e}"),
         ))
     })?;
-    let dest_addr = Address::from_str(destination_address).map_err(|e| {
+    let dest_addr = Address::from_str(&destination_address).map_err(|e| {
         crate::error::AggSandboxError::Config(crate::error::ConfigError::validation_failed(
             &format!("Invalid destination address: {e}"),
         ))
@@ -842,9 +986,69 @@ async fn claim_asset(
         encode(&tokens)
     };
 
-    println!("💰 Claiming {amount} tokens to {destination_address}");
+    // Call the appropriate claim function based on leaf type
+    let tx_hash = if leaf_type == 0 {
+        // Asset bridge - call claimAsset
+        println!("💰 Claiming asset: {amount} tokens to {destination_address}");
 
-    // Call claimAsset (without merkle proofs as contract has been modified)
+        execute_claim_asset(
+            &bridge,
+            deposit_count,
+            mainnet_root,
+            rollup_root,
+            origin_network,
+            origin_addr,
+            destination_network_id,
+            dest_addr,
+            amount_wei,
+            metadata_bytes.clone(),
+            &gas_options,
+        )
+        .await?
+    } else {
+        // Message bridge - call claimMessage
+        println!("📨 Claiming message bridge to trigger contract execution");
+
+        execute_claim_message(
+            &bridge,
+            deposit_count,
+            mainnet_root,
+            rollup_root,
+            origin_network,
+            origin_addr,
+            destination_network_id,
+            dest_addr,
+            amount_wei,
+            metadata_bytes,
+            &gas_options,
+        )
+        .await?
+    };
+
+    println!("✅ Claim transaction submitted: {:#x}", tx_hash);
+    if leaf_type == 0 {
+        println!("🎉 Assets should be available once the transaction is mined!");
+    } else {
+        println!("🎉 Message bridge claimed! Contract call should execute automatically.");
+    }
+
+    Ok(())
+}
+
+/// Execute claimAsset contract call
+async fn execute_claim_asset(
+    bridge: &BridgeContract<SignerMiddleware<Arc<Provider<Http>>, LocalWallet>>,
+    deposit_count: u64,
+    mainnet_root: H256,
+    rollup_root: H256,
+    origin_network: u32,
+    origin_addr: Address,
+    destination_network_id: u32,
+    dest_addr: Address,
+    amount_wei: U256,
+    metadata_bytes: Vec<u8>,
+    gas_options: &GasOptions,
+) -> Result<H256> {
     let mut call = bridge.claim_asset(
         deposit_count.into(), // globalIndex
         mainnet_root.into(),  // mainnetExitRoot
@@ -862,17 +1066,51 @@ async fn claim_asset(
     }
 
     let call = gas_options.apply_to_call_with_return(call);
-
     let tx = call.send().await.map_err(|e| {
         crate::error::AggSandboxError::Config(crate::error::ConfigError::validation_failed(
-            &format!("Failed to send claim transaction: {e}"),
+            &format!("Failed to send claim asset transaction: {e}"),
         ))
     })?;
+    Ok(tx.tx_hash())
+}
 
-    println!("✅ Claim transaction submitted: {:#x}", tx.tx_hash());
-    println!("🎉 Assets should be available once the transaction is mined!");
+/// Execute claimMessage contract call
+async fn execute_claim_message(
+    bridge: &BridgeContract<SignerMiddleware<Arc<Provider<Http>>, LocalWallet>>,
+    deposit_count: u64,
+    mainnet_root: H256,
+    rollup_root: H256,
+    origin_network: u32,
+    origin_addr: Address,
+    destination_network_id: u32,
+    dest_addr: Address,
+    amount_wei: U256,
+    metadata_bytes: Vec<u8>,
+    gas_options: &GasOptions,
+) -> Result<H256> {
+    let mut call = bridge.claim_message(
+        deposit_count.into(), // globalIndex
+        mainnet_root.into(),  // mainnetExitRoot
+        rollup_root.into(),   // rollupExitRoot
+        origin_network,
+        origin_addr, // originAddress for message
+        destination_network_id,
+        dest_addr,
+        amount_wei,
+        ethers::types::Bytes::from(metadata_bytes), // message data
+    );
 
-    Ok(())
+    if gas_options.gas_limit.is_none() {
+        call = call.gas(3_000_000u64); // Default high gas limit for claims
+    }
+
+    let call = gas_options.apply_to_call_with_return(call);
+    let tx = call.send().await.map_err(|e| {
+        crate::error::AggSandboxError::Config(crate::error::ConfigError::validation_failed(
+            &format!("Failed to send claim message transaction: {e}"),
+        ))
+    })?;
+    Ok(tx.tx_hash())
 }
 
 /// Bridge with contract call (bridgeAndCall)
@@ -957,6 +1195,198 @@ async fn bridge_message(
         tx.tx_hash()
     );
     println!("💡 This creates both asset and message bridges. The message should execute automatically when ready.");
+
+    Ok(())
+}
+
+/// Get precalculated L2 token address
+#[allow(dead_code)]
+async fn get_precalculated_l2_token_address(
+    config: &Config,
+    destination_network: u64,
+    token_address: &str,
+    private_key: Option<&str>,
+) -> Result<Address> {
+    let client = get_wallet_with_provider(config, destination_network, private_key).await?;
+    let bridge_address = get_bridge_contract_address(config, destination_network)?;
+    let bridge = BridgeContract::new(bridge_address, Arc::new(client.clone()));
+
+    let token_addr = Address::from_str(token_address).map_err(|e| {
+        crate::error::AggSandboxError::Config(crate::error::ConfigError::validation_failed(
+            &format!("Invalid token address: {e}"),
+        ))
+    })?;
+
+    // Get token details from the source network (assuming L1 for now)
+    let source_client = get_wallet_with_provider(config, 0, private_key).await?;
+    let token_contract = ERC20Contract::new(token_addr, Arc::new(source_client));
+
+    let token_name = token_contract
+        .name()
+        .call()
+        .await
+        .unwrap_or_else(|_| "AggERC20".to_string());
+    let token_symbol = token_contract
+        .symbol()
+        .call()
+        .await
+        .unwrap_or_else(|_| "AGGERC20".to_string());
+    let token_decimals = token_contract.decimals().call().await.unwrap_or(18u8);
+
+    let l2_token_address = bridge
+        .precalculated_wrapper_address(1, token_addr, token_name, token_symbol, token_decimals)
+        .call()
+        .await
+        .map_err(|e| {
+            crate::error::AggSandboxError::Config(crate::error::ConfigError::validation_failed(
+                &format!("Failed to get precalculated address: {e}"),
+            ))
+        })?;
+
+    Ok(l2_token_address)
+}
+
+/// Bridge tokens and execute contract call with automatic approval
+#[allow(clippy::disallowed_methods)]
+async fn bridge_and_call_with_approval(
+    config: &Config,
+    source_network: u64,
+    destination_network: u64,
+    token_address: &str,
+    amount: &str,
+    target: &str,
+    data: &str,
+    fallback: &str,
+    gas_options: GasOptions,
+    private_key: Option<&str>,
+) -> Result<()> {
+    let client = get_wallet_with_provider(config, source_network, private_key).await?;
+    let bridge_ext_address = get_bridge_extension_address(config, source_network)?;
+    let bridge_ext = BridgeExtensionContract::new(bridge_ext_address, Arc::new(client.clone()));
+
+    let destination_chain_id = network_id_to_chain_id(config, destination_network)?;
+
+    // Parse addresses and amounts
+    let token_addr = Address::from_str(token_address).map_err(|e| {
+        crate::error::AggSandboxError::Config(crate::error::ConfigError::validation_failed(
+            &format!("Invalid token address: {e}"),
+        ))
+    })?;
+
+    let target_addr = Address::from_str(target).map_err(|e| {
+        crate::error::AggSandboxError::Config(crate::error::ConfigError::validation_failed(
+            &format!("Invalid target address: {e}"),
+        ))
+    })?;
+
+    let fallback_addr = Address::from_str(fallback).map_err(|e| {
+        crate::error::AggSandboxError::Config(crate::error::ConfigError::validation_failed(
+            &format!("Invalid fallback address: {e}"),
+        ))
+    })?;
+
+    let amount_wei = U256::from_dec_str(amount).map_err(|e| {
+        crate::error::AggSandboxError::Config(crate::error::ConfigError::validation_failed(
+            &format!("Invalid amount: {e}"),
+        ))
+    })?;
+
+    let call_data_bytes = hex::decode(data.trim_start_matches("0x")).map_err(|e| {
+        crate::error::AggSandboxError::Config(crate::error::ConfigError::validation_failed(
+            &format!("Invalid call data hex: {e}"),
+        ))
+    })?;
+
+    println!("🔧 Bridge and Call Debug:");
+    println!("  - Token address: {}", token_address);
+    println!("  - Amount: {} (Wei: {amount_wei})", amount);
+    println!("  - Target: {}", target);
+    println!("  - Fallback: {}", fallback);
+    println!("  - Destination chain ID: {destination_chain_id}");
+    println!("  - Bridge Extension: {bridge_ext_address:?}");
+
+    // Step 1: Check and approve bridge extension to spend tokens
+    let token = ERC20Contract::new(token_addr, Arc::new(client.clone()));
+
+    println!("🔧 Checking allowance for bridge extension...");
+    let allowance = token
+        .allowance(client.address(), bridge_ext_address)
+        .call()
+        .await
+        .map_err(|e| {
+            crate::error::AggSandboxError::Config(crate::error::ConfigError::validation_failed(
+                &format!("Failed to check allowance: {e}"),
+            ))
+        })?;
+
+    println!("🔧 Current allowance: {allowance}, Required: {amount_wei}");
+
+    if allowance < amount_wei {
+        info!(
+            "Approving bridge extension contract to spend {} tokens",
+            amount
+        );
+        println!("🔧 Calling approve: token.approve({bridge_ext_address:?}, {amount_wei})");
+        let approve_call = token.approve(bridge_ext_address, amount_wei);
+        let approve_tx = approve_call.send().await.map_err(|e| {
+            crate::error::AggSandboxError::Config(crate::error::ConfigError::validation_failed(
+                &format!("Failed to approve tokens: {e}"),
+            ))
+        })?;
+        println!("✅ Token approval transaction: {:#x}", approve_tx.tx_hash());
+
+        // Wait for approval to be mined
+        approve_tx.await.map_err(|e| {
+            crate::error::AggSandboxError::Config(crate::error::ConfigError::validation_failed(
+                &format!("Approval transaction failed: {e}"),
+            ))
+        })?;
+    }
+
+    // Step 2: Execute bridgeAndCall
+    println!("🔧 Executing bridgeAndCall...");
+
+    let mut call = bridge_ext.bridge_and_call(
+        token_addr,
+        amount_wei,
+        destination_chain_id,
+        target_addr,
+        fallback_addr,
+        call_data_bytes.into(),
+        true, // forceUpdateGlobalExitRoot
+    );
+
+    if gas_options.gas_limit.is_none() {
+        call = call.gas(3_000_000u64); // Default high gas limit
+    }
+
+    let call = gas_options.apply_to_call_with_return(call);
+
+    let tx = call.send().await.map_err(|e| {
+        crate::error::AggSandboxError::Config(crate::error::ConfigError::validation_failed(
+            &format!("Failed to send bridge and call transaction: {e}"),
+        ))
+    })?;
+
+    println!(
+        "✅ Bridge and call transaction submitted: {:#x}",
+        tx.tx_hash()
+    );
+    println!("🔧 This creates TWO bridge transactions:");
+    println!("   1. Asset bridge (deposit_count = 0) - bridges tokens to JumpPoint");
+    println!("   2. Message bridge (deposit_count = 1) - contains call instructions");
+    println!();
+    println!("💡 To complete the process, you need to claim both bridges:");
+    println!(
+        "   1. First claim asset: aggsandbox show bridges --network-id {} (find asset bridge)",
+        source_network
+    );
+    println!("   2. Then: aggsandbox bridge claim --network {} --tx-hash <asset_bridge_tx_hash> --source-network {}", destination_network, source_network);
+    println!(
+        "   3. Then claim message: aggsandbox show bridges --network-id {} (find message bridge)",
+        source_network
+    );
+    println!("   4. Finally: aggsandbox bridge claim --network {} --tx-hash <message_bridge_tx_hash> --source-network {}", destination_network, source_network);
 
     Ok(())
 }

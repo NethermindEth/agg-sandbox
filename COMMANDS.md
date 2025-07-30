@@ -638,10 +638,10 @@ METADATA=$(cast abi-encode "f(uint256,address,address,uint32,address,bytes)" \
 # Claim the message bridge (replace placeholders with actual values from your environment)
 cast send $POLYGON_ZKEVM_BRIDGE_L2 \
   "claimMessage(uint256,bytes32,bytes32,uint32,address,uint32,address,uint256,bytes)" \
-  $CHAIN_ID_MAINNET \
+  1 \
   <MAINNET_EXIT_ROOT_FROM_MESSAGE_PROOF> \
   <ROLLUP_EXIT_ROOT_FROM_MESSAGE_PROOF> \
-  1 \
+  $CHAIN_ID_MAINNET \
   $BRIDGE_EXTENSION_L1 \
   $CHAIN_ID_AGGLAYER_1 \
   $BRIDGE_EXTENSION_L2 \

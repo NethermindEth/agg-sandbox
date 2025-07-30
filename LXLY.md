@@ -4,11 +4,12 @@ This document describes the LXLY bridge functionality integrated into the aggsan
 
 ## Overview
 
-The LXLY bridge integration provides three main operations:
+The LXLY bridge integration provides comprehensive cross-chain operations:
 
 - **Bridge Assets**: Transfer ERC20 tokens or ETH between networks
 - **Claim Assets**: Claim previously bridged assets on the destination network
 - **Bridge Messages**: Bridge with contract calls (bridgeAndCall functionality)
+- **Bridge and Call**: Advanced bridgeAndCall with automatic token approval and two-phase claiming using existing claim command
 
 ## Architecture
 
@@ -80,6 +81,8 @@ aggsandbox bridge claim \
 - `--network, -n`: Network to claim assets on
 - `--tx-hash, -t`: Original bridge transaction hash
 - `--source-network, -s`: Source network of the original bridge
+- `--deposit-count, -c`: Deposit count for specific bridge (0=asset, 1=message, auto-detected if not provided)
+- `--data`: Custom metadata for message bridge claims (hex encoded, for BridgeExtension messages)
 - `--gas-limit`: Gas limit override (optional)
 - `--gas-price`: Gas price override in wei (optional)
 
@@ -88,12 +91,17 @@ aggsandbox bridge claim \
 Bridge with contract calls (bridgeAndCall functionality):
 
 ```bash
+# Encode the message call data (transfer 1 token to ACCOUNT_ADDRESS_1)
+MESSAGE=$(cast calldata "transfer(address,uint256)" $ACCOUNT_ADDRESS_1 1)
+```
+
+```bash
 # Bridge ETH with contract call
 aggsandbox bridge message \
   --network 0 \
   --destination-network 1 \
   --target 0x742d35Cc6965C592342c6c16fb8eaeb90a23b5C0 \
-  --data 0xa9059cbb000000000000000000000000742d35cc6965c592342c6c16fb8eaeb90a23b5c00000000000000000000000000000000000000000000000000de0b6b3a7640000 \
+  --data $MESSAGE \
   --amount 0.01 \
   --fallback-address 0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266
 ```
@@ -103,11 +111,123 @@ aggsandbox bridge message \
 - `--network, -n`: Source network ID
 - `--destination-network, -d`: Destination network ID
 - `--target, -t`: Target contract address on destination network
-- `--data, -D`: Contract call data (hex encoded)
+- `--data`: Contract call data (hex encoded)
 - `--amount, -a`: Amount of ETH to send (optional)
 - `--fallback-address`: Fallback address if call fails (optional, defaults to sender)
 - `--gas-limit`: Gas limit override (optional)
 - `--gas-price`: Gas price override in wei (optional)
+
+### Bridge and Call
+
+Execute bridgeAndCall operations with automatic token approval and two-phase claiming:
+
+#### Step 1: Bridge and Call
+
+```bash
+source .env
+# Encode the transfer call data (transfer 1 token to ACCOUNT_ADDRESS_1)
+TRANSFER_DATA=$(cast calldata "transfer(address,uint256)" $ACCOUNT_ADDRESS_1 1)
+
+# Get the precalculated L2 token address
+L2_TOKEN_ADDRESS=$(cast call $POLYGON_ZKEVM_BRIDGE_L2 \
+  "precalculatedWrapperAddress(uint32,address,string,string,uint8)" \
+  1 $AGG_ERC20_L1 "AggERC20" "AGGERC20" 18 \
+  --rpc-url $RPC_2 | sed 's/0x000000000000000000000000/0x/')
+```
+
+```bash
+# Bridge ERC20 tokens with contract call
+aggsandbox bridge bridge-and-call \
+  --network 0 \
+  --destination-network 1 \
+  --token $AGG_ERC20_L1 \
+  --amount 10 \
+  --target $L2_TOKEN_ADDRESS \
+  --data $TRANSFER_DATA \
+  --fallback 0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266
+```
+
+**Parameters:**
+
+- `--network, -n`: Source network ID (0=L1, 1=L2, etc.)
+- `--destination-network, -d`: Destination network ID
+- `--token, -t`: Token contract address to bridge
+- `--amount, -a`: Amount to bridge (in token units)
+- `--target`: Target contract address on destination network
+- `--data`: Contract call data (hex encoded)
+- `--fallback`: Fallback address if contract call fails
+- `--gas-limit`: Gas limit override (optional)
+- `--gas-price`: Gas price override in wei (optional)
+- `--private-key`: Private key to use (optional)
+
+#### Step 2: Find and Claim Asset Bridge
+
+**⚠️ Important**: The asset bridge MUST be claimed first before the message can be processed.
+
+```bash
+# First, find the bridge transactions from bridgeAndCall
+aggsandbox show bridges --network-id 0
+```
+
+```bash
+# Prepare token metadata for asset claim
+METADATA=$(cast abi-encode "f(string,string,uint8)" "AggERC20" "AGGERC20" 18)
+```
+
+```bash
+# Claim the asset bridge first (deposit_count = 0) - REQUIRED FIRST
+aggsandbox bridge claim \
+  --network 1 \
+  --tx-hash <bridge_tx_hash> \
+  --source-network 0 \
+  --deposit-count 0
+```
+
+#### Step 3: Claim Message Bridge
+
+```bash
+# Create the metadata for the bridge extension call
+METADATA=$(cast abi-encode "f(uint256,address,address,uint32,address,bytes)" \
+  0 $L2_TOKEN_ADDRESS $ACCOUNT_ADDRESS_2 1 $AGG_ERC20_L1 $TRANSFER_DATA)
+```
+
+```bash
+# Claim the message bridge (deposit_count = 1) - MUST be done after asset bridge
+aggsandbox bridge claim \
+  --network 1 \
+  --tx-hash <bridge_tx_hash> \
+  --source-network 0 \
+  --deposit-count 1 \
+  --data $METADATA
+```
+
+**Important**: Both bridges share the same `tx_hash` but have different `deposit_count` values:
+- Asset bridge: `deposit_count = 0` (must be claimed first)
+- Message bridge: `deposit_count = 1` (claimed after asset bridge)
+
+The `--deposit-count` parameter allows you to specify which specific bridge to claim when multiple bridges share the same transaction hash.
+
+**Note**: For BridgeExtension message claims, you must ensure:
+1. The origin address in claimMessage should be the BRIDGE_EXTENSION address
+2. Use custom `--data` metadata that matches the BridgeExtension encoding format
+3. The asset bridge must be claimed first with the correct global index
+
+### How Bridge and Call Works
+
+When you execute `bridge-and-call`, it creates **TWO** bridge transactions:
+
+1. **Asset Bridge** (deposit_count = 0): Bridges tokens to a precalculated JumpPoint address
+2. **Message Bridge** (deposit_count = 1): Contains the call instructions for execution
+
+The claiming process must be done in order:
+1. First claim the asset bridge to transfer tokens to the JumpPoint
+2. Then claim the message bridge to trigger the contract call execution
+
+When the message bridge is claimed, the BridgeExtension contract:
+1. Validates that the corresponding asset was claimed first
+2. Deploys a temporary JumpPoint contract using CREATE2
+3. Executes the contract call with the bridged tokens
+4. Handles fallback if the call fails
 
 ## Network Configuration
 
@@ -143,20 +263,26 @@ The bridge functionality is implemented directly in the Rust CLI:
 
 ```bash
 cli/src/commands/
-├── bridge.rs             # Bridge command implementation
-│   ├── bridge_asset()    # Asset bridging with ERC20 approval
-│   ├── claim_asset()     # Asset claiming with proof verification
-│   └── bridge_message()  # Message bridging with contract calls
+├── bridge.rs                          # Bridge command implementation
+│   ├── bridge_asset()                 # Asset bridging with ERC20 approval
+│   ├── claim_asset()                  # Asset claiming with proof verification
+│   ├── bridge_message()               # Message bridging with contract calls
+│   ├── bridge_and_call_with_approval() # Advanced bridgeAndCall with approval
+│   └── get_precalculated_l2_token_address() # Get L2 token address helper
 ```
 
 ### Key Features
 
 1. **Automatic Token Approval**: ERC20 tokens are automatically approved for bridging
-2. **Network Availability Checking**: Verifies networks are accessible before operations
-3. **Chain ID Mapping**: Maps sandbox network IDs to actual blockchain chain IDs
-4. **Error Handling**: Comprehensive error reporting with transaction details
-5. **Gas Optimization**: Configurable gas limits and prices
-6. **Direct Smart Contract Interaction**: Uses ethers.rs for direct contract calls
+2. **Automatic Bridge Type Detection**: The claim command automatically detects asset vs message bridges and calls the appropriate contract function (`claimAsset` or `claimMessage`)
+3. **Two-Phase Bridge and Call**: Separate asset and message claiming for bridgeAndCall operations
+4. **Precalculated Address Support**: Automatically calculates L2 token wrapper addresses
+5. **Network Availability Checking**: Verifies networks are accessible before operations
+6. **Chain ID Mapping**: Maps sandbox network IDs to actual blockchain chain IDs
+7. **Error Handling**: Comprehensive error reporting with transaction details
+8. **Gas Optimization**: Configurable gas limits and prices
+9. **Direct Smart Contract Interaction**: Uses ethers.rs for direct contract calls
+10. **JumpPoint Contract Integration**: Supports CREATE2-based temporary contract execution
 
 ### Configuration
 
@@ -232,6 +358,85 @@ PRIVATE_KEY_1=0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80
      --token-address 0x0000000000000000000000000000000000000000
    ```
 
+### Complete Bridge and Call Workflow
+
+1. **Start the sandbox:**
+
+   ```bash
+   aggsandbox start --detach
+   ```
+
+2. **Deploy a test ERC20 token (if needed):**
+
+   ```bash
+   # Deploy an AggERC20 token on L1
+   cast send --private-key 0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80 \
+     --rpc-url http://localhost:8545 \
+     --create $(cat agglayer-contracts/out/AggERC20.sol/AggERC20.json | jq -r '.bytecode.object')
+   ```
+
+3. **Encode transfer call data:**
+
+   ```bash
+   # Transfer 1 token to a recipient address
+   TRANSFER_DATA=$(cast calldata "transfer(address,uint256)" 0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266 1000000000000000000)
+   echo "Transfer call data: $TRANSFER_DATA"
+   ```
+
+4. **Execute bridge and call:**
+
+   ```bash
+   aggsandbox bridge bridge-and-call \
+     --network 0 \
+     --destination-network 1 \
+     --token 0xA0b86a33E6776e39e6b37ddEC4F25B04Dd9Fc4DC \
+     --amount 10000000000000000000 \
+     --target 0x742d35Cc6965C592342c6c16fb8eaeb90a23b5C0 \
+     --data $TRANSFER_DATA \
+     --fallback 0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266
+   ```
+
+5. **Wait for bridge processing and check bridges:**
+
+   ```bash
+   # Check for both bridge entries (asset and message)
+   aggsandbox show bridges --network-id 0
+   ```
+
+6. **Claim asset bridge first (deposit_count = 0):**
+
+   ```bash
+   # Find the bridge transactions from bridgeAndCall
+   aggsandbox show bridges --network-id 0
+
+   # Claim the asset bridge using tx_hash and deposit_count=0
+   aggsandbox bridge claim \
+     --network 1 \
+     --tx-hash <bridge_tx_hash> \
+     --source-network 0 \
+     --deposit-count 0
+   ```
+
+7. **Claim message bridge to trigger execution (deposit_count = 1):**
+
+   ```bash
+   # Claim the message bridge using the same tx_hash but deposit_count=1
+   aggsandbox bridge claim \
+     --network 1 \
+     --tx-hash <bridge_tx_hash> \
+     --source-network 0 \
+     --deposit-count 1
+   ```
+
+8. **Verify the contract call was executed:**
+
+   ```bash
+   # Check the L2 token balance to confirm the transfer worked
+   cast call 0x742d35Cc6965C592342c6c16fb8eaeb90a23b5C0 \
+     "balanceOf(address)" 0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266 \
+     --rpc-url http://localhost:8546
+   ```
+
 ## Error Handling
 
 ### Common Errors and Solutions
@@ -255,6 +460,26 @@ PRIVATE_KEY_1=0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80
 
 - **Cause**: Contract addresses not found in configuration
 - **Solution**: Ensure sandbox is started and contracts are deployed
+
+**Asset Bridge Must Be Claimed First**
+
+- **Cause**: Attempting to claim message bridge before asset bridge
+- **Solution**: Always claim asset bridge (deposit_count = 0) before message bridge (deposit_count = 1) using the existing claim command
+
+**Bridge Extension Not Found**
+
+- **Cause**: BridgeExtension contract not deployed on the network
+- **Solution**: Verify sandbox deployment includes bridge extension contracts
+
+**Contract Call Execution Failed**
+
+- **Cause**: Target contract call failed during message bridge claiming
+- **Solution**: Check fallback address receives tokens; verify call data and target contract
+
+**Bridge Transaction Not Found**
+
+- **Cause**: Cannot find bridge transaction with specific tx_hash and/or deposit_count
+- **Solution**: Use `aggsandbox show bridges --network-id <source_network>` to list all bridges and find the correct tx_hash. For bridgeAndCall operations, use `--deposit-count 0` for asset bridge and `--deposit-count 1` for message bridge
 
 ### Debugging
 

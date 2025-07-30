@@ -173,7 +173,7 @@ The sandbox consists of:
 ┌─────────────────┐         ┌─────────────────────┐         ┌─────────────────┐
 │   L1 (Anvil)    │◄────────┤      AggKit         ├────────►│   L2 (Anvil)    │
 │   Port: 8545    │         │  REST API: 5577     │         │   Port: 8546    │
-│   Chain ID: 1   │         │  RPC: 8555          │         │   Chain ID:1101 │
+│   Network ID: 0 │         │  RPC: 8555          │         │   Network ID: 1 │
 │                 │         │  Telemetry: 8080    │         │                 │
 └─────────────────┘         └─────────────────────┘         └─────────────────┘
          ▲                                                           ▲
@@ -213,7 +213,7 @@ For multi-chain testing with dual AggKit instances:
    ┌─────────────┐                     ┌─────────────┐
    │ L1 (Anvil)  │                     │L2-1 (Anvil) │
    │ Port: 8545  │                     │ Port: 8546  │
-   │Chain ID: 1  │                     │Chain ID:1101│
+   │Network ID: 0│                     │Network ID: 1│
    └─────────────┘                     └─────────────┘
               │
               │      ┌─────────────────────┐
@@ -225,7 +225,7 @@ For multi-chain testing with dual AggKit instances:
                                         ┌─────────────┐
                                         │L2-2 (Anvil) │
                                         │ Port: 8547  │
-                                        │Chain ID:137 │
+                                        │Network ID: 2│
                                         └─────────────┘
 ```
 
@@ -658,10 +658,10 @@ cp .env.example .env
 RPC_URL_1=http://127.0.0.1:8545
 RPC_URL_2=http://127.0.0.1:8546
 
-# Chain IDs for the networks
-CHAIN_ID_MAINNET=1
-CHAIN_ID_AGGLAYER_1=1101
-CHAIN_ID_AGGLAYER_2=137  # For multi-L2 mode
+# Network IDs for the networks
+NETWORK_ID_MAINNET=0
+NETWORK_ID_AGGLAYER_1=1
+NETWORK_ID_AGGLAYER_2=2  # For multi-L2 mode
 ```
 
 #### Fork Mode Variables
@@ -719,17 +719,17 @@ retry_attempts = 3
 
 [networks.l1]
 name = "Ethereum-L1"
-chain_id = "1"
+network_id = "0"
 rpc_url = "http://localhost:8545"
 
 [networks.l2]
 name = "Polygon-zkEVM-L2"
-chain_id = "1101"
+network_id = "1"
 rpc_url = "http://localhost:8546"
 
 [networks.l3]
 name = "Second-L2-Chain"
-chain_id = "1102"
+network_id = "2"
 rpc_url = "http://localhost:8547"
 
 [accounts]
@@ -758,15 +758,15 @@ api:
 networks:
   l1:
     name: "Ethereum-L1"
-    chain_id: "1"
+    network_id: "0"
     rpc_url: "http://localhost:8545"
   l2:
     name: "Polygon-zkEVM-L2"
-    chain_id: "1101"
+    network_id: "1"
     rpc_url: "http://localhost:8546"
   l3:
     name: "Second-L2-Chain"
-    chain_id: "1102"
+    network_id: "2"
     rpc_url: "http://localhost:8547"
 
 accounts:
@@ -798,35 +798,35 @@ This allows for flexible overrides while maintaining reasonable defaults.
 
 ### Local Mode Networks
 
-| Network | URL | Chain ID | Description |
-|---------|-----|----------|-------------|
-| L1 (Ethereum Simulation) | `http://127.0.0.1:8545` | 1 | Local Ethereum simulation |
-| L2 (Polygon zkEVM Simulation) | `http://127.0.0.1:8546` | 1101 | Local Polygon zkEVM simulation |
+| Network | URL | Network ID | Description |
+|---------|-----|------------|-------------|
+| L1 (Ethereum Simulation) | `http://127.0.0.1:8545` | 0 | Local Ethereum simulation |
+| L2 (Polygon zkEVM Simulation) | `http://127.0.0.1:8546` | 1 | Local Polygon zkEVM simulation |
 
 ### Fork Mode Networks
 
-| Network | URL | Chain ID | Description |
-|---------|-----|----------|-------------|
-| L1 (Ethereum Fork) | `http://127.0.0.1:8545` | 1 | Uses real Ethereum state |
-| L2 (Polygon Fork) | `http://127.0.0.1:8546` | 1101 | Uses real Polygon state |
+| Network | URL | Network ID | Description |
+|---------|-----|------------|-------------|
+| L1 (Ethereum Fork) | `http://127.0.0.1:8545` | 0 | Uses real Ethereum state |
+| L2 (Polygon Fork) | `http://127.0.0.1:8546` | 1 | Uses real Polygon state |
 
 ### Multi-L2 Mode Networks
 
 #### Local Multi-L2
 
-| Network | URL | Chain ID | Description |
-|---------|-----|----------|-------------|
-| L1 (Ethereum Simulation) | `http://127.0.0.1:8545` | 1 | Local Ethereum simulation |
-| L2-1 (Polygon zkEVM Simulation) | `http://127.0.0.1:8546` | 1101 | First L2 simulation |
-| L2-2 (Polygon PoS Simulation) | `http://127.0.0.1:8547` | 137 | Second L2 simulation |
+| Network | URL | Network ID | Description |
+|---------|-----|------------|-------------|
+| L1 (Ethereum Simulation) | `http://127.0.0.1:8545` | 0 | Local Ethereum simulation |
+| L2-1 (Polygon zkEVM Simulation) | `http://127.0.0.1:8546` | 1 | First L2 simulation |
+| L2-2 (Polygon PoS Simulation) | `http://127.0.0.1:8547` | 2 | Second L2 simulation |
 
 #### Fork Multi-L2
 
-| Network | URL | Chain ID | Description |
-|---------|-----|----------|-------------|
-| L1 (Ethereum Fork) | `http://127.0.0.1:8545` | 1 | Uses real Ethereum state |
-| L2-1 (Polygon zkEVM Fork) | `http://127.0.0.1:8546` | 1101 | Uses real Polygon zkEVM state |
-| L2-2 (Polygon PoS Fork) | `http://127.0.0.1:8547` | 137 | Uses real Polygon PoS state |
+| Network | URL | Network ID | Description |
+|---------|-----|------------|-------------|
+| L1 (Ethereum Fork) | `http://127.0.0.1:8545` | 0 | Uses real Ethereum state |
+| L2-1 (Polygon zkEVM Fork) | `http://127.0.0.1:8546` | 1 | Uses real Polygon zkEVM state |
+| L2-2 (Polygon PoS Fork) | `http://127.0.0.1:8547` | 2 | Uses real Polygon PoS state |
 
 ### Port Configuration
 
@@ -1100,7 +1100,7 @@ docker system prune  # Clean up if needed
 
 ```bash
 # Check all environment variables
-env | grep -E "(FORK_URL|RPC_URL|CHAIN_ID)"
+env | grep -E "(FORK_URL|RPC_URL|NETWORK_ID)"
 
 # Validate configuration files
 aggsandbox info --validate

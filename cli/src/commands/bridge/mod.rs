@@ -424,7 +424,24 @@ pub async fn get_wallet_with_provider(
         ))
     })?;
 
-    let chain_id = network_id_to_chain_id(config, network_id)? as u64;
+    let chain_id = match network_id {
+        0 => config.networks.l1.chain_id.as_u64()?,
+        1 => config.networks.l2.chain_id.as_u64()?,
+        2 => config
+            .networks
+            .l3
+            .as_ref()
+            .map(|l3| l3.chain_id.as_u64())
+            .transpose()?
+            .unwrap_or(137),
+        _ => {
+            return Err(crate::error::AggSandboxError::Config(
+                crate::error::ConfigError::validation_failed(&format!(
+                    "Unsupported network ID: {network_id}"
+                )),
+            ))
+        }
+    };
 
     let wallet_with_chain = wallet.with_chain_id(chain_id);
     let client = SignerMiddleware::new(provider, wallet_with_chain);
@@ -500,28 +517,4 @@ pub fn is_eth_address(address: &str) -> bool {
         || Address::from_str(address)
             .map(|addr| addr.is_zero())
             .unwrap_or(false)
-}
-
-/// Convert network ID to chain ID based on standard mapping
-pub fn network_id_to_chain_id(config: &Config, network_id: u64) -> Result<u32> {
-    let chain_id = match network_id {
-        0 => config.networks.l1.chain_id.as_u64()?, // L1 Mainnet (Chain ID 1)
-        1 => config.networks.l2.chain_id.as_u64()?, // AggLayer 1 (Chain ID 1101)
-        2 => config
-            .networks
-            .l3
-            .as_ref()
-            .map(|l3| l3.chain_id.as_u64())
-            .transpose()?
-            .unwrap_or(137), // AggLayer 2 (Chain ID 137)
-        _ => {
-            return Err(crate::error::AggSandboxError::Config(
-                crate::error::ConfigError::validation_failed(&format!(
-                    "Unsupported network ID: {network_id}"
-                )),
-            ))
-        }
-    };
-
-    Ok(chain_id as u32)
 }

@@ -6,8 +6,8 @@ use std::sync::Arc;
 use tracing::info;
 
 use super::{
-    get_bridge_contract_address, get_wallet_with_provider, is_eth_address, network_id_to_chain_id,
-    BridgeContract, ERC20Contract,
+    get_bridge_contract_address, get_wallet_with_provider, is_eth_address, BridgeContract,
+    ERC20Contract,
 };
 
 /// Gas options for transactions
@@ -259,7 +259,7 @@ pub async fn bridge_asset(args: BridgeAssetArgs<'_>) -> Result<()> {
     let bridge_address = get_bridge_contract_address(args.config, args.source_network)?;
     let bridge = BridgeContract::new(bridge_address, Arc::new(client.clone()));
 
-    let destination_chain_id = network_id_to_chain_id(args.config, args.destination_network)?;
+    let destination_network_id = args.destination_network as u32;
 
     let recipient = if let Some(addr) = args.to_address {
         Address::from_str(addr).map_err(|e| {
@@ -289,11 +289,11 @@ pub async fn bridge_asset(args: BridgeAssetArgs<'_>) -> Result<()> {
             "Bridging ETH from network {} to network {}",
             args.source_network, args.destination_network
         );
-        println!("🔧 Bridging ETH - amount: {amount_wei} wei, destination_chain_id: {destination_chain_id}, recipient: {recipient:?}");
+        println!("🔧 Bridging ETH - amount: {amount_wei} wei, destination_network_id: {destination_network_id}, recipient: {recipient:?}");
 
         let call = bridge
             .bridge_asset(
-                destination_chain_id,
+                destination_network_id,
                 recipient,
                 amount_wei,
                 token_addr,
@@ -322,7 +322,7 @@ pub async fn bridge_asset(args: BridgeAssetArgs<'_>) -> Result<()> {
         println!("  - From address: {:?}", client.address());
         println!("  - Bridge address: {bridge_address:?}");
         println!("  - Amount: {} (Wei: {amount_wei})", args.amount);
-        println!("  - Destination chain ID: {destination_chain_id}");
+        println!("  - Destination network ID: {destination_network_id}");
         println!("  - Recipient: {recipient:?}");
 
         // First check and approve if needed
@@ -365,14 +365,14 @@ pub async fn bridge_asset(args: BridgeAssetArgs<'_>) -> Result<()> {
 
         // Now bridge the tokens
         println!("🔧 Calling bridgeAsset:");
-        println!("  - destination_chain_id: {destination_chain_id}");
+        println!("  - destination_network_id: {destination_network_id}");
         println!("  - recipient: {recipient:?}");
         println!("  - amount_wei: {amount_wei}");
         println!("  - token_addr: {token_addr:?}");
         println!("  - forceUpdateGlobalExitRoot: true");
 
         let call = bridge.bridge_asset(
-            destination_chain_id,
+            destination_network_id,
             recipient,
             amount_wei,
             token_addr,

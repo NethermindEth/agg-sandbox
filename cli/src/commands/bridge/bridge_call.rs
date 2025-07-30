@@ -6,8 +6,8 @@ use std::sync::Arc;
 use tracing::info;
 
 use super::{
-    get_bridge_extension_address, get_wallet_with_provider, network_id_to_chain_id,
-    BridgeExtensionContract, ERC20Contract, GasOptions,
+    get_bridge_extension_address, get_wallet_with_provider, BridgeExtensionContract, ERC20Contract,
+    GasOptions,
 };
 
 /// Parameters for bridge message operations
@@ -369,7 +369,7 @@ pub async fn bridge_message(
     let bridge_ext_address = get_bridge_extension_address(config, source_network)?;
     let bridge_ext = BridgeExtensionContract::new(bridge_ext_address, Arc::new(client.clone()));
 
-    let destination_chain_id = network_id_to_chain_id(config, destination_network)?;
+    let destination_network_id = destination_network as u32;
 
     let target_addr = Address::from_str(&params.target).map_err(|e| {
         crate::error::AggSandboxError::Config(crate::error::ConfigError::validation_failed(
@@ -414,7 +414,7 @@ pub async fn bridge_message(
     let mut call = bridge_ext.bridge_and_call(
         token_addr,
         eth_amount,
-        destination_chain_id,
+        destination_network_id,
         target_addr,
         fallback_addr,
         call_data.into(),
@@ -497,7 +497,7 @@ pub async fn bridge_and_call_with_approval(args: BridgeAndCallArgs<'_>) -> Resul
     let bridge_ext_address = get_bridge_extension_address(args.config, args.source_network)?;
     let bridge_ext = BridgeExtensionContract::new(bridge_ext_address, Arc::new(client.clone()));
 
-    let destination_chain_id = network_id_to_chain_id(args.config, args.destination_network)?;
+    let destination_network_id = args.destination_network as u32;
 
     // Parse addresses and amounts
     let token_addr = Address::from_str(args.token_address).map_err(|e| {
@@ -535,7 +535,7 @@ pub async fn bridge_and_call_with_approval(args: BridgeAndCallArgs<'_>) -> Resul
     println!("  - Amount: {} (Wei: {amount_wei})", args.amount);
     println!("  - Target: {}", args.target);
     println!("  - Fallback: {}", args.fallback);
-    println!("  - Destination chain ID: {destination_chain_id}");
+    println!("  - Destination network ID: {destination_network_id}");
     println!("  - Bridge Extension: {bridge_ext_address:?}");
 
     // Step 1: Check and approve bridge extension to spend tokens
@@ -582,7 +582,7 @@ pub async fn bridge_and_call_with_approval(args: BridgeAndCallArgs<'_>) -> Resul
     let mut call = bridge_ext.bridge_and_call(
         token_addr,
         amount_wei,
-        destination_chain_id,
+        destination_network_id,
         target_addr,
         fallback_addr,
         call_data_bytes.into(),

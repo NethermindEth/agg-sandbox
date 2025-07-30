@@ -8,7 +8,7 @@ use std::sync::Arc;
 
 use super::{
     get_bridge_contract_address, get_bridge_extension_address, get_wallet_with_provider,
-    network_id_to_chain_id, BridgeContract, ERC20Contract, GasOptions,
+    BridgeContract, ERC20Contract, GasOptions,
 };
 
 /// Arguments for claiming bridged assets
@@ -402,11 +402,11 @@ pub async fn claim_asset(args: ClaimAssetArgs<'_>) -> Result<()> {
     let origin_network = bridge_info["origin_network"]
         .as_u64()
         .map(|n| n as u32)
-        .unwrap_or_else(|| network_id_to_chain_id(args.config, args.source_network).unwrap_or(1));
+        .unwrap_or_else(|| args.source_network as u32);
     let destination_network_id = bridge_info["destination_network"]
         .as_u64()
         .map(|n| n as u32)
-        .unwrap_or_else(|| network_id_to_chain_id(args.config, args.network).unwrap_or(1101));
+        .unwrap_or_else(|| args.network as u32);
 
     // For message bridges (leaf_type = 1), use BridgeExtension addresses
     // For asset bridges (leaf_type = 0), use the original bridge addresses

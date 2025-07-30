@@ -142,6 +142,7 @@ aggsandbox bridge bridge-and-call \
   --destination-network 1 \
   --token $AGG_ERC20_L1 \
   --amount 10 \
+  # TODO: change to destination-address
   --target $L2_TOKEN_ADDRESS \
   --data $TRANSFER_DATA \
   --fallback 0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266

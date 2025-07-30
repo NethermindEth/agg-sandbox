@@ -321,8 +321,7 @@ impl OptimizedApiClient {
             .timeout(timeout)
             .send()
             .await
-            .map_err(
-            |e| {
+            .map_err(|e| {
                 warn!(url = %url, error = %e, "HTTP request failed");
                 ApiError::network_error(&e.to_string())
             })?;

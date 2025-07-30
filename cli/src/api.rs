@@ -153,10 +153,7 @@ pub async fn get_l1_info_tree_index(
     Ok(L1InfoTreeIndexResponse { data: info_data })
 }
 
-pub async fn post_sponsor_claim(
-    config: &Config,
-    claim_body: &ClaimBody,
-) -> Result<ClaimResponse> {
+pub async fn post_sponsor_claim(config: &Config, claim_body: &ClaimBody) -> Result<ClaimResponse> {
     // Serialize the strongly-typed body into `serde_json::Value`
     let body_json = serde_json::to_value(claim_body)
         .map_err(|e| anyhow::anyhow!("serialising claim body: {e}"))?;

@@ -1,5 +1,5 @@
-use serde::{Serialize, Deserialize};
 use ethers::types::{Address, Bytes, H256};
+use serde::{Deserialize, Serialize};
 
 /// Body expected by POST /bridge/v1/sponsor-claim
 #[derive(Serialize)]

@@ -283,7 +283,11 @@ async fn run(cli: Cli) -> Result<()> {
             info!(network_id = ?network_id, chain = ?chain, blocks = blocks, address = ?address, "Executing events command");
             commands::handle_events(network_id, chain, blocks, address).await
         }
-        Commands::SponsorClaim { deposit, origin_network, destination_network } => {
+        Commands::SponsorClaim {
+            deposit,
+            origin_network,
+            destination_network,
+        } => {
             info!(deposit, origin_network, "Executing sponsor-claim command");
             commands::handle_sponsor_claim(deposit, origin_network, destination_network).await?;
             Ok(())

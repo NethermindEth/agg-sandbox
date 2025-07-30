@@ -35,18 +35,15 @@ pub fn handle_logs(follow: bool, service: Option<String>) -> Result<()> {
     // Handle follow vs non-follow modes differently
     if follow {
         // For follow mode, we need real-time output
-        if execute_docker_command(cmd, false).is_err() {
+        execute_docker_command(cmd, false).inspect_err(|_e| {
             eprintln!("{}", "❌ Failed to show logs".red());
-            std::process::exit(1);
-        }
+        })?
     } else {
         // For non-follow mode, capture and display output
-        if let Ok(output) = execute_docker_command_with_output(cmd) {
-            print!("{output}");
-        } else {
+        let output = execute_docker_command_with_output(cmd).inspect_err(|_e| {
             eprintln!("{}", "❌ Failed to show logs".red());
-            std::process::exit(1);
-        }
+        })?;
+        print!("{output}");
     }
 
     Ok(())

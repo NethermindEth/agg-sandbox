@@ -33,7 +33,7 @@ contract DeployContractsL2 is Script {
 
         // Initialize the bridge
         polygonZkEVMBridgeV2.initialize(
-            1101, // _networkID - 1 for Ethereum
+            1, // _networkID - 1 for first L2
             address(0), // _gasTokenAddress - address(0) for ETH
             0, // _gasTokenNetwork
             IBasePolygonZkEVMGlobalExitRoot(address(globalExitRootManagerL2SovereignChain)), // _globalExitRootManager

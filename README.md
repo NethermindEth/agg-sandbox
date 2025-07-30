@@ -57,6 +57,7 @@ The Agglayer Sandbox provides a comprehensive development environment for testin
 - **Rust** >= 1.70.0 (for CLI compilation) - [Install Rust](https://rustup.rs/)
 - **Make** (for using Makefile targets) - usually pre-installed on Unix systems
 - **Git** (for cloning the repository)
+- **pnpm** (for bridge service dependencies) - [Install pnpm](https://pnpm.io/installation)
 
 ### PATH Configuration
 
@@ -80,6 +81,7 @@ docker compose version && echo "✅ Docker Compose installed"
 rustc --version && echo "✅ Rust installed"
 make --version && echo "✅ Make installed"
 git --version && echo "✅ Git installed"
+pnpm --version && echo "✅ pnpm installed"
 ```
 
 ## Quick Start
@@ -98,6 +100,11 @@ git --version && echo "✅ Git installed"
    ```bash
    make install
    ```
+
+   This will automatically:
+   - Build and install the CLI to `~/.local/bin`
+   - Set up the bridge service dependencies (requires `pnpm`)
+   - Configure bridge functionality for cross-chain operations
 
 3. **Verify installation:**
 
@@ -166,7 +173,7 @@ The sandbox consists of:
 ┌─────────────────┐         ┌─────────────────────┐         ┌─────────────────┐
 │   L1 (Anvil)    │◄────────┤      AggKit         ├────────►│   L2 (Anvil)    │
 │   Port: 8545    │         │  REST API: 5577     │         │   Port: 8546    │
-│   Chain ID: 1   │         │  RPC: 8555          │         │   Chain ID:1101 │
+│   Network ID: 0 │         │  RPC: 8555          │         │   Network ID: 1 │
 │                 │         │  Telemetry: 8080    │         │                 │
 └─────────────────┘         └─────────────────────┘         └─────────────────┘
          ▲                                                           ▲
@@ -206,7 +213,7 @@ For multi-chain testing with dual AggKit instances:
    ┌─────────────┐                     ┌─────────────┐
    │ L1 (Anvil)  │                     │L2-1 (Anvil) │
    │ Port: 8545  │                     │ Port: 8546  │
-   │Chain ID: 1  │                     │Chain ID:1101│
+   │Network ID: 0│                     │Network ID: 1│
    └─────────────┘                     └─────────────┘
               │
               │      ┌─────────────────────┐
@@ -218,7 +225,7 @@ For multi-chain testing with dual AggKit instances:
                                         ┌─────────────┐
                                         │L2-2 (Anvil) │
                                         │ Port: 8547  │
-                                        │Chain ID:137 │
+                                        │Network ID: 2│
                                         └─────────────┘
 ```
 
@@ -387,6 +394,52 @@ aggsandbox logs --follow anvil-l1
 # View logs with verbose output
 aggsandbox logs --verbose
 ```
+
+### Bridge Commands
+
+Perform cross-chain bridge operations using the integrated LXLY bridge:
+
+#### Bridge Operations
+
+```bash
+# Bridge ETH from L1 to L2
+aggsandbox bridge asset \
+  --network 0 \
+  --destination-network 1 \
+  --amount 0.1 \
+  --token-address 0x0000000000000000000000000000000000000000
+
+# Bridge ERC20 tokens from L2 to L1
+aggsandbox bridge asset \
+  --network 1 \
+  --destination-network 0 \
+  --amount 100 \
+  --token-address 0xA0b86a33E6776e39e6b37ddEC4F25B04Dd9Fc4DC
+
+# Claim bridged assets on destination network
+aggsandbox bridge claim \
+  --network 1 \
+  --tx-hash 0xb7118cfb20825861028ede1e9586814fc7ccf81745a325db5df355d382d96b4e \
+  --source-network 0
+
+# Bridge with contract call (bridgeAndCall)
+aggsandbox bridge message \
+  --network 0 \
+  --destination-network 1 \
+  --target 0x742d35Cc6965C592342c6c16fb8eaeb90a23b5C0 \
+  --data 0xa9059cbb000000000000000000000000742d35cc6965c592342c6c16fb8eaeb90a23b5c00000000000000000000000000000000000000000000000000de0b6b3a7640000
+```
+
+**Bridge Command Parameters:**
+- `--network, -n`: Source network ID (0=L1, 1=L2, 2=L3)
+- `--destination-network, -d`: Destination network ID
+- `--amount, -a`: Amount to bridge (in token units)
+- `--token-address, -t`: Token contract address (use `0x0000000000000000000000000000000000000000` for ETH)
+- `--tx-hash, -t`: Transaction hash for claim operations
+- `--target`: Target contract address for bridge messages
+- `--data, -D`: Contract call data (hex encoded)
+
+For detailed bridge documentation, see [LXLY.md](LXLY.md).
 
 ### Bridge Information Commands
 
@@ -605,10 +658,10 @@ cp .env.example .env
 RPC_URL_1=http://127.0.0.1:8545
 RPC_URL_2=http://127.0.0.1:8546
 
-# Chain IDs for the networks
-CHAIN_ID_MAINNET=1
-CHAIN_ID_AGGLAYER_1=1101
-CHAIN_ID_AGGLAYER_2=137  # For multi-L2 mode
+# Network IDs for the networks
+NETWORK_ID_MAINNET=0
+NETWORK_ID_AGGLAYER_1=1
+NETWORK_ID_AGGLAYER_2=2  # For multi-L2 mode
 ```
 
 #### Fork Mode Variables
@@ -666,17 +719,17 @@ retry_attempts = 3
 
 [networks.l1]
 name = "Ethereum-L1"
-chain_id = "1"
+network_id = "0"
 rpc_url = "http://localhost:8545"
 
 [networks.l2]
 name = "Polygon-zkEVM-L2"
-chain_id = "1101"
+network_id = "1"
 rpc_url = "http://localhost:8546"
 
 [networks.l3]
 name = "Second-L2-Chain"
-chain_id = "1102"
+network_id = "2"
 rpc_url = "http://localhost:8547"
 
 [accounts]
@@ -705,15 +758,15 @@ api:
 networks:
   l1:
     name: "Ethereum-L1"
-    chain_id: "1"
+    network_id: "0"
     rpc_url: "http://localhost:8545"
   l2:
     name: "Polygon-zkEVM-L2"
-    chain_id: "1101"
+    network_id: "1"
     rpc_url: "http://localhost:8546"
   l3:
     name: "Second-L2-Chain"
-    chain_id: "1102"
+    network_id: "2"
     rpc_url: "http://localhost:8547"
 
 accounts:
@@ -745,35 +798,35 @@ This allows for flexible overrides while maintaining reasonable defaults.
 
 ### Local Mode Networks
 
-| Network | URL | Chain ID | Description |
-|---------|-----|----------|-------------|
-| L1 (Ethereum Simulation) | `http://127.0.0.1:8545` | 1 | Local Ethereum simulation |
-| L2 (Polygon zkEVM Simulation) | `http://127.0.0.1:8546` | 1101 | Local Polygon zkEVM simulation |
+| Network | URL | Network ID | Description |
+|---------|-----|------------|-------------|
+| L1 (Ethereum Simulation) | `http://127.0.0.1:8545` | 0 | Local Ethereum simulation |
+| L2 (Polygon zkEVM Simulation) | `http://127.0.0.1:8546` | 1 | Local Polygon zkEVM simulation |
 
 ### Fork Mode Networks
 
-| Network | URL | Chain ID | Description |
-|---------|-----|----------|-------------|
-| L1 (Ethereum Fork) | `http://127.0.0.1:8545` | 1 | Uses real Ethereum state |
-| L2 (Polygon Fork) | `http://127.0.0.1:8546` | 1101 | Uses real Polygon state |
+| Network | URL | Network ID | Description |
+|---------|-----|------------|-------------|
+| L1 (Ethereum Fork) | `http://127.0.0.1:8545` | 0 | Uses real Ethereum state |
+| L2 (Polygon Fork) | `http://127.0.0.1:8546` | 1 | Uses real Polygon state |
 
 ### Multi-L2 Mode Networks
 
 #### Local Multi-L2
 
-| Network | URL | Chain ID | Description |
-|---------|-----|----------|-------------|
-| L1 (Ethereum Simulation) | `http://127.0.0.1:8545` | 1 | Local Ethereum simulation |
-| L2-1 (Polygon zkEVM Simulation) | `http://127.0.0.1:8546` | 1101 | First L2 simulation |
-| L2-2 (Polygon PoS Simulation) | `http://127.0.0.1:8547` | 137 | Second L2 simulation |
+| Network | URL | Network ID | Description |
+|---------|-----|------------|-------------|
+| L1 (Ethereum Simulation) | `http://127.0.0.1:8545` | 0 | Local Ethereum simulation |
+| L2-1 (Polygon zkEVM Simulation) | `http://127.0.0.1:8546` | 1 | First L2 simulation |
+| L2-2 (Polygon PoS Simulation) | `http://127.0.0.1:8547` | 2 | Second L2 simulation |
 
 #### Fork Multi-L2
 
-| Network | URL | Chain ID | Description |
-|---------|-----|----------|-------------|
-| L1 (Ethereum Fork) | `http://127.0.0.1:8545` | 1 | Uses real Ethereum state |
-| L2-1 (Polygon zkEVM Fork) | `http://127.0.0.1:8546` | 1101 | Uses real Polygon zkEVM state |
-| L2-2 (Polygon PoS Fork) | `http://127.0.0.1:8547` | 137 | Uses real Polygon PoS state |
+| Network | URL | Network ID | Description |
+|---------|-----|------------|-------------|
+| L1 (Ethereum Fork) | `http://127.0.0.1:8545` | 0 | Uses real Ethereum state |
+| L2-1 (Polygon zkEVM Fork) | `http://127.0.0.1:8546` | 1 | Uses real Polygon zkEVM state |
+| L2-2 (Polygon PoS Fork) | `http://127.0.0.1:8547` | 2 | Uses real Polygon PoS state |
 
 ### Port Configuration
 
@@ -1047,7 +1100,7 @@ docker system prune  # Clean up if needed
 
 ```bash
 # Check all environment variables
-env | grep -E "(FORK_URL|RPC_URL|CHAIN_ID)"
+env | grep -E "(FORK_URL|RPC_URL|NETWORK_ID)"
 
 # Validate configuration files
 aggsandbox info --validate

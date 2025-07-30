@@ -33,6 +33,7 @@ pub struct L1InfoTreeIndexResponse {
     pub data: serde_json::Value,
 }
 
+#[allow(clippy::disallowed_methods)] // Allow for tracing macro expansion
 #[instrument(fields(network_id = network_id))]
 pub async fn get_bridges(
     config: &Config,
@@ -148,11 +149,26 @@ pub async fn get_l1_info_tree_index(
 
 fn colorize_json(json_str: &str) -> String {
     // Define regex patterns for different JSON elements
-    let key_regex = Regex::new(r#""([^"]+)"\s*:"#).unwrap();
-    let string_regex = Regex::new(r#":\s*"([^"]*)""#).unwrap();
-    let number_regex = Regex::new(r#":\s*(-?\d+(?:\.\d+)?(?:[eE][+-]?\d+)?)"#).unwrap();
-    let boolean_regex = Regex::new(r#":\s*(true|false)"#).unwrap();
-    let null_regex = Regex::new(r#":\s*(null)"#).unwrap();
+    let key_regex = match Regex::new(r#""([^"]+)"\s*:"#) {
+        Ok(regex) => regex,
+        Err(_) => return json_str.to_string(), // Fallback to uncolored
+    };
+    let string_regex = match Regex::new(r#":\s*"([^"]*)""#) {
+        Ok(regex) => regex,
+        Err(_) => return json_str.to_string(),
+    };
+    let number_regex = match Regex::new(r#":\s*(-?\d+(?:\.\d+)?(?:[eE][+-]?\d+)?)"#) {
+        Ok(regex) => regex,
+        Err(_) => return json_str.to_string(),
+    };
+    let boolean_regex = match Regex::new(r#":\s*(true|false)"#) {
+        Ok(regex) => regex,
+        Err(_) => return json_str.to_string(),
+    };
+    let null_regex = match Regex::new(r#":\s*(null)"#) {
+        Ok(regex) => regex,
+        Err(_) => return json_str.to_string(),
+    };
 
     let mut result = json_str.to_string();
 

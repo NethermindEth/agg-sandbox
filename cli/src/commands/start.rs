@@ -5,11 +5,13 @@ use colored::*;
 use tracing::{error, info};
 
 /// Handle the start command
+#[allow(clippy::disallowed_methods)] // Allow std::process::exit and tracing macros
 pub async fn handle_start(detach: bool, build: bool, fork: bool, multi_l2: bool) {
     handle_start_async(detach, build, fork, multi_l2).await;
 }
 
 /// Async implementation of start command with progress tracking
+#[allow(clippy::disallowed_methods)] // Allow std::process::exit and tracing macros
 async fn handle_start_async(detach: bool, build: bool, fork: bool, multi_l2: bool) {
     use crate::docker::{execute_docker_command, SandboxConfig};
 
@@ -186,6 +188,7 @@ async fn handle_start_async(detach: bool, build: bool, fork: bool, multi_l2: boo
     }
 }
 
+#[allow(clippy::disallowed_methods)] // Allow tracing macros
 fn display_fork_urls(multi_l2: bool) {
     let fork_mainnet = std::env::var("FORK_URL_MAINNET").unwrap_or_default();
     let fork_agglayer_1 = std::env::var("FORK_URL_AGGLAYER_1").unwrap_or_default();

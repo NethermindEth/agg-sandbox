@@ -2,6 +2,7 @@
 ///
 /// This module contains all command handlers, extracted from main.rs
 /// for better code organization and maintainability.
+pub mod bridge;
 pub mod events;
 pub mod info;
 pub mod logs;
@@ -16,6 +17,7 @@ pub mod stop;
 mod tests;
 
 // Re-export command handlers for easier access
+pub use bridge::{handle_bridge, BridgeCommands};
 pub use events::handle_events;
 pub use info::handle_info;
 pub use logs::handle_logs;

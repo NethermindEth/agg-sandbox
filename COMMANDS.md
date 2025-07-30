@@ -90,7 +90,7 @@ cast send $AGG_ERC20_L1 \
 # 2. Bridge assets
 cast send $POLYGON_ZKEVM_BRIDGE_L1 \
   "bridgeAsset(uint32,address,uint256,address,bool,bytes)" \
-  $CHAIN_ID_AGGLAYER_1 $ACCOUNT_ADDRESS_2 10 $AGG_ERC20_L1 true 0x \
+  $NETWORK_ID_AGGLAYER_1 $ACCOUNT_ADDRESS_2 10 $AGG_ERC20_L1 true 0x \
   --private-key $PRIVATE_KEY_1 \
   --rpc-url $RPC_1
 
@@ -108,7 +108,7 @@ METADATA=$(cast abi-encode "f(string,string,uint8)" "AggERC20" "AGGERC20" 18)
 cast send $POLYGON_ZKEVM_BRIDGE_L2 \
   "claimAsset(uint256,bytes32,bytes32,uint32,address,uint32,address,uint256,bytes)" \
   $DEPOSIT_COUNT $MAINNET_EXIT_ROOT $ROLLUP_EXIT_ROOT \
-  1 $AGG_ERC20_L1 $CHAIN_ID_AGGLAYER_1 $ACCOUNT_ADDRESS_2 10 $METADATA \
+  $NETWORK_ID_MAINNET $AGG_ERC20_L1 $NETWORK_ID_AGGLAYER_1 $ACCOUNT_ADDRESS_2 10 $METADATA \
   --private-key $PRIVATE_KEY_2 \
   --rpc-url $RPC_2 \
   --gas-limit 3000000
@@ -157,14 +157,14 @@ Initiate the bridging process by calling the bridge contract to transfer assets 
 ```bash
 cast send $POLYGON_ZKEVM_BRIDGE_L1 \
   "bridgeAsset(uint32,address,uint256,address,bool,bytes)" \
-  $CHAIN_ID_AGGLAYER_1 $ACCOUNT_ADDRESS_2 10 $AGG_ERC20_L1 true 0x \
+  $NETWORK_ID_AGGLAYER_1 $ACCOUNT_ADDRESS_2 10 $AGG_ERC20_L1 true 0x \
   --private-key $PRIVATE_KEY_1 \
   --rpc-url $RPC_1
 ```
 
 **Parameters:**
 
-1. `$CHAIN_ID_AGGLAYER_1` - The destination chain ID
+1. `$NETWORK_ID_AGGLAYER_1` - The destination network ID
 2. `$ACCOUNT_ADDRESS_2` - The recipient address on L2
 3. `10` - Amount of tokens to bridge
 4. `$AGG_ERC20_L1` - The token contract address
@@ -310,9 +310,9 @@ cast send $POLYGON_ZKEVM_BRIDGE_L2 \
   <DEPOSIT_COUNT> \
   <MAINNET_EXIT_ROOT> \
   <ROLLUP_EXIT_ROOT> \
-  $CHAIN_ID_MAINNET \
+  $NETWORK_ID_MAINNET \
   $AGG_ERC20_L1 \
-  $CHAIN_ID_AGGLAYER_1 \
+  $NETWORK_ID_AGGLAYER_1 \
   $ACCOUNT_ADDRESS_2 \
   10 \
   $METADATA \
@@ -326,9 +326,9 @@ cast send $POLYGON_ZKEVM_BRIDGE_L2 \
 1. `<DEPOSIT_COUNT>` - Deposit count from bridge response
 2. `<MAINNET_EXIT_ROOT>` - Mainnet exit root from claim proof
 3. `<ROLLUP_EXIT_ROOT>` - Rollup exit root from claim proof
-4. `CHAIN_ID_MAINNET` - Origin chain ID
+4. `NETWORK_ID_MAINNET` - Origin network ID
 5. `$AGG_ERC20_L1` - Token contract address
-6. `CHAIN_ID_AGGLAYER_1` - Destination chain ID
+6. `NETWORK_ID_AGGLAYER_1` - Destination network ID
 7. `$ACCOUNT_ADDRESS_2` - Recipient address
 8. `10` - Amount to claim
 9. `$METADATA` - Token metadata
@@ -431,14 +431,14 @@ Initiate the bridge back to L1:
 ```bash
 cast send $POLYGON_ZKEVM_BRIDGE_L2 \
   "bridgeAsset(uint32,address,uint256,address,bool,bytes)" \
-  $CHAIN_ID_MAINNET $ACCOUNT_ADDRESS_1 10 $TOKENWRAPPED true 0x \
+  $NETWORK_ID_MAINNET $ACCOUNT_ADDRESS_1 10 $TOKENWRAPPED true 0x \
   --private-key $PRIVATE_KEY_2 \
   --rpc-url $RPC_2
 ```
 
 **Parameters:**
 
-1. `$CHAIN_ID_MAINNET` - Destination chain ID (1 for Ethereum mainnet)
+1. `$NETWORK_ID_MAINNET` - Destination network ID (0 for Ethereum mainnet)
 2. `$ACCOUNT_ADDRESS_1` - Recipient address on L1 (your original account)
 3. `10` - Amount of tokens to bridge
 4. `$TOKENWRAPPED` - L2 token contract address
@@ -470,9 +470,9 @@ cast send $POLYGON_ZKEVM_BRIDGE_L1 \
   <DEPOSIT_COUNT> \
   <MAINNET_EXIT_ROOT> \
   <ROLLUP_EXIT_ROOT> \
-  $CHAIN_ID_MAINNET \
+  $NETWORK_ID_MAINNET \
   $AGG_ERC20_L1 \
-  $CHAIN_ID_MAINNET \
+  $NETWORK_ID_MAINNET \
   $ACCOUNT_ADDRESS_1 \
   10 \
   0x \
@@ -483,8 +483,8 @@ cast send $POLYGON_ZKEVM_BRIDGE_L1 \
 
 **Parameter notes:**
 
-- `CHAIN_ID_MAINNET` - Origin network ID of the token (L1 chain ID)
-- `CHAIN_ID_MAINNET` - Destination network ID (L1 chain ID)
+- `NETWORK_ID_MAINNET` - Origin network ID of the token (L1 network ID)
+- `NETWORK_ID_MAINNET` - Destination network ID (L1 network ID)
 - The merkle root and nullifier values come from the claim-proof endpoint
 
 ### Step 7e: Verify Final Balance
@@ -540,13 +540,13 @@ TRANSFER_DATA=$(cast calldata "transfer(address,uint256)" $ACCOUNT_ADDRESS_1 1)
 # Get the precalculated L2 token address
 L2_TOKEN_ADDRESS=$(cast call $POLYGON_ZKEVM_BRIDGE_L2 \
   "precalculatedWrapperAddress(uint32,address,string,string,uint8)" \
-  1 $AGG_ERC20_L1 "AggERC20" "AGGERC20" 18 \
+  $NETWORK_ID_AGGLAYER_1 $AGG_ERC20_L1 "AggERC20" "AGGERC20" 18 \
   --rpc-url $RPC_2 | sed 's/0x000000000000000000000000/0x/')
 
 # Execute bridge and call
 cast send $BRIDGE_EXTENSION_L1 \
   "bridgeAndCall(address,uint256,uint32,address,address,bytes,bool)" \
-  $AGG_ERC20_L1 10 $CHAIN_ID_AGGLAYER_1 $L2_TOKEN_ADDRESS $ACCOUNT_ADDRESS_2 $TRANSFER_DATA true \
+  $AGG_ERC20_L1 10 $NETWORK_ID_AGGLAYER_1 $L2_TOKEN_ADDRESS $ACCOUNT_ADDRESS_2 $TRANSFER_DATA true \
   --private-key $PRIVATE_KEY_1 \
   --rpc-url $RPC_1
 ```
@@ -555,7 +555,7 @@ cast send $BRIDGE_EXTENSION_L1 \
 
 1. `$AGG_ERC20_L1` - Token contract address to bridge
 2. `10` - Amount to bridge
-3. `$CHAIN_ID_AGGLAYER_1` - Destination chain ID
+3. `$NETWORK_ID_AGGLAYER_1` - Destination network ID
 4. `$L2_TOKEN_ADDRESS` - Target contract address on L2 (precalculated wrapped token address)
 5. `$ACCOUNT_ADDRESS_2` - Fallback address if call fails
 6. `$TRANSFER_DATA` - Encoded transfer function call
@@ -603,9 +603,9 @@ cast send $POLYGON_ZKEVM_BRIDGE_L2 \
   0 \
   <MAINNET_EXIT_ROOT_FROM_PROOF> \
   <ROLLUP_EXIT_ROOT_FROM_PROOF> \
-  $CHAIN_ID_MAINNET \
+  $NETWORK_ID_MAINNET \
   $AGG_ERC20_L1 \
-  $CHAIN_ID_AGGLAYER_1 \
+  $NETWORK_ID_AGGLAYER_1 \
   $ACCOUNT_ADDRESS_2 \
   10 \
   $METADATA \
@@ -633,17 +633,17 @@ Execute the message claim to trigger the automatic execution:
 ```bash
 # Create the metadata for the bridge extension call
 METADATA=$(cast abi-encode "f(uint256,address,address,uint32,address,bytes)" \
-  0 $L2_TOKEN_ADDRESS $ACCOUNT_ADDRESS_2 1 $AGG_ERC20_L1 $TRANSFER_DATA)
+  0 $L2_TOKEN_ADDRESS $ACCOUNT_ADDRESS_2 $NETWORK_ID_AGGLAYER_1 $AGG_ERC20_L1 $TRANSFER_DATA)
 
 # Claim the message bridge (replace placeholders with actual values from your environment)
 cast send $POLYGON_ZKEVM_BRIDGE_L2 \
   "claimMessage(uint256,bytes32,bytes32,uint32,address,uint32,address,uint256,bytes)" \
-  $CHAIN_ID_MAINNET \
+  1 \
   <MAINNET_EXIT_ROOT_FROM_MESSAGE_PROOF> \
   <ROLLUP_EXIT_ROOT_FROM_MESSAGE_PROOF> \
-  1 \
+  $NETWORK_ID_MAINNET \
   $BRIDGE_EXTENSION_L1 \
-  $CHAIN_ID_AGGLAYER_1 \
+  $NETWORK_ID_AGGLAYER_1 \
   $BRIDGE_EXTENSION_L2 \
   0 \
   $METADATA \
@@ -657,9 +657,9 @@ cast send $POLYGON_ZKEVM_BRIDGE_L2 \
 1. `1` - Global index for message bridge (deposit_count = 1)
 2. `<MAINNET_EXIT_ROOT_FROM_MESSAGE_PROOF>` - Use the mainnet exit root from the message claim proof
 3. `<ROLLUP_EXIT_ROOT_FROM_MESSAGE_PROOF>` - Use the rollup exit root from the message claim proof
-4. `CHAIN_ID_MAINNET` - Origin chain ID (L1)
+4. `NETWORK_ID_MAINNET` - Origin network ID (L1)
 5. `$BRIDGE_EXTENSION_L1` - Origin address (Bridge Extension on L1)
-6. `$CHAIN_ID_AGGLAYER_1` - Destination chain ID
+6. `$NETWORK_ID_AGGLAYER_1` - Destination network ID
 7. `$BRIDGE_EXTENSION_L2` - Destination address (Bridge Extension on L2)
 8. `0` - Amount (no ether with message)
 9. `$METADATA` - Encoded parameters containing:
@@ -737,9 +737,9 @@ cast send $POLYGON_ZKEVM_BRIDGE_L2 \
   1 \
   0x6974b4e71fdf57bb87aca8d85ce07a6eb1269064076c25476226fc1b7182076c \
   0x0000000000000000000000000000000000000000000000000000000000000000 \
-  $CHAIN_ID_MAINNET \
+  $NETWORK_ID_MAINNET \
   $BRIDGE_EXTENSION_L1 \
-  $CHAIN_ID_AGGLAYER_1 \
+  $NETWORK_ID_AGGLAYER_1 \
   $BRIDGE_EXTENSION_L2 \
   0 \
   $METADATA \
@@ -900,7 +900,7 @@ aggsandbox show claims --network-id 1
 # Check that the precalculated address calculation is correct
 L2_TOKEN_ADDRESS=$(cast call $POLYGON_ZKEVM_BRIDGE_L2 \
   "precalculatedWrapperAddress(uint32,address,string,string,uint8)" \
-  1 $AGG_ERC20_L1 "AggERC20" "AGGERC20" 18 \
+  $NETWORK_ID_AGGLAYER_1 $AGG_ERC20_L1 "AggERC20" "AGGERC20" 18 \
   --rpc-url $RPC_2)
 ```
 

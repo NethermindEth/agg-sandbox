@@ -21,7 +21,7 @@ pub use info::handle_info;
 pub use logs::handle_logs;
 pub use restart::handle_restart;
 pub use show::{handle_show, ShowCommands};
-pub use sponsor_claim::handle_sponsor_claim;
+pub use sponsor_claim::{handle_sponsor_claim, handle_claim_status};
 pub use start::handle_start;
 pub use status::handle_status;
 pub use stop::handle_stop;

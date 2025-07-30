@@ -305,6 +305,56 @@ impl OptimizedApiClient {
         Ok(data)
     }
 
+    /// Generic POST helper that sends JSON and parses the JSON response.
+    async fn post_json_with_timeout(
+        &self,
+        url: &str,
+        body: &serde_json::Value,
+        timeout: Duration,
+    ) -> Result<serde_json::Value> {
+        debug!(url, "HTTP POST request");
+
+        let response = self
+            .client
+            .post(url)
+            .json(body)
+            .timeout(timeout)
+            .send()
+            .await
+            .map_err(
+            |e| {
+                warn!(url = %url, error = %e, "HTTP request failed");
+                ApiError::network_error(&e.to_string())
+            })?;
+
+        let status = response.status();
+        debug!(url = %url, status = %status, "Received HTTP response");
+
+        if !status.is_success() {
+            warn!(
+                url = %url,
+                status = %status,
+                "POST request failed with non-success status"
+            );
+            return Err(
+                ApiError::request_failed(url, status.as_u16(), "POST request failed").into(),
+            );
+        }
+
+        let data: serde_json::Value = response.json().await.map_err(|e| {
+            warn!(url = %url, error = %e, "Failed to parse JSON response");
+            ApiError::json_parse_error(&e.to_string())
+        })?;
+
+        debug!(
+            url = %url,
+            size = data.to_string().len(),
+            "Successfully parsed JSON response"
+        );
+
+        Ok(data)
+    }
+
     /// Get bridges with caching
     #[instrument(fields(network_id = network_id), skip(self, config))]
     pub async fn get_bridges(&self, config: &Config, network_id: u64) -> Result<serde_json::Value> {
@@ -389,6 +439,30 @@ impl OptimizedApiClient {
             self.get_with_timeout(&url, timeout).await
         })
         .await
+    }
+    /// Call POST /bridge/v1/sponsor-claim (no caching).
+    pub async fn post_sponsor_claim(
+        &self,
+        config: &Config,
+        body: &serde_json::Value,
+    ) -> Result<serde_json::Value> {
+        let url = format!("{}/bridge/v1/sponsor-claim", config.api.base_url);
+        let timeout = config.api.timeout;
+        self.post_json_with_timeout(&url, body, timeout).await
+    }
+
+    /// Get a sponsored claim status (no caching)
+    pub async fn get_sponsored_claim_status(
+        &self,
+        config: &Config,
+        global_index: u64,
+    ) -> Result<serde_json::Value> {
+        let url = format!(
+            "{}/bridge/v1/sponsored-claim-status?global_index={global_index}",
+            config.api.base_url
+        );
+        let timeout = config.api.timeout;
+        self.get_with_timeout(&url, timeout).await
     }
 }
 

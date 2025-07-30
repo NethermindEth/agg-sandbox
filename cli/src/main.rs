@@ -13,6 +13,7 @@ mod logging;
 mod logs;
 mod progress;
 mod types;
+mod utils;
 mod validation;
 
 use commands::ShowCommands;
@@ -149,7 +150,7 @@ enum Commands {
         #[arg(short = 'a', long, help = "Contract address to filter events (0x...)")]
         address: Option<String>,
     },
-    /// 💸  Sponsor a bridge claim (build proofs → POST to AggKit)
+    /// 💸  Sponsor a bridge claim
     #[command(long_about = "Submit a bridge claim to the Claim-Sponsor bot.\n\
         \n\
         This command performs all steps automatically:\n\
@@ -170,9 +171,19 @@ enum Commands {
         #[arg(short = 'd', long)]
         deposit: u32,
 
-        /// Roll-up ID the deposit originated on (omit or 0 for L1)
+        /// Network ID the deposit originated on (omit or 0 for L1)
         #[arg(long, default_value_t = 0)]
-        l2_from: u32,
+        origin_network: u64,
+
+        /// Destination network ID of the deposit (omit or 1 for L1)
+        #[arg(long, default_value_t = 1)]
+        destination_network: u64,
+    },
+    /// 🔎 Query the status of a sponsored claim by global index
+    ClaimStatus {
+        /// Global index of the claim you want to check
+        #[arg(short = 'g', long = "global-index")]
+        global_index: u64,
     },
 }
 
@@ -280,9 +291,14 @@ async fn run(cli: Cli) -> Result<()> {
             info!(network_id = ?network_id, chain = ?chain, blocks = blocks, address = ?address, "Executing events command");
             commands::handle_events(network_id, chain, blocks, address).await
         }
-        Commands::SponsorClaim { deposit, l2_from } => {
-            info!(deposit, l2_from, "Executing sponsor-claim command");
-            commands::handle_sponsor_claim(deposit, l2_from).await?;
+        Commands::SponsorClaim { deposit, origin_network, destination_network } => {
+            info!(deposit, origin_network, "Executing sponsor-claim command");
+            commands::handle_sponsor_claim(deposit, origin_network, destination_network).await?;
+            Ok(())
+        }
+        Commands::ClaimStatus { global_index } => {
+            info!(global_index, "Executing claim-status command");
+            commands::handle_claim_status(global_index).await?;
             Ok(())
         }
     };

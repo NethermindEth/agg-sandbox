@@ -3,6 +3,8 @@ pub mod bridge_asset;
 pub mod bridge_call;
 pub mod claim_asset;
 pub mod claim_message;
+pub mod common;
+pub mod utilities;
 
 // Re-export main types and functions
 pub use bridge_asset::{bridge_asset, BridgeAssetArgs, GasOptions};
@@ -10,6 +12,7 @@ pub use bridge_call::{
     bridge_and_call_with_approval, bridge_message, BridgeAndCallArgs, BridgeMessageParams,
 };
 pub use claim_asset::{claim_asset, ClaimAssetArgs};
+pub use utilities::{handle_utility_command, UtilityCommands};
 
 use crate::config::Config;
 use crate::error::Result;
@@ -41,6 +44,10 @@ abigen!(
         function claimAsset(uint256 globalIndex, bytes32 mainnetExitRoot, bytes32 rollupExitRoot, uint32 originNetwork, address originTokenAddress, uint32 destinationNetwork, address destinationAddress, uint256 amount, bytes metadata) external
         function claimMessage(uint256 globalIndex, bytes32 mainnetExitRoot, bytes32 rollupExitRoot, uint32 originNetwork, address originAddress, uint32 destinationNetwork, address destinationAddress, uint256 amount, bytes metadata) external
         function precalculatedWrapperAddress(uint32 originNetwork, address originTokenAddress, string name, string symbol, uint8 decimals) external view returns (address)
+        function getTokenWrappedAddress(uint32 originNetwork, address originTokenAddress) external view returns (address)
+        function wrappedTokenToTokenInfo(address wrappedToken) external view returns (uint32, address)
+        function isClaimed(uint32 leafIndex, uint32 sourceBridgeNetwork) external view returns (bool)
+        function networkID() external view returns (uint32)
     ]"#,
 );
 
@@ -201,6 +208,9 @@ pub enum BridgeCommands {
         #[arg(long, help = "Private key to use for the transaction")]
         private_key: Option<String>,
     },
+    /// 🔧 Bridge utility functions
+    #[command(subcommand)]
+    Utils(UtilityCommands),
 }
 
 /// Handle bridge commands using direct Rust implementation
@@ -366,6 +376,10 @@ pub async fn handle_bridge(subcommand: BridgeCommands) -> Result<()> {
 
             let args = builder.build_with_crate_error()?;
             bridge_and_call_with_approval(args).await
+        }
+        BridgeCommands::Utils(utility_command) => {
+            info!("Executing bridge utility command");
+            handle_utility_command(&config, utility_command).await
         }
     }
 }

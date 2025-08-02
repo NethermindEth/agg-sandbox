@@ -178,7 +178,7 @@ impl OptimizedApiClient {
             .unwrap_or_default()
     }
 
-    /// Clear the cache (useful for testing or manual cache invalidation)  
+    /// Clear the cache (useful for testing or manual cache invalidation)
     #[allow(dead_code, clippy::disallowed_methods)] // Allow for tracing macro expansion
     pub async fn clear_cache(&self) {
         let mut cache = self.cache.write().await;

@@ -294,13 +294,6 @@ aggsandbox bridge utils get-mapped \
   --network 1 \
   --origin-network 0 \
   --origin-token 0xA0b86a33E6776e39e6b37ddEC4F25B04Dd9Fc4DC
-
-# Get AggLayer-2 wrapped token address for Mainnet token
-aggsandbox bridge utils get-mapped \
-  --network 2 \
-  --origin-network 0 \
-  --origin-token 0xA0b86a33E6776e39e6b37ddEC4F25B04Dd9Fc4DC \
-  --json
 ```
 
 **Parameters:**
@@ -321,7 +314,7 @@ aggsandbox bridge utils precalculate \
   --origin-network 0 \
   --origin-token 0xA0b86a33E6776e39e6b37ddEC4F25B04Dd9Fc4DC
 
-# With JSON output  
+# With JSON output
 aggsandbox bridge utils precalculate \
   --network 1 \
   --origin-network 0 \

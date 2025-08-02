@@ -87,9 +87,8 @@ pub struct OriginTokenInfo {
 pub struct IsClaimedArgs<'a> {
     pub config: &'a Config,
     pub network: u64,
-    pub index: u64,
+    pub index: u32,
     pub source_bridge_network: u64,
-    pub private_key: Option<&'a str>,
 }
 
 /// JSON output structure for compute index
@@ -122,9 +121,16 @@ pub struct PrecalculatedTokenOutput {
 #[derive(Debug, Serialize, Deserialize)]
 pub struct ClaimStatusOutput {
     pub network: u64,
-    pub bridge_index: u64,
+    pub bridge_index: u32,
     pub source_network: u64,
     pub is_claimed: bool,
+}
+
+/// JSON output structure for network ID
+#[derive(Debug, Serialize, Deserialize)]
+pub struct NetworkIdOutput {
+    pub network: u64,
+    pub contract_network_id: u32,
 }
 
 /// Build complete claim payload from transaction hash
@@ -218,13 +224,13 @@ pub async fn build_payload_for_claim(args: BuildPayloadArgs<'_>) -> Result<Claim
     });
 
     // Extract bridge parameters
-    let origin_network = bridge_info["orig_net"].as_u64().unwrap_or(0) as u32;
-    let origin_token_address = bridge_info["orig_addr"]
+    let origin_network = bridge_info["origin_network"].as_u64().unwrap_or(0) as u32;
+    let origin_token_address = bridge_info["origin_address"]
         .as_str()
         .unwrap_or("0x0000000000000000000000000000000000000000")
         .to_string();
-    let destination_network = bridge_info["dest_net"].as_u64().unwrap_or(0) as u32;
-    let destination_address = bridge_info["dest_addr"]
+    let destination_network = bridge_info["destination_network"].as_u64().unwrap_or(0) as u32;
+    let destination_address = bridge_info["destination_address"]
         .as_str()
         .unwrap_or("0x0000000000000000000000000000000000000000")
         .to_string();
@@ -256,14 +262,15 @@ pub async fn build_payload_for_claim(args: BuildPayloadArgs<'_>) -> Result<Claim
 /// Compute global index for bridge operations
 ///
 /// Based on lxly.js implementation:
-/// - Mainnet (network 0): globalIndex = localIndex + 2^31
+/// - Mainnet (network 0): globalIndex = localIndex + 2^64 (0x10000000000000000)
 /// - L2+ networks: globalIndex = localIndex + (networkId - 1) * 2^32
 pub fn compute_global_index(args: ComputeGlobalIndexArgs) -> U256 {
     if args.source_network_id == 0 {
-        // Mainnet: globalIndex = localIndex + 2^31
-        U256::from(args.index_local) + U256::from(1u64 << 31)
+        // Mainnet: add 2^64 flag (18446744073709551616)
+        // Use U256 constants to avoid overflow
+        U256::from(args.index_local) + (U256::from(1u128) << 64)
     } else {
-        // L2+ networks: globalIndex = localIndex + (networkId - 1) * 2^32
+        // L2+ networks: add (networkId - 1) * 2^32
         U256::from(args.index_local) + U256::from((args.source_network_id - 1) * (1u64 << 32))
     }
 }
@@ -332,16 +339,70 @@ pub async fn get_origin_token_info(args: OriginTokenArgs<'_>) -> Result<OriginTo
 /// Check if a bridge has been claimed
 pub async fn is_claimed(args: IsClaimedArgs<'_>) -> Result<bool> {
     validate_network_id(args.source_bridge_network, "Source bridge network")?;
+
+    // Use the AggKit API claims data instead of contract call to avoid contract state issues
+    let api_client = OptimizedApiClient::new(CacheConfig::default());
+    let claims_response = api_client
+        .get_claims(args.config, args.network)
+        .await
+        .map_err(|e| validation_error(&format!("Failed to get claims: {e}")))?;
+
+    let claims = claims_response["claims"]
+        .as_array()
+        .ok_or_else(|| validation_error("Invalid claims response"))?;
+
+    // Calculate the expected global index for this deposit
+    // Based on BridgeL2SovereignChain.sol: globalIndex = leafIndex + sourceBridgeNetwork * _MAX_LEAFS_PER_NETWORK
+    // where _MAX_LEAFS_PER_NETWORK = 2^32
+    let expected_global_index = if args.source_bridge_network == 0 {
+        // For source network 0: globalIndex = leafIndex + 0 * 2^32 = leafIndex
+        args.index as u64
+    } else {
+        // For other networks: globalIndex = leafIndex + sourceBridgeNetwork * 2^32
+        args.index as u64 + args.source_bridge_network * (1u64 << 32)
+    };
+
+    // Look for a claim that matches our criteria:
+    // - global_index matches expected value
+    // - origin_network matches args.source_bridge_network
+    // - status is "completed"
+    let is_claimed = claims.iter().any(|claim| {
+        let global_index = claim
+            .get("global_index")
+            .and_then(|v| v.as_str())
+            .and_then(|s| s.parse::<u64>().ok());
+        let origin_network = claim.get("origin_network").and_then(|v| v.as_u64());
+        let status = claim.get("status").and_then(|v| v.as_str());
+
+        global_index == Some(expected_global_index)
+            && origin_network == Some(args.source_bridge_network)
+            && status == Some("completed")
+    });
+
+    Ok(is_claimed)
+}
+
+/// Arguments for getting network ID from bridge contract
+#[derive(Debug, Clone)]
+pub struct NetworkIdArgs<'a> {
+    pub config: &'a Config,
+    pub network: u64,
+    pub private_key: Option<&'a str>,
+}
+
+/// Get network ID from bridge contract
+pub async fn get_network_id(args: NetworkIdArgs<'_>) -> Result<u32> {
+    validate_network_id(args.network, "Network")?;
     let bridge_contract =
         contract::get_bridge_contract(args.config, args.network, args.private_key).await?;
 
-    let claimed = bridge_contract
-        .is_claimed(U256::from(args.index), args.source_bridge_network as u32)
+    let network_id = bridge_contract
+        .network_id()
         .call()
         .await
-        .map_err(|e| validation_error(&format!("Failed to check claim status: {e}")))?;
+        .map_err(|e| validation_error(&format!("Failed to get network ID: {e}")))?;
 
-    Ok(claimed)
+    Ok(network_id)
 }
 
 /// Bridge utility commands
@@ -446,19 +507,34 @@ pub enum UtilityCommands {
 
     /// Check if bridge is claimed
     ///
-    /// Check if a specific bridge has been claimed on the destination network.
-    /// Returns true if claimed, false if still pending.
+    /// Check if a specific bridge has been claimed on the destination network using API data.
+    /// Returns true if the claim status is "completed", false if still pending.
     ///
     /// Examples:
-    ///   aggsandbox bridge utils is-claimed -n 1 --index 42 --source-network 0
-    ///   aggsandbox bridge utils is-claimed -n 1 --index 42 --source-network 0 --json
+    ///   aggsandbox bridge utils is-claimed -n 1 --index 0 --source-network 0
+    ///   aggsandbox bridge utils is-claimed -n 1 --index 0 --source-network 0 --json
     IsClaimed {
         #[arg(short, long, help = "Network ID")]
         network: u64,
-        #[arg(long, help = "Bridge index")]
-        index: u64,
+        #[arg(long, help = "Bridge deposit index (deposit_count from bridge data)")]
+        index: u32,
         #[arg(long, help = "Source bridge network ID")]
         source_network: u64,
+        #[arg(long, help = "Output as JSON")]
+        json: bool,
+    },
+
+    /// Get bridge contract network ID
+    ///
+    /// Query the bridge contract to get its configured network ID.
+    /// This returns the networkID() value from the bridge contract.
+    ///
+    /// Examples:
+    ///   aggsandbox bridge utils network-id -n 1
+    ///   aggsandbox bridge utils network-id -n 0 --json
+    NetworkId {
+        #[arg(short, long, help = "Network ID")]
+        network: u64,
         #[arg(long, help = "Private key (optional)")]
         private_key: Option<String>,
         #[arg(long, help = "Output as JSON")]
@@ -719,7 +795,6 @@ pub async fn handle_utility_command(config: &Config, command: UtilityCommands) -
             network,
             index,
             source_network,
-            private_key,
             json,
         } => {
             info!(
@@ -734,7 +809,6 @@ pub async fn handle_utility_command(config: &Config, command: UtilityCommands) -
                 network,
                 index,
                 source_bridge_network: source_network,
-                private_key: private_key.as_deref(),
             };
 
             let claimed = is_claimed(args).await?;
@@ -769,6 +843,40 @@ pub async fn handle_utility_command(config: &Config, command: UtilityCommands) -
 
             Ok(())
         }
+        UtilityCommands::NetworkId {
+            network,
+            private_key,
+            json,
+        } => {
+            info!(network = network, "Getting bridge contract network ID");
+
+            let args = NetworkIdArgs {
+                config,
+                network,
+                private_key: private_key.as_deref(),
+            };
+
+            let contract_network_id = get_network_id(args).await?;
+
+            if json {
+                let output = NetworkIdOutput {
+                    network,
+                    contract_network_id,
+                };
+                let json_str = serialize_json(&output)?;
+                println!("{json_str}");
+            } else {
+                let network_str = format!("{network} ({})", get_network_name(network));
+                let contract_network_id_str = contract_network_id.to_string();
+                let rows = vec![
+                    ("Network", network_str.as_str()),
+                    ("Contract Network ID", contract_network_id_str.as_str()),
+                ];
+                table::print_table("🆔 Bridge Contract Network ID", &rows);
+            }
+
+            Ok(())
+        }
     }
 }
 
@@ -783,7 +891,7 @@ mod tests {
             source_network_id: 0,
         };
         let result = compute_global_index(args);
-        let expected = U256::from(42) + U256::from(1u64 << 31); // 42 + 2147483648
+        let expected = U256::from(42) + (U256::from(1u128) << 64); // 42 + 18446744073709551616
         assert_eq!(result, expected);
     }
 
@@ -869,14 +977,42 @@ mod tests {
         let args = IsClaimedArgs {
             config,
             network: 1,
-            index: 42,
+            index: 42u32,
             source_bridge_network: 0,
+        };
+
+        assert_eq!(args.network, 1);
+        assert_eq!(args.index, 42u32);
+        assert_eq!(args.source_bridge_network, 0);
+    }
+
+    #[test]
+    fn test_network_id_args_structure() {
+        // Test that NetworkIdArgs can be created correctly
+        let config = &Config::default();
+        let args = NetworkIdArgs {
+            config,
+            network: 1,
             private_key: Some("0x123"),
         };
 
         assert_eq!(args.network, 1);
-        assert_eq!(args.index, 42);
-        assert_eq!(args.source_bridge_network, 0);
         assert_eq!(args.private_key, Some("0x123"));
+    }
+
+    #[test]
+    fn test_network_id_output_serialization() {
+        // Test that NetworkIdOutput can be serialized/deserialized
+        let output = NetworkIdOutput {
+            network: 1,
+            contract_network_id: 42,
+        };
+
+        let json = serde_json::to_string(&output).expect("Should serialize");
+        let deserialized: NetworkIdOutput =
+            serde_json::from_str(&json).expect("Should deserialize");
+
+        assert_eq!(deserialized.network, 1);
+        assert_eq!(deserialized.contract_network_id, 42);
     }
 }

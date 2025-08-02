@@ -46,7 +46,7 @@ abigen!(
         function precalculatedWrapperAddress(uint32 originNetwork, address originTokenAddress, string name, string symbol, uint8 decimals) external view returns (address)
         function getTokenWrappedAddress(uint32 originNetwork, address originTokenAddress) external view returns (address)
         function wrappedTokenToTokenInfo(address wrappedToken) external view returns (uint32, address)
-        function isClaimed(uint256 leafIndex, uint32 sourceBridgeNetwork) external view returns (bool)
+        function isClaimed(uint32 leafIndex, uint32 sourceBridgeNetwork) external view returns (bool)
         function networkID() external view returns (uint32)
     ]"#,
 );

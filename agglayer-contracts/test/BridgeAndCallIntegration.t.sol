@@ -101,9 +101,7 @@ contract BridgeAndCallIntegrationTest is Test {
         // Mock global exit root for sandbox mode
         vm.mockCall(
             address(globalExitRoot),
-            abi.encodeWithSelector(
-                IBasePolygonZkEVMGlobalExitRoot.globalExitRootMap.selector
-            ),
+            abi.encodeWithSelector(IBasePolygonZkEVMGlobalExitRoot.globalExitRootMap.selector),
             abi.encode(block.timestamp)
         );
     }
@@ -114,20 +112,11 @@ contract BridgeAndCallIntegrationTest is Test {
         tokenL1.approve(address(bridgeExtensionL1), 100 * 10 ** 18);
 
         // Step 2: Prepare transfer calldata (transfer 1 token to user1)
-        bytes memory transferData = abi.encodeWithSignature(
-            "transfer(address,uint256)",
-            user1,
-            1 * 10 ** 18
-        );
+        bytes memory transferData = abi.encodeWithSignature("transfer(address,uint256)", user1, 1 * 10 ** 18);
 
         // Step 3: Get precalculated L2 token address
-        address l2TokenAddress = bridgeL2.precalculatedWrapperAddress(
-            NETWORK_ID_L1,
-            address(tokenL1),
-            "AggERC20",
-            "AGGERC20",
-            18
-        );
+        address l2TokenAddress =
+            bridgeL2.precalculatedWrapperAddress(NETWORK_ID_L1, address(tokenL1), "AggERC20", "AGGERC20", 18);
 
         console2.log("L1 Token:", address(tokenL1));
         console2.log("L2 Token Address:", l2TokenAddress);
@@ -176,16 +165,11 @@ contract BridgeAndCallIntegrationTest is Test {
         // The asset should remain unclaimed for the JumpPoint to claim it automatically
         // Let's verify the asset is unclaimed initially
         bool isAssetClaimed = bridgeL2.isClaimed(0, NETWORK_ID_L1);
-        console2.log(
-            "Asset claimed status before message claim:",
-            isAssetClaimed
-        );
+        console2.log("Asset claimed status before message claim:", isAssetClaimed);
         assertFalse(isAssetClaimed, "Asset should not be claimed initially");
 
         // Now try to claim the message without manually claiming the asset first
-        console2.log(
-            "Attempting to claim message without pre-claiming asset..."
-        );
+        console2.log("Attempting to claim message without pre-claiming asset...");
 
         // This test demonstrates that claiming a message without first claiming the asset fails
         // We expect this to fail, so we use vm.expectRevert to test the expected failure
@@ -202,12 +186,8 @@ contract BridgeAndCallIntegrationTest is Test {
             metadata // metadata
         );
 
-        console2.log(
-            "SUCCESS: Test confirmed that message claim fails without asset claim first"
-        );
-        console2.log(
-            "This is expected behavior - assets must be claimed before messages can be processed"
-        );
+        console2.log("SUCCESS: Test confirmed that message claim fails without asset claim first");
+        console2.log("This is expected behavior - assets must be claimed before messages can be processed");
 
         vm.stopPrank();
     }
@@ -220,20 +200,11 @@ contract BridgeAndCallIntegrationTest is Test {
         tokenL1.approve(address(bridgeExtensionL1), 100 * 10 ** 18);
 
         // Step 2: Prepare transfer calldata
-        bytes memory transferData = abi.encodeWithSignature(
-            "transfer(address,uint256)",
-            user1,
-            1 * 10 ** 18
-        );
+        bytes memory transferData = abi.encodeWithSignature("transfer(address,uint256)", user1, 1 * 10 ** 18);
 
         // Step 3: Get precalculated L2 token address
-        address l2TokenAddress = bridgeL2.precalculatedWrapperAddress(
-            NETWORK_ID_L1,
-            address(tokenL1),
-            "AggERC20",
-            "AGGERC20",
-            18
-        );
+        address l2TokenAddress =
+            bridgeL2.precalculatedWrapperAddress(NETWORK_ID_L1, address(tokenL1), "AggERC20", "AGGERC20", 18);
 
         console2.log("=== WORKING WORKFLOW TEST ===");
         console2.log("L1 Token:", address(tokenL1));
@@ -258,24 +229,13 @@ contract BridgeAndCallIntegrationTest is Test {
         // Step 5: Claim the ASSET first (as per COMMANDS.md workflow)
         vm.startPrank(user2);
 
-        bytes memory tokenMetadata = abi.encode(
-            "AggERC20",
-            "AGGERC20",
-            uint8(18)
-        );
+        bytes memory tokenMetadata = abi.encode("AggERC20", "AGGERC20", uint8(18));
 
         // Get the JumpPoint address that should receive the asset
         bytes32 salt = keccak256(abi.encodePacked(uint256(0), NETWORK_ID_L1));
         bytes memory jumpPointBytecode = abi.encodePacked(
             type(JumpPoint).creationCode,
-            abi.encode(
-                address(bridgeL2),
-                NETWORK_ID_L1,
-                address(tokenL1),
-                l2TokenAddress,
-                user2,
-                transferData
-            )
+            abi.encode(address(bridgeL2), NETWORK_ID_L1, address(tokenL1), l2TokenAddress, user2, transferData)
         );
 
         bytes32 hash = keccak256(
@@ -305,10 +265,7 @@ contract BridgeAndCallIntegrationTest is Test {
 
         // Verify asset is now claimed
         bool isAssetClaimed = bridgeL2.isClaimed(0, NETWORK_ID_L1);
-        console2.log(
-            "Asset claimed status after manual claim:",
-            isAssetClaimed
-        );
+        console2.log("Asset claimed status after manual claim:", isAssetClaimed);
         assertTrue(isAssetClaimed, "Asset should be claimed now");
 
         // Step 6: Now claim the MESSAGE
@@ -323,19 +280,17 @@ contract BridgeAndCallIntegrationTest is Test {
 
         console2.log("Attempting to claim message AFTER asset claim...");
 
-        try
-            bridgeL2.claimMessage(
-                1, // globalIndex for message bridge
-                bytes32(uint256(1)), // mainnetExitRoot (mocked)
-                bytes32(0), // rollupExitRoot
-                NETWORK_ID_L1, // originNetwork
-                address(bridgeExtensionL1), // originAddress
-                NETWORK_ID_L2, // destinationNetwork
-                address(bridgeExtensionL2), // destinationAddress
-                0, // amount
-                metadata // metadata
-            )
-        {
+        try bridgeL2.claimMessage(
+            1, // globalIndex for message bridge
+            bytes32(uint256(1)), // mainnetExitRoot (mocked)
+            bytes32(0), // rollupExitRoot
+            NETWORK_ID_L1, // originNetwork
+            address(bridgeExtensionL1), // originAddress
+            NETWORK_ID_L2, // destinationNetwork
+            address(bridgeExtensionL2), // destinationAddress
+            0, // amount
+            metadata // metadata
+        ) {
             console2.log("SUCCESS: Message claim worked!");
 
             // Check if the wrapped token was created and balances updated
@@ -344,21 +299,11 @@ contract BridgeAndCallIntegrationTest is Test {
                 uint256 user1Balance = wrappedToken.balanceOf(user1);
                 uint256 user2Balance = wrappedToken.balanceOf(user2);
 
-                console2.log(
-                    "User1 balance after successful execution:",
-                    user1Balance
-                );
-                console2.log(
-                    "User2 balance after successful execution:",
-                    user2Balance
-                );
+                console2.log("User1 balance after successful execution:", user1Balance);
+                console2.log("User2 balance after successful execution:", user2Balance);
 
                 // The transfer should have sent 1 token to user1
-                assertEq(
-                    user1Balance,
-                    1 * 10 ** 18,
-                    "User1 should receive 1 token from transfer"
-                );
+                assertEq(user1Balance, 1 * 10 ** 18, "User1 should receive 1 token from transfer");
             } else {
                 console2.log("Wrapped token not deployed yet");
             }
@@ -375,9 +320,7 @@ contract BridgeAndCallIntegrationTest is Test {
                 console2.logBytes4(errorSelector);
 
                 if (errorSelector == 0x37e391c3) {
-                    console2.log(
-                        "ERROR: Still getting MessageFailed() even after claiming asset first!"
-                    );
+                    console2.log("ERROR: Still getting MessageFailed() even after claiming asset first!");
                 } else if (errorSelector == 0x646cf558) {
                     console2.log("ERROR: AlreadyClaimed()");
                 } else {
@@ -391,22 +334,13 @@ contract BridgeAndCallIntegrationTest is Test {
         vm.stopPrank();
     }
 
-    function testBridgeExtensionValidation() public {
+    function testBridgeExtensionValidation() public view {
         // Test individual components of the bridge extension
 
         // 1. Test metadata encoding
-        bytes memory transferData = abi.encodeWithSignature(
-            "transfer(address,uint256)",
-            user1,
-            1 * 10 ** 18
-        );
-        address l2TokenAddress = bridgeL2.precalculatedWrapperAddress(
-            NETWORK_ID_L1,
-            address(tokenL1),
-            "AggERC20",
-            "AGGERC20",
-            18
-        );
+        bytes memory transferData = abi.encodeWithSignature("transfer(address,uint256)", user1, 1 * 10 ** 18);
+        address l2TokenAddress =
+            bridgeL2.precalculatedWrapperAddress(NETWORK_ID_L1, address(tokenL1), "AggERC20", "AGGERC20", 18);
 
         bytes memory metadata = abi.encode(
             0, // dependsOnIndex
@@ -428,10 +362,7 @@ contract BridgeAndCallIntegrationTest is Test {
             uint32 assetOriginalNetwork,
             address assetOriginalAddress,
             bytes memory callData
-        ) = abi.decode(
-                metadata,
-                (uint256, address, address, uint32, address, bytes)
-            );
+        ) = abi.decode(metadata, (uint256, address, address, uint32, address, bytes));
 
         console2.log("Decoded dependsOnIndex:", dependsOnIndex);
         console2.log("Decoded callAddress:", callAddress);
@@ -450,21 +381,12 @@ contract BridgeAndCallIntegrationTest is Test {
         assertEq(callData, transferData);
     }
 
-    function testJumpPointAddressCalculation() public {
+    function testJumpPointAddressCalculation() public view {
         // Test that our JumpPoint address calculation matches what BridgeExtension does
 
-        bytes memory transferData = abi.encodeWithSignature(
-            "transfer(address,uint256)",
-            user1,
-            1 * 10 ** 18
-        );
-        address l2TokenAddress = bridgeL2.precalculatedWrapperAddress(
-            NETWORK_ID_L1,
-            address(tokenL1),
-            "AggERC20",
-            "AGGERC20",
-            18
-        );
+        bytes memory transferData = abi.encodeWithSignature("transfer(address,uint256)", user1, 1 * 10 ** 18);
+        address l2TokenAddress =
+            bridgeL2.precalculatedWrapperAddress(NETWORK_ID_L1, address(tokenL1), "AggERC20", "AGGERC20", 18);
 
         // Calculate using BridgeExtension's internal logic (CREATE2)
         uint256 dependsOnIndex = 0;
@@ -472,19 +394,10 @@ contract BridgeAndCallIntegrationTest is Test {
 
         bytes memory jumpPointBytecode = abi.encodePacked(
             type(JumpPoint).creationCode,
-            abi.encode(
-                address(bridgeL2),
-                NETWORK_ID_L1,
-                address(tokenL1),
-                l2TokenAddress,
-                user2,
-                transferData
-            )
+            abi.encode(address(bridgeL2), NETWORK_ID_L1, address(tokenL1), l2TokenAddress, user2, transferData)
         );
 
-        bytes32 salt = keccak256(
-            abi.encodePacked(dependsOnIndex, originNetwork)
-        );
+        bytes32 salt = keccak256(abi.encodePacked(dependsOnIndex, originNetwork));
         bytes32 hash = keccak256(
             abi.encodePacked(
                 bytes1(0xff),
@@ -500,36 +413,22 @@ contract BridgeAndCallIntegrationTest is Test {
         console2.logBytes32(salt);
         console2.log("Bytecode hash:");
         console2.logBytes32(keccak256(jumpPointBytecode));
-        console2.log(
-            "Deployer (BridgeExtension L2):",
-            address(bridgeExtensionL2)
-        );
+        console2.log("Deployer (BridgeExtension L2):", address(bridgeExtensionL2));
     }
 
-    function testJumpPointDeploymentOriginal() public {
+    function testJumpPointDeploymentOriginal() public view {
         // Test CREATE2 deployment parameters
         uint256 dependsOnIndex = 0;
         uint32 originNetwork = NETWORK_ID_L1;
-        bytes32 salt = keccak256(
-            abi.encodePacked(dependsOnIndex, originNetwork)
-        );
+        bytes32 salt = keccak256(abi.encodePacked(dependsOnIndex, originNetwork));
 
         console2.log("CREATE2 salt:");
         console2.logBytes32(salt);
 
         // Test JumpPoint constructor parameters
-        bytes memory transferData = abi.encodeWithSignature(
-            "transfer(address,uint256)",
-            user1,
-            1 * 10 ** 18
-        );
-        address l2TokenAddress = bridgeL2.precalculatedWrapperAddress(
-            NETWORK_ID_L1,
-            address(tokenL1),
-            "AggERC20",
-            "AGGERC20",
-            18
-        );
+        bytes memory transferData = abi.encodeWithSignature("transfer(address,uint256)", user1, 1 * 10 ** 18);
+        address l2TokenAddress =
+            bridgeL2.precalculatedWrapperAddress(NETWORK_ID_L1, address(tokenL1), "AggERC20", "AGGERC20", 18);
 
         console2.log("JumpPoint constructor params:");
         console2.log("  bridge:", address(bridgeL2));

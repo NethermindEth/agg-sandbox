@@ -146,6 +146,12 @@ while read -r line; do
     elif [[ $line =~ PolygonZkEVM:[[:space:]]+([0-9a-fA-Fx]+) ]]; then
         addr="${BASH_REMATCH[1]}"
         update_env_file "$ENV_FILE" "POLYGON_ZKEVM_$suffix" "$addr"
+    elif [[ $line =~ "PolygonZkEVM L2:"[[:space:]]+([0-9a-fA-Fx]+) ]]; then
+        addr="${BASH_REMATCH[1]}"
+        update_env_file "$ENV_FILE" "POLYGON_ZKEVM_L2_ROLLUP" "$addr"
+    elif [[ $line =~ "PolygonZkEVM L3:"[[:space:]]+([0-9a-fA-Fx]+) ]]; then
+        addr="${BASH_REMATCH[1]}"
+        update_env_file "$ENV_FILE" "POLYGON_ZKEVM_L3_ROLLUP" "$addr"
     elif [[ $line =~ PolygonZkEVMBridgeV2:[[:space:]]+([0-9a-fA-Fx]+) ]]; then
         addr="${BASH_REMATCH[1]}"
         update_env_file "$ENV_FILE" "POLYGON_ZKEVM_BRIDGE_$suffix" "$addr"

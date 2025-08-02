@@ -108,7 +108,7 @@ services:
 
   # AggKit for L2 (L1 ↔ L2 bridge)
   aggkit-l2:
-    image: ametelnethermind/aggkit:claimsponsor
+    image: ametelnethermind/aggkit:latest
     depends_on:
       aggkit-wait:
         condition: service_completed_successfully
@@ -149,11 +149,12 @@ services:
       - POLYGON_ZKEVM_GLOBAL_EXIT_ROOT_L1=${POLYGON_ZKEVM_GLOBAL_EXIT_ROOT_L1}
       - POLYGON_ZKEVM_GLOBAL_EXIT_ROOT_L2=${GLOBAL_EXIT_ROOT_MANAGER_L2}
       - POLYGON_ROLLUP_MANAGER_L1=${POLYGON_ROLLUP_MANAGER_L1}
+      - POLYGON_ZKEVM_L2_ROLLUP=${POLYGON_ZKEVM_L2_ROLLUP}
     container_name: aggkit-l2
 
   # AggKit for L3 (L1 ↔ L3 bridge)
   aggkit-l3:
-    image: ametelnethermind/aggkit:claimsponsor
+    image: ametelnethermind/aggkit:latest
     depends_on:
       aggkit-wait:
         condition: service_completed_successfully
@@ -188,13 +189,13 @@ services:
       # Database (different path to avoid conflicts)
       - AGGKIT_DATABASE_NAME=/app/data/aggkit_l3.db
 
-      # Contract addresses for L3 (you'll need to deploy separate contracts for L3)
-      # These will need to be different from L2 contracts
+      # Contract addresses for L3 (using deployed L3 contracts)
       - POLYGON_ZKEVM_BRIDGE_L1=${POLYGON_ZKEVM_BRIDGE_L1}
       - POLYGON_ZKEVM_BRIDGE_L2=${POLYGON_ZKEVM_BRIDGE_L3}
       - POLYGON_ZKEVM_GLOBAL_EXIT_ROOT_L1=${POLYGON_ZKEVM_GLOBAL_EXIT_ROOT_L1}
       - POLYGON_ZKEVM_GLOBAL_EXIT_ROOT_L2=${GLOBAL_EXIT_ROOT_MANAGER_L3}
       - POLYGON_ROLLUP_MANAGER_L1=${POLYGON_ROLLUP_MANAGER_L1}
+      - POLYGON_ZKEVM_L3_ROLLUP=${POLYGON_ZKEVM_L3_ROLLUP}
     container_name: aggkit-l3
 
 networks:

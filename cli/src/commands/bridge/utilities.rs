@@ -902,7 +902,7 @@ mod tests {
             source_network_id: 1,
         };
         let result = compute_global_index(args);
-        let expected = U256::from(42) + U256::from(0 * (1u64 << 32)); // 42 + 0
+        let expected = U256::from(42); // 42 + 0
         assert_eq!(result, expected);
     }
 
@@ -913,7 +913,7 @@ mod tests {
             source_network_id: 2,
         };
         let result = compute_global_index(args);
-        let expected = U256::from(42) + U256::from(1 * (1u64 << 32)); // 42 + 4294967296
+        let expected = U256::from(42) + U256::from(1u64 << 32); // 42 + 4294967296
         assert_eq!(result, expected);
     }
 

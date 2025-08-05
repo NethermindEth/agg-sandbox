@@ -43,8 +43,8 @@ contract BridgeAndCallIntegrationTest is Test {
     address public user1;
     address public user2;
 
-    uint32 constant NETWORK_ID_L1 = 1;
-    uint32 constant NETWORK_ID_L2 = 1101;
+    uint32 constant NETWORK_ID_L1 = 0;
+    uint32 constant NETWORK_ID_L2 = 1;
 
     event DebugClaimMessage(
         string msg,
@@ -334,7 +334,7 @@ contract BridgeAndCallIntegrationTest is Test {
         vm.stopPrank();
     }
 
-    function testBridgeExtensionValidation() public {
+    function testBridgeExtensionValidation() public view {
         // Test individual components of the bridge extension
 
         // 1. Test metadata encoding
@@ -381,7 +381,7 @@ contract BridgeAndCallIntegrationTest is Test {
         assertEq(callData, transferData);
     }
 
-    function testJumpPointAddressCalculation() public {
+    function testJumpPointAddressCalculation() public view {
         // Test that our JumpPoint address calculation matches what BridgeExtension does
 
         bytes memory transferData = abi.encodeWithSignature("transfer(address,uint256)", user1, 1 * 10 ** 18);
@@ -416,7 +416,7 @@ contract BridgeAndCallIntegrationTest is Test {
         console2.log("Deployer (BridgeExtension L2):", address(bridgeExtensionL2));
     }
 
-    function testJumpPointDeploymentOriginal() public {
+    function testJumpPointDeploymentOriginal() public view {
         // Test CREATE2 deployment parameters
         uint256 dependsOnIndex = 0;
         uint32 originNetwork = NETWORK_ID_L1;

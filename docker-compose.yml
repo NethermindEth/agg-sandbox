@@ -82,7 +82,7 @@ services:
       - ./.env:/app/output/deployed-contracts.env:ro
 
   aggkit:
-    image: ametelnethermind/aggkit:claimsponsor
+    image: ametelnethermind/aggkit:latest
     depends_on:
       aggkit-wait:
         condition: service_completed_successfully
@@ -124,6 +124,7 @@ services:
       - POLYGON_ZKEVM_GLOBAL_EXIT_ROOT_L1=${POLYGON_ZKEVM_GLOBAL_EXIT_ROOT_L1}
       - POLYGON_ZKEVM_GLOBAL_EXIT_ROOT_L2=${GLOBAL_EXIT_ROOT_MANAGER_L2}
       - POLYGON_ROLLUP_MANAGER_L1=${POLYGON_ROLLUP_MANAGER_L1}
+      - POLYGON_ZKEVM_L2_ROLLUP=${POLYGON_ZKEVM_L2_ROLLUP}
 
 networks:
   anvil-network:

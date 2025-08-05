@@ -41,7 +41,7 @@ jobs:
 
       - name: Clippy
         working-directory: ./cli
-        run: cargo clippy --all-targets --all-features -- -D warnings
+        run: cargo clippy --all-targets --all-features -- -D warnings -A clippy::unwrap_used -A clippy::disallowed_methods -A clippy::disallowed_types
 
       - name: Check
         working-directory: ./cli

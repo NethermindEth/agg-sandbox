@@ -118,8 +118,8 @@ static GLOBAL_CLIENT: LazyLock<Arc<OptimizedApiClient>> =
     LazyLock::new(|| Arc::new(OptimizedApiClient::new(CacheConfig::default())));
 
 impl OptimizedApiClient {
-    /// Create a new optimized API client
-    pub fn new(cache_config: CacheConfig) -> Self {
+    /// Create a new optimized API client (fallible version)
+    pub fn try_new(cache_config: CacheConfig) -> crate::error::Result<Self> {
         let client = ClientBuilder::new()
             .timeout(Duration::from_secs(30))
             .connect_timeout(Duration::from_secs(10))
@@ -129,17 +129,38 @@ impl OptimizedApiClient {
             .gzip(true)
             .brotli(true)
             .build()
-            .expect("Failed to create HTTP client");
+            .map_err(|e| {
+                crate::error::AggSandboxError::Api(crate::error::ApiError::NetworkError(format!(
+                    "Failed to create HTTP client: {e}"
+                )))
+            })?;
 
-        let cache = Arc::new(RwLock::new(LruCache::new(
-            NonZeroUsize::new(cache_config.max_entries).unwrap(),
-        )));
+        let cache_size = NonZeroUsize::new(cache_config.max_entries).ok_or_else(|| {
+            crate::error::AggSandboxError::Config(crate::error::ConfigError::invalid_value(
+                "cache_max_entries",
+                &cache_config.max_entries.to_string(),
+                "Cache size must be greater than 0",
+            ))
+        })?;
+        let cache = Arc::new(RwLock::new(LruCache::new(cache_size)));
 
-        Self {
+        Ok(Self {
             client,
             cache,
             cache_config,
             stats: Arc::new(DashMap::new()),
+        })
+    }
+
+    /// Create a new optimized API client (panics on error, for global client)
+    pub fn new(cache_config: CacheConfig) -> Self {
+        match Self::try_new(cache_config) {
+            Ok(client) => client,
+            Err(e) => {
+                // For global client, we need to panic as there's no way to return an error
+                // This should never happen with default config
+                panic!("Failed to create global API client: {e}");
+            }
         }
     }
 
@@ -158,7 +179,7 @@ impl OptimizedApiClient {
     }
 
     /// Clear the cache (useful for testing or manual cache invalidation)
-    #[allow(dead_code)]
+    #[allow(dead_code, clippy::disallowed_methods)] // Allow for tracing macro expansion
     pub async fn clear_cache(&self) {
         let mut cache = self.cache.write().await;
         cache.clear();
@@ -196,6 +217,7 @@ impl OptimizedApiClient {
     }
 
     /// Get data from cache or fetch from API
+    #[allow(clippy::disallowed_methods)] // Allow for tracing macro expansion
     #[instrument(fields(cache_key = ?cache_key), skip(self, fetch_fn))]
     pub async fn get_cached_or_fetch<F, Fut>(
         &self,
@@ -258,6 +280,7 @@ impl OptimizedApiClient {
     }
 
     /// Make an HTTP GET request with specified timeout
+    #[allow(clippy::disallowed_methods)] // Allow for tracing macro expansion
     #[instrument(fields(url = %url), skip(self))]
     pub async fn get_with_timeout(
         &self,
@@ -355,6 +378,7 @@ impl OptimizedApiClient {
     }
 
     /// Get bridges with caching
+    #[allow(clippy::disallowed_methods)] // Allow for tracing macro expansion
     #[instrument(fields(network_id = network_id), skip(self, config))]
     pub async fn get_bridges(&self, config: &Config, network_id: u64) -> Result<serde_json::Value> {
         let cache_key = CacheKey::new("bridges".to_string()).with_network_id(network_id);
@@ -371,6 +395,7 @@ impl OptimizedApiClient {
     }
 
     /// Get claims with caching
+    #[allow(clippy::disallowed_methods)] // Allow for tracing macro expansion
     #[instrument(fields(network_id = network_id), skip(self, config))]
     pub async fn get_claims(&self, config: &Config, network_id: u64) -> Result<serde_json::Value> {
         let cache_key = CacheKey::new("claims".to_string()).with_network_id(network_id);
@@ -387,6 +412,7 @@ impl OptimizedApiClient {
     }
 
     /// Get claim proof with caching
+    #[allow(clippy::disallowed_methods)] // Allow for tracing macro expansion
     #[instrument(
         fields(network_id = network_id, leaf_index = leaf_index, deposit_count = deposit_count),
         skip(self, config)
@@ -415,6 +441,7 @@ impl OptimizedApiClient {
     }
 
     /// Get L1 info tree index with caching
+    #[allow(clippy::disallowed_methods)] // Allow for tracing macro expansion
     #[instrument(
         fields(network_id = network_id, deposit_count = deposit_count),
         skip(self, config)

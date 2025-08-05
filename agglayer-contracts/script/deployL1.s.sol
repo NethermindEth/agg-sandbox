@@ -63,7 +63,7 @@ contract DeployContractsL1 is Script {
 
         // Initialize the bridge
         polygonZkEVMBridgeV2.initialize(
-            1, // _networkID - 1 for Ethereum
+            0, // _networkID - 0 for Ethereum
             address(0), // _gasTokenAddress - address(0) for ETH
             0, // _gasTokenNetwork
             IBasePolygonZkEVMGlobalExitRoot(address(polygonZkEVMGlobalExitRootV2)), // _globalExitRootManager
@@ -74,12 +74,41 @@ contract DeployContractsL1 is Script {
         // Initialize the RollupManager (MOCK VERSION: automatically grants roles to deployer)
         polygonRollupManager.initialize();
 
-        // Register the PolygonZkEVM rollup in the RollupManager
+        // Deploy and register L2 rollup (Chain ID 1101)
+        PolygonZkEVM polygonZkEVMl2 = new PolygonZkEVM(
+            IPolygonZkEVMGlobalExitRootV2(address(polygonZkEVMGlobalExitRootV2)),
+            IERC20(address(aggERC20)),
+            IVerifierRollup(address(fflonkVerifier)),
+            IPolygonZkEVMBridge(address(polygonZkEVMBridgeV2)),
+            1,
+            1101 // Chain ID for L2
+        );
+
         polygonRollupManager.addExistingRollup(
-            IPolygonRollupBase(address(polygonZkEVM)), // rollupAddress
+            IPolygonRollupBase(address(polygonZkEVMl2)), // rollupAddress for L2
             address(fflonkVerifier), // verifier
             1, // forkID
-            1101, // chainID (your L2 chain ID)
+            1101, // chainID (L2 chain ID)
+            0x0000000000000000000000000000000000000000000000000000000000000000, // initRoot (genesis state root)
+            IPolygonRollupManager.VerifierType.StateTransition, // rollupVerifierType
+            0x0000000000000000000000000000000000000000000000000000000000000000 // programVKey (empty for StateTransition)
+        );
+
+        // Deploy and register L3 rollup (Chain ID 137)
+        PolygonZkEVM polygonZkEVMl3 = new PolygonZkEVM(
+            IPolygonZkEVMGlobalExitRootV2(address(polygonZkEVMGlobalExitRootV2)),
+            IERC20(address(aggERC20)),
+            IVerifierRollup(address(fflonkVerifier)),
+            IPolygonZkEVMBridge(address(polygonZkEVMBridgeV2)),
+            2, // Different rollup ID
+            137 // Chain ID for L3
+        );
+
+        polygonRollupManager.addExistingRollup(
+            IPolygonRollupBase(address(polygonZkEVMl3)), // rollupAddress for L3
+            address(fflonkVerifier), // verifier
+            1, // forkID
+            137, // chainID (L3 chain ID)
             0x0000000000000000000000000000000000000000000000000000000000000000, // initRoot (genesis state root)
             IPolygonRollupManager.VerifierType.StateTransition, // rollupVerifierType
             0x0000000000000000000000000000000000000000000000000000000000000000 // programVKey (empty for StateTransition)
@@ -91,6 +120,8 @@ contract DeployContractsL1 is Script {
         // print out the addresses
         console2.log("FflonkVerifier:         ", address(fflonkVerifier));
         console2.log("PolygonZkEVM:           ", address(polygonZkEVM));
+        console2.log("PolygonZkEVM L2:        ", address(polygonZkEVMl2));
+        console2.log("PolygonZkEVM L3:        ", address(polygonZkEVMl3));
         console2.log("PolygonZkEVMBridgeV2:   ", address(polygonZkEVMBridgeV2));
         console2.log("PolygonZkEVMTimelock:   ", address(polygonZkEVMTimelock));
         console2.log("PolygonZkEVMGlobalExitRootV2: ", address(polygonZkEVMGlobalExitRootV2));
@@ -98,7 +129,8 @@ contract DeployContractsL1 is Script {
         console2.log("AggERC20:              ", address(aggERC20));
         console2.log("BridgeExtension:       ", address(bridgeExtension));
         console2.log("Bridge initialized successfully!");
-        console2.log("RollupManager initialized and rollup registered!");
-        console2.log("Rollup registered with ID: 1");
+        console2.log("RollupManager initialized and rollups registered!");
+        console2.log("L2 Rollup registered with ID: 1 (Chain ID: 1101)");
+        console2.log("L3 Rollup registered with ID: 2 (Chain ID: 137)");
     }
 }

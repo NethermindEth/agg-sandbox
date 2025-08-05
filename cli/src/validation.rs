@@ -222,11 +222,12 @@ impl Validator {
 
     /// Validate environment variable name
     #[allow(dead_code)]
+    #[allow(clippy::disallowed_methods)] // Allow unwrap for hardcoded regex
     pub fn validate_env_var_name(name: &str) -> Result<String> {
         let sanitized = Self::sanitize_env_var_name(name);
 
         // Environment variable names should only contain uppercase letters, numbers, and underscores
-        let env_regex = Regex::new(r"^[A-Z][A-Z0-9_]*$").unwrap();
+        let env_regex = Regex::new(r"^[A-Z][A-Z0-9_]*$").unwrap(); // Safe: hardcoded regex pattern is always valid
 
         if !env_regex.is_match(&sanitized) {
             return Err(ConfigError::invalid_value(
@@ -246,11 +247,12 @@ impl Validator {
     }
 
     /// Validate service name for Docker operations
+    #[allow(clippy::disallowed_methods)] // Allow unwrap for hardcoded regex
     pub fn validate_service_name(service: &str) -> Result<String> {
         let sanitized = Self::sanitize_service_name(service);
 
         // Docker service names should be alphanumeric with hyphens and underscores
-        let service_regex = Regex::new(r"^[a-zA-Z0-9][a-zA-Z0-9_-]*$").unwrap();
+        let service_regex = Regex::new(r"^[a-zA-Z0-9][a-zA-Z0-9_-]*$").unwrap(); // Safe: hardcoded regex pattern is always valid
 
         if sanitized.is_empty() {
             return Err(ConfigError::invalid_value(

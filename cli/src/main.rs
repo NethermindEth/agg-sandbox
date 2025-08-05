@@ -166,10 +166,6 @@ enum Commands {
         /// Network ID the deposit originated on (omit or 0 for L1)
         #[arg(long, default_value_t = 0)]
         origin_network: u64,
-
-        /// Destination network ID of the deposit (omit or 1 for L1)
-        #[arg(long, default_value_t = 1)]
-        destination_network: u64,
     },
     /// 🔎 Query the status of a sponsored claim by global index
     ClaimStatus {
@@ -286,10 +282,9 @@ async fn run(cli: Cli) -> Result<()> {
         Commands::SponsorClaim {
             deposit,
             origin_network,
-            destination_network,
         } => {
             info!(deposit, origin_network, "Executing sponsor-claim command");
-            commands::handle_sponsor_claim(deposit, origin_network, destination_network).await?;
+            commands::handle_sponsor_claim(deposit, origin_network).await?;
             Ok(())
         }
         Commands::ClaimStatus { global_index } => {

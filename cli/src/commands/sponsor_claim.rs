@@ -7,7 +7,6 @@ use anyhow::anyhow;
 pub async fn handle_sponsor_claim(
     deposit: u32,
     origin_network: u64,
-    destination_network: u64,
 ) -> Result<()> {
     let config = Config::load()?;
 
@@ -22,7 +21,7 @@ pub async fn handle_sponsor_claim(
     // Find the bridge whose deposit_count matches `deposit`
     let bridge: &BridgeInfo = bridges
         .iter()
-        .find(|b| b.deposit_count == deposit)
+        .find(|b| b.deposit_count == deposit && b.origin_network == origin_network)
         .ok_or_else(|| {
             anyhow!("bridge with deposit #{deposit} not found on network {origin_network}")
         })?;
@@ -47,14 +46,14 @@ pub async fn handle_sponsor_claim(
     // Build the request body
     let body = ClaimBody {
         leaf_type: bridge.leaf_type,
-        global_index: global_index,
+        global_index,
         mainnet_exit_root: leaf.mainnet_exit_root,
         rollup_exit_root: leaf.rollup_exit_root,
-        origin_network: origin_network,
+        origin_network: bridge.origin_network,
         origin_token_address: bridge.origin_address,
-        destination_network: destination_network,
+        destination_network: bridge.destination_network,
         destination_address: bridge.destination_address,
-        amount: amount,
+        amount,
         metadata: bridge.metadata.clone(),
     };
 

@@ -82,7 +82,7 @@ services:
       - ./.env:/app/output/deployed-contracts.env:ro
 
   aggkit:
-    image: ametelnethermind/aggkit:latest
+    image: aggkit:local
     depends_on:
       aggkit-wait:
         condition: service_completed_successfully
@@ -103,6 +103,7 @@ services:
       - AGGKIT_LOG_LEVEL=info
       - AGGKIT_COMPONENTS=bridge,aggoracle,claim-sponsor
       - AGGKIT_CLAIMSPONSOR_ENABLED=true
+      - AGGKIT_CLAIMSPONSOR_CLAIM_ALL=${AGGKIT_CLAIMSPONSOR_CLAIM_ALL:-false}
 
       # Network configuration
       - AGGKIT_L1_URL=http://anvil-l1:8545

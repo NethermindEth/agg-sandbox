@@ -1,3 +1,5 @@
+use std::u64;
+
 use crate::api;
 use crate::config::Config;
 use crate::error::Result;
@@ -7,6 +9,7 @@ use anyhow::anyhow;
 pub async fn handle_sponsor_claim(
     deposit: u32,
     origin_network: u64,
+    destination_network: u64,
 ) -> Result<()> {
     let config = Config::load()?;
 
@@ -21,16 +24,20 @@ pub async fn handle_sponsor_claim(
     // Find the bridge whose deposit_count matches `deposit`
     let bridge: &BridgeInfo = bridges
         .iter()
-        .find(|b| b.deposit_count == deposit && b.origin_network == origin_network)
+        .find(|b| b.deposit_count == deposit)
         .ok_or_else(|| {
             anyhow!("bridge with deposit #{deposit} not found on network {origin_network}")
         })?;
+
+    // Get Leaf Index
+    let leaf_index_resp = api::get_l1_info_tree_index(&config, origin_network, deposit as u64, false).await?;
+    let leaf_index: u64 = serde_json::from_value(leaf_index_resp.data)?;
 
     // Get claim_proof information in order to extract mainnet_exit_root and rollup_exit_root
     let proof_resp = api::get_claim_proof(
         &config,
         origin_network,
-        deposit as u64,
+        leaf_index,
         deposit as u64,
         false,
     )
@@ -49,31 +56,28 @@ pub async fn handle_sponsor_claim(
         global_index,
         mainnet_exit_root: leaf.mainnet_exit_root,
         rollup_exit_root: leaf.rollup_exit_root,
-        origin_network: bridge.origin_network,
+        origin_network,
         origin_token_address: bridge.origin_address,
-        destination_network: bridge.destination_network,
+        destination_network,
         destination_address: bridge.destination_address,
         amount,
         metadata: bridge.metadata.clone(),
     };
 
-    println!(
-        "Claim body for POST request:\n{}",
-        serde_json::to_string_pretty(&body)?
-    );
+    api::print_json_response("Claim body for POST request", &serde_json::to_value(&body)?);
 
     // POST /bridge/v1/sponsor-claim
-    api::post_sponsor_claim(&config, &body).await?;
+    api::post_sponsor_claim(&config, &body, destination_network).await?;
 
     println!("✅  Sponsor-claim submitted (globalIndex = {global_index})");
 
     Ok(())
 }
 
-pub async fn handle_claim_status(global_index: u64) -> Result<()> {
+pub async fn handle_claim_status(global_index: u64, network_id: u64) -> Result<()> {
     let config = Config::load()?;
 
-    let resp = api::get_sponsored_claim_status(&config, global_index).await?;
+    let resp = api::get_sponsored_claim_status(&config, global_index, network_id).await?;
 
     api::print_json_response("Sponsored Claim Status", &resp.data);
 

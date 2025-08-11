@@ -471,8 +471,10 @@ impl OptimizedApiClient {
         &self,
         config: &Config,
         body: &serde_json::Value,
+        network_id: u64,
     ) -> Result<serde_json::Value> {
-        let url = format!("{}/bridge/v1/sponsor-claim", config.api.base_url);
+        let base_url = config.get_api_base_url(NetworkId::new(network_id)?);
+        let url = format!("{}/bridge/v1/sponsor-claim", base_url);
         let timeout = config.api.timeout;
         self.post_json_with_timeout(&url, body, timeout).await
     }
@@ -482,10 +484,12 @@ impl OptimizedApiClient {
         &self,
         config: &Config,
         global_index: u64,
+        network_id: u64,
     ) -> Result<serde_json::Value> {
+        let base_url = config.get_api_base_url(NetworkId::new(network_id)?);
         let url = format!(
-            "{}/bridge/v1/sponsored-claim-status?global_index={global_index}",
-            config.api.base_url
+            "{}/bridge/v1/sponsored-claim-status?global_index={global_index}&network_id={network_id}",
+            base_url
         );
         let timeout = config.api.timeout;
         self.get_with_timeout(&url, timeout).await

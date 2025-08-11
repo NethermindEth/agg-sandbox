@@ -78,6 +78,13 @@ enum Commands {
             help = "Start with a second L2 chain for multi-chain testing"
         )]
         multi_l2: bool,
+        // Enable automatic claim sponsoring
+        #[arg(
+            short,
+            long,
+            help = "Claimsponsor will sponsor all claims automatically"
+        )]
+        claim_all: bool,
     },
     /// 🛑 Stop the sandbox environment
     #[command(
@@ -174,12 +181,19 @@ enum Commands {
         /// Network ID the deposit originated on (omit or 0 for L1)
         #[arg(long, default_value_t = 0)]
         origin_network: u64,
+
+        /// ID of the destination network (omit or 1 for L2)
+        #[arg(long, default_value_t = 1)]
+        destination_network: u64,
     },
     /// 🔎 Query the status of a sponsored claim by global index
     ClaimStatus {
         /// Global index of the claim you want to check
         #[arg(short = 'g', long = "global-index")]
         global_index: u64,
+        /// Network ID to check claims from
+        #[arg(long = "network-id")]
+        network_id: u64,
     },
 }
 
@@ -242,15 +256,17 @@ async fn run(cli: Cli) -> Result<()> {
             build,
             fork,
             multi_l2,
+            claim_all,
         } => {
             info!(
                 detach = detach,
                 build = build,
                 fork = fork,
                 multi_l2 = multi_l2,
+                claim_all = claim_all,
                 "Executing start command"
             );
-            commands::handle_start(detach, build, fork, multi_l2).await;
+            commands::handle_start(detach, build, fork, multi_l2, claim_all).await;
             Ok(())
         }
         Commands::Stop { volumes } => {
@@ -296,14 +312,15 @@ async fn run(cli: Cli) -> Result<()> {
         Commands::SponsorClaim {
             deposit,
             origin_network,
+            destination_network,
         } => {
             info!(deposit, origin_network, "Executing sponsor-claim command");
-            commands::handle_sponsor_claim(deposit, origin_network).await?;
+            commands::handle_sponsor_claim(deposit, origin_network, destination_network).await?;
             Ok(())
         }
-        Commands::ClaimStatus { global_index } => {
+        Commands::ClaimStatus { global_index, network_id } => {
             info!(global_index, "Executing claim-status command");
-            commands::handle_claim_status(global_index).await?;
+            commands::handle_claim_status(global_index, network_id).await?;
             Ok(())
         }
     };

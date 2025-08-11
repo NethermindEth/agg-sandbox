@@ -228,14 +228,16 @@ impl Default for DockerComposeBuilder {
 pub struct SandboxConfig {
     pub fork_mode: bool,
     pub multi_l2_mode: bool,
+    pub claim_all: bool,
 }
 
 impl SandboxConfig {
     /// Create a new sandbox configuration
-    pub fn new(fork_mode: bool, multi_l2_mode: bool) -> Self {
+    pub fn new(fork_mode: bool, multi_l2_mode: bool, claim_all: bool) -> Self {
         Self {
             fork_mode,
             multi_l2_mode,
+            claim_all,
         }
     }
 
@@ -314,6 +316,10 @@ impl SandboxConfig {
             }
         } else {
             builder.add_env("ENABLE_FORK_MODE", "false");
+        }
+
+        if self.claim_all {
+            builder.add_env("AGGKIT_CLAIMSPONSOR_CLAIM_ALL", "true");
         }
 
         // Set chain IDs
@@ -441,19 +447,19 @@ mod tests {
     #[test]
     fn test_sandbox_config_mode_description() {
         assert_eq!(
-            SandboxConfig::new(false, false).mode_description(),
+            SandboxConfig::new(false, false, false).mode_description(),
             "local mode"
         );
         assert_eq!(
-            SandboxConfig::new(true, false).mode_description(),
+            SandboxConfig::new(true, false, false).mode_description(),
             "fork mode"
         );
         assert_eq!(
-            SandboxConfig::new(false, true).mode_description(),
+            SandboxConfig::new(false, true, false).mode_description(),
             "multi-L2 mode"
         );
         assert_eq!(
-            SandboxConfig::new(true, true).mode_description(),
+            SandboxConfig::new(true, true, false).mode_description(),
             "multi-L2 fork mode"
         );
     }

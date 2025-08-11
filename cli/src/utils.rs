@@ -31,14 +31,8 @@ pub struct BridgeInfo {
     #[serde(rename = "leaf_type")]
     pub leaf_type: u8,
 
-    #[serde(rename = "origin_network")]
-    pub origin_network: u64,
-
     #[serde(rename = "origin_address")]
     pub origin_address: Address,
-
-    #[serde(rename = "destination_network")]
-    pub destination_network: u64,
 
     #[serde(rename = "destination_address")]
     pub destination_address: Address,

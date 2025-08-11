@@ -12,7 +12,13 @@ pub async fn handle_start(detach: bool, build: bool, fork: bool, multi_l2: bool,
 
 /// Async implementation of start command with progress tracking
 #[allow(clippy::disallowed_methods)] // Allow std::process::exit and tracing macros
-async fn handle_start_async(detach: bool, build: bool, fork: bool, multi_l2: bool, claim_all: bool) {
+async fn handle_start_async(
+    detach: bool,
+    build: bool,
+    fork: bool,
+    multi_l2: bool,
+    claim_all: bool,
+) {
     use crate::docker::{execute_docker_command, SandboxConfig};
 
     let reporter = StatusReporter::new();

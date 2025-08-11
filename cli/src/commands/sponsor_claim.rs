@@ -1,5 +1,3 @@
-use std::u64;
-
 use crate::api;
 use crate::config::Config;
 use crate::error::Result;
@@ -30,18 +28,13 @@ pub async fn handle_sponsor_claim(
         })?;
 
     // Get Leaf Index
-    let leaf_index_resp = api::get_l1_info_tree_index(&config, origin_network, deposit as u64, false).await?;
+    let leaf_index_resp =
+        api::get_l1_info_tree_index(&config, origin_network, deposit as u64, false).await?;
     let leaf_index: u64 = serde_json::from_value(leaf_index_resp.data)?;
 
     // Get claim_proof information in order to extract mainnet_exit_root and rollup_exit_root
-    let proof_resp = api::get_claim_proof(
-        &config,
-        origin_network,
-        leaf_index,
-        deposit as u64,
-        false,
-    )
-    .await?;
+    let proof_resp =
+        api::get_claim_proof(&config, origin_network, leaf_index, deposit as u64, false).await?;
     let ClaimProofWrapper { leaf }: ClaimProofWrapper = serde_json::from_value(proof_resp.data)?;
 
     // Parse amount from string to u64

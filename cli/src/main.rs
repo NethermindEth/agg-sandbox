@@ -318,7 +318,10 @@ async fn run(cli: Cli) -> Result<()> {
             commands::handle_sponsor_claim(deposit, origin_network, destination_network).await?;
             Ok(())
         }
-        Commands::ClaimStatus { global_index, network_id } => {
+        Commands::ClaimStatus {
+            global_index,
+            network_id,
+        } => {
             info!(global_index, "Executing claim-status command");
             commands::handle_claim_status(global_index, network_id).await?;
             Ok(())

@@ -199,6 +199,9 @@ aggsandbox start --detach --verbose
 # Start with image rebuilding
 aggsandbox start --build --detach
 
+# Start with automatic sponsor of all claims
+aggsandbox start --detach --claim-all
+
 # Stop gracefully
 aggsandbox stop
 

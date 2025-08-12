@@ -336,7 +336,7 @@ async fn run(cli: Cli) -> Result<()> {
     result
 }
 
-/// Initialize logging based on CLI configuration  
+/// Initialize logging based on CLI configuration
 #[allow(clippy::disallowed_methods)] // Allow for error propagation and print functions
 fn initialize_logging(cli: &Cli) -> Result<()> {
     let level = logging::level_from_verbosity(cli.verbose, cli.quiet);

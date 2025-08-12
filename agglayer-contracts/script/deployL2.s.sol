@@ -47,7 +47,7 @@ contract DeployContractsL2 is Script {
         // Initialize the global exit root manager
         globalExitRootManagerL2SovereignChain.initialize(deployer, address(0));
 
-        AggERC20 aggERC20 = new AggERC20(deployer, deployer, 1000000);
+        AggERC20 aggERC20 = new AggERC20(deployer, deployer);
 
         BridgeExtension bridgeExtension = new BridgeExtension(address(polygonZkEVMBridgeV2));
 

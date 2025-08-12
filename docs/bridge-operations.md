@@ -50,7 +50,7 @@ POLYGON_ZKEVM_BRIDGE_L2=0x2279B7A0a67DB372996a5FaB50D91eAA73d2eBe6
 aggsandbox bridge asset \
   --network 0 \
   --destination-network 1 \
-  --amount 0.1 \
+  --amount 1 \ # Wei
   --token-address 0x0000000000000000000000000000000000000000
 ```
 
@@ -197,15 +197,15 @@ aggsandbox bridge claim \
 
 ```bash
 # Encode message data
-MESSAGE_DATA=$(cast calldata "transfer(address,uint256)" $ACCOUNT_ADDRESS_1 1000000000000000000)
+MESSAGE_DATA=$(cast calldata "transfer(address,uint256)" $ACCOUNT_ADDRESS_2 10)
 
 # Bridge message from L1 to L2
 aggsandbox bridge message \
   --network 0 \
   --destination-network 1 \
-  --target 0x742d35Cc6965C592342c6c16fb8eaeb90a23b5C0 \
+  --target $AGG_ERC20_L2 \
   --data $MESSAGE_DATA \
-  --amount 0.01 \
+  --amount 1 \
   --fallback-address $ACCOUNT_ADDRESS_1
 ```
 
@@ -231,13 +231,14 @@ Bridge-and-Call combines asset bridging with contract execution in a single atom
 
 ```bash
 # Encode transfer function call
-TRANSFER_DATA=$(cast calldata "transfer(address,uint256)" $ACCOUNT_ADDRESS_1 1000000000000000000)
+TRANSFER_DATA=$(cast calldata "transfer(address,uint256)" $ACCOUNT_ADDRESS_1 10)
 
 # Get precalculated L2 token address
-L2_TOKEN_ADDRESS=$(cast call $POLYGON_ZKEVM_BRIDGE_L2 \
-  "precalculatedWrapperAddress(uint32,address,string,string,uint8)" \
-  1 $AGG_ERC20_L1 "AggERC20" "AGGERC20" 18 \
-  --rpc-url $RPC_2 | sed 's/0x000000000000000000000000/0x/')
+L2_TOKEN_ADDRESS=$(aggsandbox bridge utils precalculate \
+    --network 1 \
+    --origin-network 0 \
+    --origin-token "$AGG_ERC20_L1" \
+    --json | jq -r '.precalculated_address')
 ```
 
 #### 2. Execute Bridge-and-Call
@@ -280,12 +281,18 @@ aggsandbox bridge claim \
 #### Phase 2: Claim Message Bridge
 
 ```bash
+METADATA=$(cast abi-encode "f(uint256,address,address,uint32,address,bytes)" \
+  0 $L2_TOKEN_ADDRESS $ACCOUNT_ADDRESS_2 0 $AGG_ERC20_L1 $TRANSFER_DATA)
+```
+
+```bash
 # Claim message bridge SECOND (deposit_count = 1)
 aggsandbox bridge claim \
   --network 1 \
   --tx-hash <bridge_tx_hash> \
   --source-network 0 \
-  --deposit-count 1
+  --deposit-count 1 \
+  --data $METADATA
 ```
 
 **Important**: The asset bridge must be claimed first. The message bridge automatically executes the contract call when claimed.
@@ -368,6 +375,7 @@ aggsandbox bridge asset \
   --token-address 0x0000000000000000000000000000000000000000
 
 # Claim on L2-2
+# TODO: Add msg value
 aggsandbox bridge claim \
   --network 2 \
   --tx-hash <bridge_tx_hash> \

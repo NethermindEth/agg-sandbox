@@ -76,7 +76,9 @@ contract BridgeExtension is IBridgeAndCall, IBridgeMessageReceiver {
         }
 
         // assert that the index is correct - avoid any potential reentrancy caused by bridgeAsset
-        if (dependsOnIndex != bridge.depositCount()) revert InvalidDepositIndex();
+        if (dependsOnIndex != bridge.depositCount()) {
+            revert InvalidDepositIndex();
+        }
 
         bytes memory encodedMsg;
         if (token != address(0) && token == address(bridge.WETHToken())) {
@@ -212,7 +214,7 @@ contract BridgeExtension is IBridgeAndCall, IBridgeMessageReceiver {
 
     /// @notice `IBridgeMessageReceiver`'s callback. This is only executed if `bridgeAndCall`'s
     /// `destinationAddressMessage` is the BridgeExtension (in the destination network).
-    function onMessageReceived(address originAddress, uint32 originNetwork, bytes calldata data) external payable {
+    function onMessageReceived(address, /*originAddress*/ uint32 originNetwork, bytes calldata data) external payable {
         if (msg.sender != address(bridge)) revert SenderMustBeBridge();
         // originAddress validation removed - allowing any origin address
 
@@ -225,7 +227,9 @@ contract BridgeExtension is IBridgeAndCall, IBridgeMessageReceiver {
             address assetOriginalAddress,
             bytes memory callData
         ) = abi.decode(data, (uint256, address, address, uint32, address, bytes));
-        if (!bridge.isClaimed(uint32(dependsOnIndex), originNetwork)) revert UnclaimedAsset();
+        if (!bridge.isClaimed(uint32(dependsOnIndex), originNetwork)) {
+            revert UnclaimedAsset();
+        }
 
         // the remaining bytes have the selector+args
         new JumpPoint{salt: keccak256(abi.encodePacked(dependsOnIndex, originNetwork))}(

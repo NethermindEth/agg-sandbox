@@ -34,7 +34,7 @@ services:
       start_period: 10s
 
   contract-deployer:
-    image: deployer:local
+    image: ametelnethermind/aggsandbox-deployer:latest
     depends_on:
       anvil-l1:
         condition: service_healthy
@@ -82,8 +82,7 @@ services:
       - ./.env:/app/output/deployed-contracts.env:ro
 
   aggkit:
-    # image: ametelnethermind/aggkit:latest
-    image: aggkit:local
+    image: ametelnethermind/aggkit:latest
     depends_on:
       aggkit-wait:
         condition: service_completed_successfully

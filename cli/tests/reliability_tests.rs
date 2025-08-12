@@ -191,9 +191,8 @@ mod file_system_reliability_tests {
 
         let result = Validator::validate_file_path(nonexistent_path);
         // Should handle non-existent paths gracefully
-        if result.is_ok() {
+        if let Ok(validated) = result {
             // If validation passes, ensure path is properly sanitized
-            let validated = result.unwrap();
             assert!(!validated.contains(".."));
         }
     }
@@ -207,8 +206,7 @@ mod file_system_reliability_tests {
 
         let result = Validator::validate_file_path(&long_path);
         // Should handle long paths appropriately (reject or truncate)
-        if result.is_ok() {
-            let validated = result.unwrap();
+        if let Ok(validated) = result {
             // Ensure the result is reasonable
             assert!(
                 validated.len() < 2000,
@@ -315,8 +313,7 @@ mod file_system_reliability_tests {
         let result = Validator::validate_file_path(binary_file.to_str().unwrap());
 
         // Should handle binary files appropriately
-        if result.is_ok() {
-            let validated = result.unwrap();
+        if let Ok(validated) = result {
             assert!(!validated.is_empty());
         }
     }
@@ -339,8 +336,7 @@ mod file_system_reliability_tests {
         let result = Validator::validate_file_path(link_file.to_str().unwrap());
 
         // Should handle symlinks appropriately (follow or reject based on security policy)
-        if result.is_ok() {
-            let validated = result.unwrap();
+        if let Ok(validated) = result {
             // Ensure symlinks don't lead to path traversal
             assert!(!validated.contains(".."));
         }

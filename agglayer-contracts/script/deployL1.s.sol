@@ -27,7 +27,7 @@ contract DeployContractsL1 is Script {
         // start broadcasting transactions
         vm.startBroadcast(deployerKey);
 
-        AggERC20 aggERC20 = new AggERC20(deployer, deployer, 1000000);
+        AggERC20 aggERC20 = new AggERC20(deployer, deployer);
 
         // actual on-chain deploys
         FflonkVerifier fflonkVerifier = new FflonkVerifier();

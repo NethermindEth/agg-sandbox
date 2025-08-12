@@ -7,11 +7,13 @@ use super::common::{
     contract, get_network_name, serialize_json, table, validate_address, validate_network_id,
     validation_error,
 };
+use super::{get_wallet_with_provider, ERC20Contract};
 use crate::api_client::{CacheConfig, OptimizedApiClient};
 use crate::config::Config;
 use crate::error::Result;
 use ethers::prelude::*;
 use serde::{Deserialize, Serialize};
+use std::sync::Arc;
 use tracing::info;
 
 /// Arguments for building claim payloads from transaction hashes
@@ -296,15 +298,44 @@ pub async fn precalculated_mapped_token_info(args: PrecalculatedTokenArgs<'_>) -
     let bridge_contract =
         contract::get_bridge_contract(args.config, args.network, args.private_key).await?;
 
-    // For precalculated address, we need to provide token metadata
-    // This is a simplified implementation - in practice, we might need to fetch metadata from the origin token
+    // Get token metadata from the origin network
+    let origin_client = get_wallet_with_provider(args.config, args.origin_network as u64, args.private_key).await?;
+    let token_contract = ERC20Contract::new(origin_token_address, Arc::new(origin_client));
+    
+    // Fetch real token metadata from the origin token contract
+    let token_name = token_contract
+        .name()
+        .call()
+        .await
+        .unwrap_or_else(|_| "Wrapped Token".to_string());
+    let token_symbol = token_contract
+        .symbol()
+        .call()
+        .await
+        .unwrap_or_else(|_| "WT".to_string());
+    let token_decimals = token_contract
+        .decimals()
+        .call()
+        .await
+        .unwrap_or(18u8);
+
+    info!(
+        token_address = %args.origin_token_address,
+        origin_network = args.origin_network,
+        target_network = args.network,
+        name = %token_name,
+        symbol = %token_symbol,
+        decimals = token_decimals,
+        "Precalculating wrapped token address with fetched metadata"
+    );
+
     let precalculated_address = bridge_contract
         .precalculated_wrapper_address(
             args.origin_network,
             origin_token_address,
-            "Wrapped Token".to_string(), // Default name
-            "WT".to_string(),            // Default symbol
-            18u8,                        // Default decimals
+            token_name,
+            token_symbol,
+            token_decimals,
         )
         .call()
         .await

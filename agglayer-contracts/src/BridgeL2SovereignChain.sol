@@ -423,7 +423,9 @@ contract BridgeL2SovereignChain is PolygonZkEVMBridgeV2, IBridgeL2SovereignChain
             // the following transferFrom should be fail. This prevents DoS attacks from using a signature
             // before the smartcontract call
             /* solhint-disable avoid-low-level-calls */
-            address(token).call(abi.encodeWithSelector(_PERMIT_SIGNATURE, owner, spender, value, deadline, v, r, s));
+            (bool success,) =
+                address(token).call(abi.encodeWithSelector(_PERMIT_SIGNATURE, owner, spender, value, deadline, v, r, s));
+            require(success, "Transfer failed");
         } else {
             if (sig != _PERMIT_SIGNATURE_DAI) {
                 revert NotValidSignature();
@@ -443,10 +445,12 @@ contract BridgeL2SovereignChain is PolygonZkEVMBridgeV2, IBridgeL2SovereignChain
             // we call without checking the result, in case it fails and he doesn't have enough balance
             // the following transferFrom should be fail. This prevents DoS attacks from using a signature
             // before the smartcontract call
-            /* solhint-disable avoid-low-level-calls */
-            address(token).call(
+            // solhint-disable avoid-low-level-calls
+            (bool permitSuccess,) = address(token).call(
                 abi.encodeWithSelector(_PERMIT_SIGNATURE_DAI, holder, spender, nonce, expiry, allowed, v, r, s)
             );
+            // Intentionally ignore the return value as mentioned in the comment above
+            permitSuccess;
         }
     }
 

@@ -21,7 +21,7 @@ pub type BridgeContractWithMiddleware<'a> =
 ///     .rollup_root(rollup_root)
 ///     .origin_network(1)
 ///     .origin_addr(origin_addr)
-///     .destination_network_id(1101)
+///     .destination_network_id(0)
 ///     .dest_addr(dest_addr)
 ///     .amount_wei(amount_wei)
 ///     .metadata_bytes(metadata_bytes)
@@ -198,10 +198,7 @@ impl<'a> ClaimMessageArgsBuilder<'a> {
             return Err("Destination address cannot be zero");
         }
 
-        // Validate amount is not zero
-        if amount_wei.is_zero() {
-            return Err("Amount cannot be zero");
-        }
+        // Note: Message bridges can have zero ETH amount - this is valid for pure message calls
 
         // Validate deposit count is reasonable
         if deposit_count > 1_000_000 {

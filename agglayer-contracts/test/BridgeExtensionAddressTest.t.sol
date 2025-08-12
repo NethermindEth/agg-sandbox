@@ -75,7 +75,7 @@ contract BridgeExtensionAddressTest is Test {
         console2.log("L2 bridge type: BridgeL2SovereignChain (inherits from PolygonZkEVMBridgeV2)");
     }
 
-    function testCalculateCreate2Address() public {
+    function testCalculateCreate2Address() public view {
         // Test CREATE2 address calculation manually
         bytes32 salt = keccak256("BRIDGE_EXTENSION_SALT_V1");
 

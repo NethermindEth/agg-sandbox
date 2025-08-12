@@ -299,9 +299,10 @@ pub async fn precalculated_mapped_token_info(args: PrecalculatedTokenArgs<'_>) -
         contract::get_bridge_contract(args.config, args.network, args.private_key).await?;
 
     // Get token metadata from the origin network
-    let origin_client = get_wallet_with_provider(args.config, args.origin_network as u64, args.private_key).await?;
+    let origin_client =
+        get_wallet_with_provider(args.config, args.origin_network as u64, args.private_key).await?;
     let token_contract = ERC20Contract::new(origin_token_address, Arc::new(origin_client));
-    
+
     // Fetch real token metadata from the origin token contract
     let token_name = token_contract
         .name()
@@ -313,11 +314,7 @@ pub async fn precalculated_mapped_token_info(args: PrecalculatedTokenArgs<'_>) -
         .call()
         .await
         .unwrap_or_else(|_| "WT".to_string());
-    let token_decimals = token_contract
-        .decimals()
-        .call()
-        .await
-        .unwrap_or(18u8);
+    let token_decimals = token_contract.decimals().call().await.unwrap_or(18u8);
 
     info!(
         token_address = %args.origin_token_address,

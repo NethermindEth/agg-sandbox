@@ -334,12 +334,12 @@ mod api_performance_benchmarks {
         let iterations = 50;
         let start_time = Instant::now();
 
-        for i in 0..iterations {
+        for i in 0u32..iterations {
             let result = api::get_bridges(&config, 0, false).await;
             assert!(result.is_ok(), "Large response API call should succeed");
 
             // Force garbage collection pressure periodically
-            if i % 10 == 0 {
+            if i.is_multiple_of(10) {
                 let pressure: Vec<u8> = vec![0; 1024 * 1024]; // 1MB
                 std::hint::black_box(pressure);
             }

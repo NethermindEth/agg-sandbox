@@ -6,7 +6,7 @@
 use crate::config::Config;
 use crate::error::Result;
 use ethers::prelude::*;
-use serde::{Deserialize, Serialize};
+use serde::Serialize;
 use std::str::FromStr;
 
 /// Validate Ethereum address format
@@ -123,14 +123,6 @@ pub mod contract {
         let bridge_address = get_bridge_contract_address(config, network)?;
         Ok(BridgeContract::new(bridge_address, client.into()))
     }
-}
-
-/// JSON output structures for utilities
-#[derive(Debug, Serialize, Deserialize)]
-pub struct UtilityOutput<T> {
-    pub success: bool,
-    pub data: Option<T>,
-    pub error: Option<String>,
 }
 
 #[cfg(test)]

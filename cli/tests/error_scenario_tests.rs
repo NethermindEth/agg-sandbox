@@ -479,8 +479,7 @@ mod configuration_failure_tests {
         for path in dangerous_paths {
             let result = Validator::validate_file_path(path);
             // These should either be rejected or properly sanitized
-            if result.is_ok() {
-                let validated = result.unwrap();
+            if let Ok(validated) = result {
                 assert!(
                     !validated.contains(".."),
                     "Path traversal not prevented: {validated}"
@@ -557,7 +556,7 @@ mod resource_exhaustion_tests {
                         }
 
                         // Introduce some random delays to increase contention
-                        if i % 100 == 0 {
+                        if i.is_multiple_of(100) {
                             thread::sleep(Duration::from_millis(1));
                         }
                     }

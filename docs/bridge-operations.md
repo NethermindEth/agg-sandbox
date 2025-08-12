@@ -94,6 +94,27 @@ aggsandbox bridge claim \
 aggsandbox show claims --network-id 1
 ```
 
+#### 5. Using claimsponsor
+
+When using flag `claim-all` to start the sandbox there's no need to do anything else. The claim will be done automatically so the claims can be checked directly. It might take a few seconds to update the GER before the claim transaction is successful.
+
+If `claim-all` flag was not set, the claim can still be added manually to the claimsponsor by:
+
+```bash
+aggsandbox sponsor-claim --deposit <deposit_count>
+```
+
+**Parameters:**
+- `origin_network` is `0` by default
+- `destination_network` is `1` by default
+
+To check the status of the claim in the claimsponsor process:
+
+```bash
+aggsandbox claim-status --global-index <global_index> --network-id <network_id>
+```
+
+
 ### ERC20 Token Bridging
 
 #### 1. Bridge ERC20 Tokens

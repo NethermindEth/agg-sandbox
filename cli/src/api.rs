@@ -1,5 +1,6 @@
 use crate::api_client::OptimizedApiClient;
 use crate::error::Result;
+use crate::utils::ClaimBody;
 // Removed unused imports: ChainId, EthereumAddress, RpcUrl
 use crate::validation::Validator;
 use colored::*;
@@ -29,6 +30,12 @@ pub struct ClaimProofResponse {
 
 #[derive(Debug, Deserialize)]
 pub struct L1InfoTreeIndexResponse {
+    #[serde(flatten)]
+    pub data: serde_json::Value,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct ClaimStatusResponse {
     #[serde(flatten)]
     pub data: serde_json::Value,
 }
@@ -145,6 +152,37 @@ pub async fn get_l1_info_tree_index(
         .await?;
 
     Ok(L1InfoTreeIndexResponse { data: info_data })
+}
+
+pub async fn post_sponsor_claim(
+    config: &Config,
+    claim_body: &ClaimBody,
+    network_id: u64,
+) -> Result<ClaimResponse> {
+    // Serialize the strongly-typed body into `serde_json::Value`
+    let body_json = serde_json::to_value(claim_body)
+        .map_err(|e| anyhow::anyhow!("serialising claim body: {e}"))?;
+
+    let client = OptimizedApiClient::global();
+    let data = client
+        .post_sponsor_claim(config, &body_json, network_id)
+        .await?;
+
+    println!("{}", "🚀 Claim sent to sponsor-bot".green());
+    Ok(ClaimResponse { data })
+}
+
+pub async fn get_sponsored_claim_status(
+    config: &Config,
+    global_index: u64,
+    network_id: u64,
+) -> Result<ClaimStatusResponse> {
+    let client = OptimizedApiClient::global();
+    let data = client
+        .get_sponsored_claim_status(config, global_index, network_id)
+        .await?;
+
+    Ok(ClaimStatusResponse { data })
 }
 
 fn colorize_json(json_str: &str) -> String {

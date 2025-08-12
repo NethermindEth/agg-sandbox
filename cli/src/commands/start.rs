@@ -6,13 +6,19 @@ use tracing::{error, info};
 
 /// Handle the start command
 #[allow(clippy::disallowed_methods)] // Allow std::process::exit and tracing macros
-pub async fn handle_start(detach: bool, build: bool, fork: bool, multi_l2: bool) {
-    handle_start_async(detach, build, fork, multi_l2).await;
+pub async fn handle_start(detach: bool, build: bool, fork: bool, multi_l2: bool, claim_all: bool) {
+    handle_start_async(detach, build, fork, multi_l2, claim_all).await;
 }
 
 /// Async implementation of start command with progress tracking
 #[allow(clippy::disallowed_methods)] // Allow std::process::exit and tracing macros
-async fn handle_start_async(detach: bool, build: bool, fork: bool, multi_l2: bool) {
+async fn handle_start_async(
+    detach: bool,
+    build: bool,
+    fork: bool,
+    multi_l2: bool,
+    claim_all: bool,
+) {
     use crate::docker::{execute_docker_command, SandboxConfig};
 
     let reporter = StatusReporter::new();
@@ -33,7 +39,7 @@ async fn handle_start_async(detach: bool, build: bool, fork: bool, multi_l2: boo
     let mut progress = MultiStepProgress::new(steps);
 
     // Create sandbox configuration
-    let config = SandboxConfig::new(fork, multi_l2);
+    let config = SandboxConfig::new(fork, multi_l2, claim_all);
 
     info!(
         mode = %config.mode_description(),
@@ -41,6 +47,7 @@ async fn handle_start_async(detach: bool, build: bool, fork: bool, multi_l2: boo
         build = build,
         fork = fork,
         multi_l2 = multi_l2,
+        claim_all = claim_all,
         "Starting Agglayer sandbox environment"
     );
 

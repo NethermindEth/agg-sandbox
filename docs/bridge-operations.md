@@ -366,6 +366,7 @@ aggsandbox bridge asset \
   --token-address 0x0000000000000000000000000000000000000000
 
 # Claim on L2-2
+# TODO: Add msg value
 aggsandbox bridge claim \
   --network 2 \
   --tx-hash <bridge_tx_hash> \

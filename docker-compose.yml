@@ -34,7 +34,7 @@ services:
       start_period: 10s
 
   contract-deployer:
-    image: deployer:local
+    image: ametelnethermind/aggsandbox-deployer
     depends_on:
       anvil-l1:
         condition: service_healthy

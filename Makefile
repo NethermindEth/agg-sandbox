@@ -1,5 +1,5 @@
 # Agglayer Sandbox Project Makefile
-.PHONY: install uninstall cli-check cli-build cli-clean help
+.PHONY: install uninstall cli-check cli-build cli-clean clean-docker help
 
 # Default target
 help:
@@ -11,6 +11,7 @@ help:
 	@echo "  cli-build    - Build the CLI (development)"
 	@echo "  cli-check    - Run all CLI checks (format, clippy, test)"
 	@echo "  cli-clean    - Clean CLI build artifacts"
+	@echo "  clean-docker - Clean Docker images and force fresh image pulls"
 	@echo "  help         - Show this help message"
 
 # Install the CLI binary to user's local bin directory
@@ -48,4 +49,9 @@ cli-check:
 	@cd cli && make all
 
 cli-clean:
-	@cd cli && make clean 
+	@cd cli && make clean
+
+# Clean Docker images used by compose files
+clean-docker:
+	@echo "🧹 Cleaning Docker images..."
+	@./scripts/clean-docker-images.sh 

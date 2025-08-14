@@ -10,19 +10,9 @@ contract AssetAndCallReceiver is IBridgeMessageReceiver {
     error InvalidMsgValue(uint256 expected, uint256 actual);
 
     event AssetReceived(address indexed sender, uint256 amount);
-    event CallExecuted(
-        address indexed caller,
-        uint256 assetAmount,
-        uint256 totalTransferred,
-        uint256 callCounter
-    );
-    
-    event MessageReceived(
-        address indexed originAddress,
-        uint32 originNetwork,
-        bytes data,
-        uint256 ethAmount
-    );
+    event CallExecuted(address indexed caller, uint256 assetAmount, uint256 totalTransferred, uint256 callCounter);
+
+    event MessageReceived(address indexed originAddress, uint32 originNetwork, bytes data, uint256 ethAmount);
 
     // Payable constructor to accept initial funding
     constructor() payable {
@@ -45,40 +35,30 @@ contract AssetAndCallReceiver is IBridgeMessageReceiver {
         callCounter++;
 
         emit AssetReceived(msg.sender, assetAmount);
-        emit CallExecuted(
-            msg.sender,
-            assetAmount,
-            totalTransferred,
-            callCounter
-        );
+        emit CallExecuted(msg.sender, assetAmount, totalTransferred, callCounter);
     }
 
     // Implementation of IBridgeMessageReceiver
-    function onMessageReceived(
-        address originAddress,
-        uint32 originNetwork,
-        bytes memory data
-    ) external payable override {
+    function onMessageReceived(address originAddress, uint32 originNetwork, bytes memory data)
+        external
+        payable
+        override
+    {
         // Update counters
         totalTransferred += msg.value;
         callCounter++;
-        
+
         // Emit events
         emit MessageReceived(originAddress, originNetwork, data, msg.value);
         emit AssetReceived(msg.sender, msg.value);
-        
+
         // If there's data, try to decode and execute it
         if (data.length > 0) {
             // Try to decode the data as a function call to processTransferAndCall
             // This allows the bridge message to include function call data
             (bool success,) = address(this).call(data);
             if (success) {
-                emit CallExecuted(
-                    originAddress,
-                    msg.value,
-                    totalTransferred,
-                    callCounter
-                );
+                emit CallExecuted(originAddress, msg.value, totalTransferred, callCounter);
             }
         }
     }

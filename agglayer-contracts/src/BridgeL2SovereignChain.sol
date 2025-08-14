@@ -10,15 +10,11 @@ import "./PolygonZkEVMBridgeV2.sol";
  * Contract responsible to manage the token interactions with other networks
  * This contract is not meant to replace the current zkEVM bridge contract, but deployed on sovereign networks
  */
-contract BridgeL2SovereignChain is
-    PolygonZkEVMBridgeV2,
-    IBridgeL2SovereignChains
-{
+contract BridgeL2SovereignChain is PolygonZkEVMBridgeV2, IBridgeL2SovereignChains {
     using SafeERC20 for IERC20;
 
     // Map to store wrappedAddresses that are not mintable
-    mapping(address wrappedAddress => bool isNotMintable)
-        public wrappedAddressIsNotMintable;
+    mapping(address wrappedAddress => bool isNotMintable) public wrappedAddressIsNotMintable;
 
     // Bridge manager address; can set custom mapping for any token. It's highly recommend to set a timelock at this address after bootstrapping phase
     address public bridgeManager;
@@ -37,21 +33,13 @@ contract BridgeL2SovereignChain is
      * @dev Emitted when a token address is remapped by a sovereign token address
      */
     event SetSovereignTokenAddress(
-        uint32 originNetwork,
-        address originTokenAddress,
-        address sovereignTokenAddress,
-        bool isNotMintable
+        uint32 originNetwork, address originTokenAddress, address sovereignTokenAddress, bool isNotMintable
     );
 
     /**
      * @dev Emitted when a legacy token is migrated to a new token
      */
-    event MigrateLegacyToken(
-        address sender,
-        address legacyTokenAddress,
-        address updatedTokenAddress,
-        uint256 amount
-    );
+    event MigrateLegacyToken(address sender, address legacyTokenAddress, address updatedTokenAddress, uint256 amount);
 
     /**
      * @dev Emitted when a remapped token is removed from mapping
@@ -61,10 +49,7 @@ contract BridgeL2SovereignChain is
     /**
      * @dev Emitted when a WETH address is remapped by a sovereign WETH address
      */
-    event SetSovereignWETHAddress(
-        address sovereignWETHTokenAddress,
-        bool isNotMintable
-    );
+    event SetSovereignWETHAddress(address sovereignWETHTokenAddress, bool isNotMintable);
 
     /**
      * Disable initializers on the implementation following the best practices
@@ -110,10 +95,7 @@ contract BridgeL2SovereignChain is
                 revert GasTokenNetworkMustBeZeroOnEther();
             }
             // Health check for sovereign WETH address
-            if (
-                _sovereignWETHAddress != address(0) ||
-                _sovereignWETHAddressIsNotMintable
-            ) {
+            if (_sovereignWETHAddress != address(0) || _sovereignWETHAddressIsNotMintable) {
                 revert InvalidSovereignWETHAddressParams();
             }
             // WETHToken, gasTokenAddress and gasTokenNetwork will be 0
@@ -137,9 +119,7 @@ contract BridgeL2SovereignChain is
                 );
             } else {
                 WETHToken = TokenWrapped(_sovereignWETHAddress);
-                wrappedAddressIsNotMintable[
-                    _sovereignWETHAddress
-                ] = _sovereignWETHAddressIsNotMintable;
+                wrappedAddressIsNotMintable[_sovereignWETHAddress] = _sovereignWETHAddressIsNotMintable;
             }
         }
 
@@ -156,11 +136,7 @@ contract BridgeL2SovereignChain is
         IBasePolygonZkEVMGlobalExitRoot, //_globalExitRootManager
         address, //_polygonRollupManager
         bytes memory //_gasTokenMetadata
-    )
-        external
-        override(IPolygonZkEVMBridgeV2, PolygonZkEVMBridgeV2)
-        initializer
-    {
+    ) external override(IPolygonZkEVMBridgeV2, PolygonZkEVMBridgeV2) initializer {
         revert InvalidInitializeFunction();
     }
 
@@ -186,9 +162,8 @@ contract BridgeL2SovereignChain is
         bool[] memory isNotMintable
     ) external onlyBridgeManager {
         if (
-            originNetworks.length != originTokenAddresses.length ||
-            originNetworks.length != sovereignTokenAddresses.length ||
-            originNetworks.length != isNotMintable.length
+            originNetworks.length != originTokenAddresses.length
+                || originNetworks.length != sovereignTokenAddresses.length || originNetworks.length != isNotMintable.length
         ) {
             revert InputArraysLengthMismatch();
         }
@@ -196,10 +171,7 @@ contract BridgeL2SovereignChain is
         // Make multiple calls to setSovereignTokenAddress
         for (uint256 i = 0; i < sovereignTokenAddresses.length; i++) {
             _setSovereignTokenAddress(
-                originNetworks[i],
-                originTokenAddresses[i],
-                sovereignTokenAddresses[i],
-                isNotMintable[i]
+                originNetworks[i], originTokenAddresses[i], sovereignTokenAddresses[i], isNotMintable[i]
             );
         }
     }
@@ -224,10 +196,7 @@ contract BridgeL2SovereignChain is
         bool isNotMintable
     ) internal {
         // origin and sovereign token address are not 0
-        if (
-            originTokenAddress == address(0) ||
-            sovereignTokenAddress == address(0)
-        ) {
+        if (originTokenAddress == address(0) || sovereignTokenAddress == address(0)) {
             revert InvalidZeroAddress();
         }
         // originNetwork != current network, wrapped tokens are always from other networks
@@ -235,32 +204,19 @@ contract BridgeL2SovereignChain is
             revert OriginNetworkInvalid();
         }
         // Check if the token is already mapped
-        if (
-            wrappedTokenToTokenInfo[sovereignTokenAddress].originTokenAddress !=
-            address(0)
-        ) {
+        if (wrappedTokenToTokenInfo[sovereignTokenAddress].originTokenAddress != address(0)) {
             revert TokenAlreadyMapped();
         }
 
         // Compute token info hash
-        bytes32 tokenInfoHash = keccak256(
-            abi.encodePacked(originNetwork, originTokenAddress)
-        );
+        bytes32 tokenInfoHash = keccak256(abi.encodePacked(originNetwork, originTokenAddress));
         // Set the address of the wrapper
         tokenInfoToWrappedToken[tokenInfoHash] = sovereignTokenAddress;
         // Set the token info mapping
         // @note wrappedTokenToTokenInfo mapping is not overwritten while tokenInfoToWrappedToken it is
-        wrappedTokenToTokenInfo[sovereignTokenAddress] = TokenInformation(
-            originNetwork,
-            originTokenAddress
-        );
+        wrappedTokenToTokenInfo[sovereignTokenAddress] = TokenInformation(originNetwork, originTokenAddress);
         wrappedAddressIsNotMintable[sovereignTokenAddress] = isNotMintable;
-        emit SetSovereignTokenAddress(
-            originNetwork,
-            originTokenAddress,
-            sovereignTokenAddress,
-            isNotMintable
-        );
+        emit SetSovereignTokenAddress(originNetwork, originTokenAddress, sovereignTokenAddress, isNotMintable);
     }
 
     /**
@@ -269,24 +225,14 @@ contract BridgeL2SovereignChain is
      * @notice Although the token is removed from the mapping, the user will still be able to withdraw their tokens using tokenInfoToWrappedToken mapping
      * @param legacySovereignTokenAddress Address of the sovereign wrapped token
      */
-    function removeLegacySovereignTokenAddress(
-        address legacySovereignTokenAddress
-    ) external onlyBridgeManager {
+    function removeLegacySovereignTokenAddress(address legacySovereignTokenAddress) external onlyBridgeManager {
         // Only allow to remove already remapped tokens
-        TokenInformation memory tokenInfo = wrappedTokenToTokenInfo[
-            legacySovereignTokenAddress
-        ];
-        bytes32 tokenInfoHash = keccak256(
-            abi.encodePacked(
-                tokenInfo.originNetwork,
-                tokenInfo.originTokenAddress
-            )
-        );
+        TokenInformation memory tokenInfo = wrappedTokenToTokenInfo[legacySovereignTokenAddress];
+        bytes32 tokenInfoHash = keccak256(abi.encodePacked(tokenInfo.originNetwork, tokenInfo.originTokenAddress));
 
         if (
-            tokenInfoToWrappedToken[tokenInfoHash] == address(0) ||
-            tokenInfoToWrappedToken[tokenInfoHash] ==
-            legacySovereignTokenAddress
+            tokenInfoToWrappedToken[tokenInfoHash] == address(0)
+                || tokenInfoToWrappedToken[tokenInfoHash] == legacySovereignTokenAddress
         ) {
             revert TokenNotRemapped();
         }
@@ -302,10 +248,10 @@ contract BridgeL2SovereignChain is
      * @param sovereignWETHTokenAddress Address of the sovereign weth token
      * @param isNotMintable Flag to indicate if the wrapped token is not mintable
      */
-    function setSovereignWETHAddress(
-        address sovereignWETHTokenAddress,
-        bool isNotMintable
-    ) external onlyBridgeManager {
+    function setSovereignWETHAddress(address sovereignWETHTokenAddress, bool isNotMintable)
+        external
+        onlyBridgeManager
+    {
         if (gasTokenAddress == address(0)) {
             revert WETHRemappingNotSupportedOnGasTokenNetworks();
         }
@@ -319,27 +265,17 @@ contract BridgeL2SovereignChain is
      * @param legacyTokenAddress Address of legacy token to migrate
      * @param amount Legacy token balance to migrate
      */
-    function migrateLegacyToken(
-        address legacyTokenAddress,
-        uint256 amount
-    ) external {
+    function migrateLegacyToken(address legacyTokenAddress, uint256 amount) external {
         // Get current wrapped token address
-        TokenInformation memory legacyTokenInfo = wrappedTokenToTokenInfo[
-            legacyTokenAddress
-        ];
+        TokenInformation memory legacyTokenInfo = wrappedTokenToTokenInfo[legacyTokenAddress];
         if (legacyTokenInfo.originTokenAddress == address(0)) {
             revert TokenNotMapped();
         }
 
         // Check current token mapped is proposed updatedTokenAddress
-        address currentTokenAddress = tokenInfoToWrappedToken[
-            keccak256(
-                abi.encodePacked(
-                    legacyTokenInfo.originNetwork,
-                    legacyTokenInfo.originTokenAddress
-                )
-            )
-        ];
+        address currentTokenAddress = tokenInfoToWrappedToken[keccak256(
+            abi.encodePacked(legacyTokenInfo.originNetwork, legacyTokenInfo.originTokenAddress)
+        )];
 
         if (currentTokenAddress == legacyTokenAddress) {
             revert TokenAlreadyUpdated();
@@ -347,19 +283,10 @@ contract BridgeL2SovereignChain is
 
         // Proceed to migrate the token
         _bridgeWrappedAsset(TokenWrapped(legacyTokenAddress), amount);
-        _claimWrappedAsset(
-            TokenWrapped(currentTokenAddress),
-            msg.sender,
-            amount
-        );
+        _claimWrappedAsset(TokenWrapped(currentTokenAddress), msg.sender, amount);
 
         // Trigger event
-        emit MigrateLegacyToken(
-            msg.sender,
-            legacyTokenAddress,
-            currentTokenAddress,
-            amount
-        );
+        emit MigrateLegacyToken(msg.sender, legacyTokenAddress, currentTokenAddress, amount);
     }
 
     /**
@@ -368,10 +295,10 @@ contract BridgeL2SovereignChain is
      * @param leafIndexes Array of Index
      * @param sourceBridgeNetworks Array of Origin networks
      */
-    function unsetMultipleClaimedBitmap(
-        uint32[] memory leafIndexes,
-        uint32[] memory sourceBridgeNetworks
-    ) external onlyBridgeManager {
+    function unsetMultipleClaimedBitmap(uint32[] memory leafIndexes, uint32[] memory sourceBridgeNetworks)
+        external
+        onlyBridgeManager
+    {
         if (leafIndexes.length != sourceBridgeNetworks.length) {
             revert InputArraysLengthMismatch();
         }
@@ -385,9 +312,7 @@ contract BridgeL2SovereignChain is
      * @notice Updated bridge manager address, recommended to set a timelock at this address after bootstrapping phase
      * @param _bridgeManager Bridge manager address
      */
-    function setBridgeManager(
-        address _bridgeManager
-    ) external onlyBridgeManager {
+    function setBridgeManager(address _bridgeManager) external onlyBridgeManager {
         bridgeManager = _bridgeManager;
         emit SetBridgeManager(bridgeManager);
     }
@@ -398,19 +323,12 @@ contract BridgeL2SovereignChain is
      * @param tokenWrapped Wrapped token to burnt
      * @param amount Amount of tokens
      */
-    function _bridgeWrappedAsset(
-        TokenWrapped tokenWrapped,
-        uint256 amount
-    ) internal override {
+    function _bridgeWrappedAsset(TokenWrapped tokenWrapped, uint256 amount) internal override {
         // The token is either (1) a correctly wrapped token from another network
         // or (2) wrapped with custom contract from origin network
         if (wrappedAddressIsNotMintable[address(tokenWrapped)]) {
             // Don't use burn but transfer to bridge
-            IERC20(address(tokenWrapped)).transferFrom(
-                msg.sender,
-                address(this),
-                amount
-            );
+            IERC20(address(tokenWrapped)).transferFrom(msg.sender, address(this), amount);
         } else {
             // Burn tokens
             tokenWrapped.burn(msg.sender, amount);
@@ -424,11 +342,10 @@ contract BridgeL2SovereignChain is
      * @param destinationAddress Minted token receiver
      * @param amount Amount of tokens
      */
-    function _claimWrappedAsset(
-        TokenWrapped tokenWrapped,
-        address destinationAddress,
-        uint256 amount
-    ) internal override {
+    function _claimWrappedAsset(TokenWrapped tokenWrapped, address destinationAddress, uint256 amount)
+        internal
+        override
+    {
         // If is not mintable transfer instead of mint
         if (wrappedAddressIsNotMintable[address(tokenWrapped)]) {
             // Transfer tokens
@@ -444,13 +361,8 @@ contract BridgeL2SovereignChain is
      * @param leafIndex Index
      * @param sourceBridgeNetwork Origin network
      */
-    function _unsetClaimedBitmap(
-        uint32 leafIndex,
-        uint32 sourceBridgeNetwork
-    ) private {
-        uint256 globalIndex = uint256(leafIndex) +
-            uint256(sourceBridgeNetwork) *
-            _MAX_LEAFS_PER_NETWORK;
+    function _unsetClaimedBitmap(uint32 leafIndex, uint32 sourceBridgeNetwork) private {
+        uint256 globalIndex = uint256(leafIndex) + uint256(sourceBridgeNetwork) * _MAX_LEAFS_PER_NETWORK;
         (uint256 wordPos, uint256 bitPos) = _bitmapPositions(globalIndex);
         uint256 mask = 1 << bitPos;
         uint256 flipped = claimedBitMap[wordPos] ^= mask;
@@ -466,13 +378,8 @@ contract BridgeL2SovereignChain is
      * @param leafIndex Index
      * @param sourceBridgeNetwork Origin network
      */
-    function isClaimed(
-        uint32 leafIndex,
-        uint32 sourceBridgeNetwork
-    ) external view override returns (bool) {
-        uint256 globalIndex = uint256(leafIndex) +
-            uint256(sourceBridgeNetwork) *
-            _MAX_LEAFS_PER_NETWORK;
+    function isClaimed(uint32 leafIndex, uint32 sourceBridgeNetwork) external view override returns (bool) {
+        uint256 globalIndex = uint256(leafIndex) + uint256(sourceBridgeNetwork) * _MAX_LEAFS_PER_NETWORK;
 
         (uint256 wordPos, uint256 bitPos) = _bitmapPositions(globalIndex);
         uint256 mask = (1 << bitPos);
@@ -485,13 +392,8 @@ contract BridgeL2SovereignChain is
      * @param leafIndex Index
      * @param sourceBridgeNetwork Origin network
      */
-    function _setAndCheckClaimed(
-        uint32 leafIndex,
-        uint32 sourceBridgeNetwork
-    ) internal override {
-        uint256 globalIndex = uint256(leafIndex) +
-            uint256(sourceBridgeNetwork) *
-            _MAX_LEAFS_PER_NETWORK;
+    function _setAndCheckClaimed(uint32 leafIndex, uint32 sourceBridgeNetwork) internal override {
+        uint256 globalIndex = uint256(leafIndex) + uint256(sourceBridgeNetwork) * _MAX_LEAFS_PER_NETWORK;
         (uint256 wordPos, uint256 bitPos) = _bitmapPositions(globalIndex);
         uint256 mask = 1 << bitPos;
         uint256 flipped = claimedBitMap[wordPos] ^= mask;
@@ -507,33 +409,11 @@ contract BridgeL2SovereignChain is
      * @param amount Quantity that is expected to be allowed
      * @param permitData Raw data of the call `permit` of the token
      */
-    function _permit(
-        address token,
-        uint256 amount,
-        bytes calldata permitData
-    ) internal override {
+    function _permit(address token, uint256 amount, bytes calldata permitData) internal override {
         bytes4 sig = bytes4(permitData[:4]);
         if (sig == _PERMIT_SIGNATURE) {
-            (
-                address owner,
-                address spender,
-                uint256 value,
-                uint256 deadline,
-                uint8 v,
-                bytes32 r,
-                bytes32 s
-            ) = abi.decode(
-                    permitData[4:],
-                    (
-                        address,
-                        address,
-                        uint256,
-                        uint256,
-                        uint8,
-                        bytes32,
-                        bytes32
-                    )
-                );
+            (address owner, address spender, uint256 value, uint256 deadline, uint8 v, bytes32 r, bytes32 s) =
+                abi.decode(permitData[4:], (address, address, uint256, uint256, uint8, bytes32, bytes32));
 
             if (value != amount) {
                 revert NotValidAmount();
@@ -543,18 +423,8 @@ contract BridgeL2SovereignChain is
             // the following transferFrom should be fail. This prevents DoS attacks from using a signature
             // before the smartcontract call
             /* solhint-disable avoid-low-level-calls */
-            (bool success, ) = address(token).call(
-                abi.encodeWithSelector(
-                    _PERMIT_SIGNATURE,
-                    owner,
-                    spender,
-                    value,
-                    deadline,
-                    v,
-                    r,
-                    s
-                )
-            );
+            (bool success,) =
+                address(token).call(abi.encodeWithSelector(_PERMIT_SIGNATURE, owner, spender, value, deadline, v, r, s));
             require(success, "Transfer failed");
         } else {
             if (sig != _PERMIT_SIGNATURE_DAI) {
@@ -570,36 +440,14 @@ contract BridgeL2SovereignChain is
                 uint8 v,
                 bytes32 r,
                 bytes32 s
-            ) = abi.decode(
-                    permitData[4:],
-                    (
-                        address,
-                        address,
-                        uint256,
-                        uint256,
-                        bool,
-                        uint8,
-                        bytes32,
-                        bytes32
-                    )
-                );
+            ) = abi.decode(permitData[4:], (address, address, uint256, uint256, bool, uint8, bytes32, bytes32));
 
             // we call without checking the result, in case it fails and he doesn't have enough balance
             // the following transferFrom should be fail. This prevents DoS attacks from using a signature
             // before the smartcontract call
             // solhint-disable avoid-low-level-calls
-            (bool permitSuccess, ) = address(token).call(
-                abi.encodeWithSelector(
-                    _PERMIT_SIGNATURE_DAI,
-                    holder,
-                    spender,
-                    nonce,
-                    expiry,
-                    allowed,
-                    v,
-                    r,
-                    s
-                )
+            (bool permitSuccess,) = address(token).call(
+                abi.encodeWithSelector(_PERMIT_SIGNATURE_DAI, holder, spender, nonce, expiry, allowed, v, r, s)
             );
             // Intentionally ignore the return value as mentioned in the comment above
             permitSuccess;
@@ -607,19 +455,11 @@ contract BridgeL2SovereignChain is
     }
 
     // @note This function is not used in the current implementation. We overwrite it to improve deployed bytecode size
-    function activateEmergencyState()
-        external
-        pure
-        override(IPolygonZkEVMBridgeV2, PolygonZkEVMBridgeV2)
-    {
+    function activateEmergencyState() external pure override(IPolygonZkEVMBridgeV2, PolygonZkEVMBridgeV2) {
         revert EmergencyStateNotAllowed();
     }
 
-    function deactivateEmergencyState()
-        external
-        pure
-        override(IPolygonZkEVMBridgeV2, PolygonZkEVMBridgeV2)
-    {
+    function deactivateEmergencyState() external pure override(IPolygonZkEVMBridgeV2, PolygonZkEVMBridgeV2) {
         revert EmergencyStateNotAllowed();
     }
 }

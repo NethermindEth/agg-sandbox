@@ -203,6 +203,9 @@ while read -r line; do
     elif [[ $line =~ BridgeExtension:[[:space:]]+([0-9a-fA-Fx]+) ]]; then
         addr="${BASH_REMATCH[1]}"
         update_env_file "$ENV_FILE" "BRIDGE_EXTENSION_$suffix" "$addr"
+    elif [[ $line =~ AssetAndCallReceiver:[[:space:]]+([0-9a-fA-Fx]+) ]]; then
+        addr="${BASH_REMATCH[1]}"
+        update_env_file "$ENV_FILE" "ASSET_AND_CALL_RECEIVER_$suffix" "$addr"
     fi
 done < <(echo "$output")
 
@@ -238,6 +241,9 @@ if [[ ! -z "$RPC_URL_3" ]]; then
         elif [[ $line =~ BridgeExtension:[[:space:]]+([0-9a-fA-Fx]+) ]]; then
             addr="${BASH_REMATCH[1]}"
             update_env_file "$ENV_FILE" "BRIDGE_EXTENSION_$suffix" "$addr"
+        elif [[ $line =~ AssetAndCallReceiver:[[:space:]]+([0-9a-fA-Fx]+) ]]; then
+            addr="${BASH_REMATCH[1]}"
+            update_env_file "$ENV_FILE" "ASSET_AND_CALL_RECEIVER_$suffix" "$addr"
         fi
     done < <(echo "$output")
 

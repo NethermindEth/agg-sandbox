@@ -55,7 +55,7 @@ contract BridgeL2SovereignChain is PolygonZkEVMBridgeV2, IBridgeL2SovereignChain
      * Disable initializers on the implementation following the best practices
      * For development/testing, we allow direct initialization
      */
-    constructor() {
+    constructor() payable {
         // _disableInitializers(); // Commented out for direct deployment
     }
 

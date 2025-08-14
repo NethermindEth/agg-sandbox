@@ -134,7 +134,12 @@ contract PolygonZkEVMBridgeV2 is
     /**
      * Disable initalizers on the implementation following the best practices
      */
-    constructor() {}
+    constructor() payable {}
+
+    /**
+     * @notice Allow the contract to receive ETH
+     */
+    receive() external payable {}
 
     /**
      * @param _networkID networkID

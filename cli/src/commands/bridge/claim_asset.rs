@@ -7,8 +7,8 @@ use std::str::FromStr;
 use std::sync::Arc;
 
 use super::{
-    common::validation_error, get_bridge_contract_address, get_bridge_extension_address,
-    get_wallet_with_provider, BridgeContract, ERC20Contract, GasOptions,
+    common::validation_error, get_bridge_contract_address, get_wallet_with_provider,
+    BridgeContract, ERC20Contract, GasOptions,
 };
 
 /// Arguments for claiming bridged assets
@@ -46,6 +46,7 @@ pub struct ClaimAssetArgs<'a> {
     pub gas_options: GasOptions,
     pub private_key: Option<&'a str>,
     pub custom_data: Option<&'a str>,
+    pub msg_value: Option<&'a str>,
 }
 
 impl<'a> ClaimAssetArgs<'a> {
@@ -105,6 +106,7 @@ pub struct ClaimAssetArgsBuilder<'a> {
     gas_options: Option<GasOptions>,
     private_key: Option<&'a str>,
     custom_data: Option<&'a str>,
+    msg_value: Option<&'a str>,
 }
 
 impl<'a> Default for ClaimAssetArgsBuilder<'a> {
@@ -119,6 +121,7 @@ impl<'a> Default for ClaimAssetArgsBuilder<'a> {
             gas_options: Some(GasOptions::new(None, None)),
             private_key: None,
             custom_data: None,
+            msg_value: None,
         }
     }
 }
@@ -198,6 +201,12 @@ impl<'a> ClaimAssetArgsBuilder<'a> {
         self
     }
 
+    /// Set ETH value to send with message bridge claim (in wei)
+    pub fn msg_value(mut self, msg_value: Option<&'a str>) -> Self {
+        self.msg_value = msg_value;
+        self
+    }
+
     /// Build the ClaimAssetArgs with validation
     pub fn build(self) -> std::result::Result<ClaimAssetArgs<'a>, &'static str> {
         let config = self.config.ok_or("Config is required")?;
@@ -225,6 +234,13 @@ impl<'a> ClaimAssetArgsBuilder<'a> {
             }
         }
 
+        // Validate msg_value if provided
+        if let Some(value) = self.msg_value {
+            if U256::from_dec_str(value).is_err() {
+                return Err("Invalid msg_value format");
+            }
+        }
+
         Ok(ClaimAssetArgs {
             config,
             network,
@@ -235,6 +251,7 @@ impl<'a> ClaimAssetArgsBuilder<'a> {
             gas_options,
             private_key: self.private_key,
             custom_data: self.custom_data,
+            msg_value: self.msg_value,
         })
     }
 
@@ -297,6 +314,7 @@ pub async fn claim_asset(args: ClaimAssetArgs<'_>) -> Result<()> {
         .ok_or_else(|| validation_error("Invalid bridges response"))?;
 
     // Find our bridge transaction
+    // For bridge-and-call operations, we need to handle multiple bridges in the same transaction
     let bridge_info = if let Some(specific_deposit_count) = args.deposit_count {
         println!(
             "🔍 Looking for bridge with tx_hash: {} and deposit_count: {specific_deposit_count}",
@@ -321,14 +339,72 @@ pub async fn claim_asset(args: ClaimAssetArgs<'_>) -> Result<()> {
             "🔍 Looking for bridge with tx_hash: {} (deposit_count auto-detected)",
             args.tx_hash
         );
-        bridges
+
+        // Get all bridges with this transaction hash
+        let matching_bridges: Vec<_> = bridges
             .iter()
-            .find(|bridge| bridge["tx_hash"].as_str() == Some(args.tx_hash))
-            .ok_or_else(|| {
-                crate::error::AggSandboxError::Config(crate::error::ConfigError::validation_failed(
-                    &format!("Bridge transaction {} not found", args.tx_hash),
-                ))
-            })?
+            .filter(|bridge| bridge["tx_hash"].as_str() == Some(args.tx_hash))
+            .collect();
+
+        println!(
+            "🔍 Found {} bridges with tx_hash {}",
+            matching_bridges.len(),
+            args.tx_hash
+        );
+        for (i, bridge) in matching_bridges.iter().enumerate() {
+            println!(
+                "   Bridge {i}: deposit_count={}, leaf_type={}",
+                bridge["deposit_count"].as_u64().unwrap_or(999),
+                bridge["leaf_type"].as_u64().unwrap_or(999)
+            );
+        }
+
+        if matching_bridges.is_empty() {
+            return Err(crate::error::AggSandboxError::Config(
+                crate::error::ConfigError::validation_failed(&format!(
+                    "Bridge transaction {} not found",
+                    args.tx_hash
+                )),
+            ));
+        }
+
+        // If multiple bridges found (bridge-and-call), default to the asset bridge
+        if matching_bridges.len() > 1 {
+            println!(
+                "🔍 Multiple bridges found for tx_hash {} (bridge-and-call operation)",
+                args.tx_hash
+            );
+            for bridge in &matching_bridges {
+                println!(
+                    "   - deposit_count={}, leaf_type={} ({})",
+                    bridge["deposit_count"].as_u64().unwrap_or(999),
+                    bridge["leaf_type"].as_u64().unwrap_or(999),
+                    if bridge["leaf_type"].as_u64() == Some(0) {
+                        "Asset"
+                    } else {
+                        "Message"
+                    }
+                );
+            }
+            println!(
+                "   Defaulting to asset bridge (leaf_type=0). Use --deposit-count to specify."
+            );
+
+            // Default to asset bridge (leaf_type = 0)
+            matching_bridges
+                .iter()
+                .find(|bridge| bridge["leaf_type"].as_u64() == Some(0))
+                .ok_or_else(|| {
+                    crate::error::AggSandboxError::Config(
+                        crate::error::ConfigError::validation_failed(&format!(
+                            "No asset bridge found in bridge-and-call transaction {}",
+                            args.tx_hash
+                        )),
+                    )
+                })?
+        } else {
+            matching_bridges[0]
+        }
     };
 
     let deposit_count = bridge_info["deposit_count"].as_u64().ok_or_else(|| {
@@ -400,25 +476,24 @@ pub async fn claim_asset(args: ClaimAssetArgs<'_>) -> Result<()> {
         .map(|n| n as u32)
         .unwrap_or_else(|| args.network as u32);
 
-    // For message bridges (leaf_type = 1), use BridgeExtension addresses
+    // For message bridges (leaf_type = 1), read actual addresses from bridge data
     // For asset bridges (leaf_type = 0), use the original bridge addresses
     let (origin_address, destination_address) = if leaf_type == 1 {
-        // Message bridge - use BridgeExtension addresses
-        let origin_bridge_ext = get_bridge_extension_address(args.config, args.source_network)?;
-        let dest_bridge_ext = get_bridge_extension_address(args.config, args.network)?;
-        println!("🔗 Using BridgeExtension addresses for message bridge:");
-        println!(
-            "   Origin: {origin_bridge_ext:#x} (network {})",
-            args.source_network
-        );
-        println!(
-            "   Destination: {dest_bridge_ext:#x} (network {})",
-            args.network
-        );
-        (
-            format!("{origin_bridge_ext:#x}"),
-            format!("{dest_bridge_ext:#x}"),
-        )
+        // Message bridge - read actual addresses from bridge transaction data
+        let origin_addr = bridge_info["origin_address"].as_str().ok_or_else(|| {
+            crate::error::AggSandboxError::Config(crate::error::ConfigError::validation_failed(
+                "Missing origin_address in bridge info",
+            ))
+        })?;
+        let dest_addr = bridge_info["destination_address"].as_str().ok_or_else(|| {
+            crate::error::AggSandboxError::Config(crate::error::ConfigError::validation_failed(
+                "Missing destination_address in bridge info",
+            ))
+        })?;
+        println!("🔗 Using actual addresses from message bridge data:");
+        println!("   Origin: {origin_addr} (network {})", args.source_network);
+        println!("   Destination: {dest_addr} (network {})", args.network);
+        (origin_addr.to_string(), dest_addr.to_string())
     } else {
         // Asset bridge - use original addresses from bridge_info
         let origin_addr = bridge_info["origin_address"].as_str().ok_or_else(|| {
@@ -538,6 +613,17 @@ pub async fn claim_asset(args: ClaimAssetArgs<'_>) -> Result<()> {
         // Message bridge - call claimMessage
         println!("📨 Claiming message bridge to trigger contract execution");
 
+        // Convert msg_value from string to U256 if provided
+        let msg_value_wei = if let Some(value_str) = args.msg_value {
+            Some(U256::from_dec_str(value_str).map_err(|e| {
+                crate::error::AggSandboxError::Config(crate::error::ConfigError::validation_failed(
+                    &format!("Invalid msg_value: {e}"),
+                ))
+            })?)
+        } else {
+            None
+        };
+
         let claim_message_args = super::claim_message::ClaimMessageArgs::builder()
             .bridge(&bridge)
             .deposit_count(deposit_count)
@@ -550,6 +636,7 @@ pub async fn claim_asset(args: ClaimAssetArgs<'_>) -> Result<()> {
             .amount_wei(amount_wei)
             .metadata_bytes(metadata_bytes)
             .gas_options(&args.gas_options)
+            .msg_value(msg_value_wei)
             .build_with_crate_error()?;
 
         super::claim_message::execute_claim_message(claim_message_args).await?

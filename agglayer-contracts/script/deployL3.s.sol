@@ -49,7 +49,7 @@ contract DeployContractsL2 is Script {
 
         AggERC20 aggERC20 = new AggERC20(deployer, deployer);
 
-        BridgeExtension bridgeExtension = new BridgeExtension(address(polygonZkEVMBridgeV2));
+        BridgeExtension bridgeExtension = new BridgeExtension(payable(address(polygonZkEVMBridgeV2)));
 
         // stop broadcasting so logs don't count as on-chain txs
         vm.stopBroadcast();

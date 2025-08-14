@@ -20,7 +20,7 @@ contract BridgeExtension is IBridgeAndCall, IBridgeMessageReceiver {
 
     PolygonZkEVMBridgeV2 public immutable bridge;
 
-    constructor(address bridge_) {
+    constructor(address payable bridge_) {
         bridge = PolygonZkEVMBridgeV2(bridge_);
     }
 
@@ -214,7 +214,12 @@ contract BridgeExtension is IBridgeAndCall, IBridgeMessageReceiver {
 
     /// @notice `IBridgeMessageReceiver`'s callback. This is only executed if `bridgeAndCall`'s
     /// `destinationAddressMessage` is the BridgeExtension (in the destination network).
-    function onMessageReceived(address, /*originAddress*/ uint32 originNetwork, bytes calldata data) external payable {
+    function onMessageReceived(
+        address,
+        /*originAddress*/
+        uint32 originNetwork,
+        bytes calldata data
+    ) external payable {
         if (msg.sender != address(bridge)) revert SenderMustBeBridge();
         // originAddress validation removed - allowing any origin address
 
@@ -233,7 +238,7 @@ contract BridgeExtension is IBridgeAndCall, IBridgeMessageReceiver {
 
         // the remaining bytes have the selector+args
         new JumpPoint{salt: keccak256(abi.encodePacked(dependsOnIndex, originNetwork))}(
-            address(bridge), assetOriginalNetwork, assetOriginalAddress, callAddress, fallbackAddress, callData
+            payable(address(bridge)), assetOriginalNetwork, assetOriginalAddress, callAddress, fallbackAddress, callData
         );
     }
 }

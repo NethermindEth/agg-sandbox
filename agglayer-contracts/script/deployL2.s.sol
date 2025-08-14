@@ -9,6 +9,7 @@ import {Script, console2} from "forge-std/Script.sol";
 import {GlobalExitRootManagerL2SovereignChain} from "../src/GlobalExitRootManagerL2SovereignChain.sol";
 import {AggERC20} from "../src/mocks/AggERC20.sol";
 import {BridgeExtension} from "../src/BridgeExtension.sol";
+import {AssetAndCallReceiver} from "../src/mocks/AssetAndCallReceiver.sol";
 
 contract DeployContractsL2 is Script {
     function run() external {
@@ -49,7 +50,13 @@ contract DeployContractsL2 is Script {
 
         AggERC20 aggERC20 = new AggERC20(deployer, deployer);
 
-        BridgeExtension bridgeExtension = new BridgeExtension(address(polygonZkEVMBridgeV2));
+        BridgeExtension bridgeExtension = new BridgeExtension(payable(address(polygonZkEVMBridgeV2)));
+
+        AssetAndCallReceiver assetAndCallReceiver = new AssetAndCallReceiver();
+
+        // Fund the L2 bridge with 50 ETH so it can pay out claims
+        (bool success,) = payable(address(polygonZkEVMBridgeV2)).call{value: 50 ether}("");
+        require(success, "Failed to fund L2 bridge");
 
         // stop broadcasting so logs don't count as on-chain txs
         vm.stopBroadcast();
@@ -59,5 +66,7 @@ contract DeployContractsL2 is Script {
         console2.log("GlobalExitRootManagerL2SovereignChain:   ", address(globalExitRootManagerL2SovereignChain));
         console2.log("AggERC20:              ", address(aggERC20));
         console2.log("BridgeExtension:       ", address(bridgeExtension));
+        console2.log("AssetAndCallReceiver:  ", address(assetAndCallReceiver));
+        console2.log("L2 Bridge Balance:     ", address(polygonZkEVMBridgeV2).balance / 1e18, "ETH");
     }
 }

@@ -95,7 +95,7 @@ impl BridgeMessageParamsBuilder {
         self
     }
 
-    /// Set the ETH amount to send with the call (optional)
+    /// Set the ETH amount to send with the call in wei (optional)
     pub fn amount(mut self, amount: &str) -> Self {
         self.amount = Some(amount.to_string());
         self
@@ -178,6 +178,7 @@ pub struct BridgeAndCallArgs<'a> {
     pub fallback: &'a str,
     pub gas_options: GasOptions,
     pub private_key: Option<&'a str>,
+    pub msg_value: Option<&'a str>,
 }
 
 impl<'a> BridgeAndCallArgs<'a> {
@@ -199,6 +200,7 @@ pub struct BridgeAndCallArgsBuilder<'a> {
     fallback: Option<&'a str>,
     gas_options: Option<GasOptions>,
     private_key: Option<&'a str>,
+    msg_value: Option<&'a str>,
 }
 
 impl<'a> Default for BridgeAndCallArgsBuilder<'a> {
@@ -214,6 +216,7 @@ impl<'a> Default for BridgeAndCallArgsBuilder<'a> {
             fallback: None,
             gas_options: Some(GasOptions::new(None, None)),
             private_key: None,
+            msg_value: None,
         }
     }
 }
@@ -243,7 +246,7 @@ impl<'a> BridgeAndCallArgsBuilder<'a> {
         self
     }
 
-    /// Set the amount to bridge (in wei as string)
+    /// Set the amount to bridge (in wei)
     pub fn amount(mut self, amount: &'a str) -> Self {
         self.amount = Some(amount);
         self
@@ -299,6 +302,12 @@ impl<'a> BridgeAndCallArgsBuilder<'a> {
         self
     }
 
+    /// Set ETH value to send with the contract call (in wei)
+    pub fn msg_value(mut self, msg_value: &'a str) -> Self {
+        self.msg_value = Some(msg_value);
+        self
+    }
+
     /// Build the BridgeAndCallArgs with validation
     pub fn build(self) -> std::result::Result<BridgeAndCallArgs<'a>, &'static str> {
         let config = self.config.ok_or("Config is required")?;
@@ -334,6 +343,13 @@ impl<'a> BridgeAndCallArgsBuilder<'a> {
             return Err("Invalid call data hex format");
         }
 
+        // Validate msg_value if provided
+        if let Some(value) = &self.msg_value {
+            if U256::from_dec_str(value).is_err() {
+                return Err("Invalid msg_value format");
+            }
+        }
+
         Ok(BridgeAndCallArgs {
             config,
             source_network,
@@ -345,6 +361,7 @@ impl<'a> BridgeAndCallArgsBuilder<'a> {
             fallback,
             gas_options,
             private_key: self.private_key,
+            msg_value: self.msg_value,
         })
     }
 
@@ -537,43 +554,68 @@ pub async fn bridge_and_call_with_approval(args: BridgeAndCallArgs<'_>) -> Resul
     println!("  - Fallback: {}", args.fallback);
     println!("  - Destination network ID: {destination_network_id}");
     println!("  - Bridge Extension: {bridge_ext_address:?}");
-
-    // Step 1: Check and approve bridge extension to spend tokens
-    let token = ERC20Contract::new(token_addr, Arc::new(client.clone()));
-
-    println!("🔧 Checking allowance for bridge extension...");
-    let allowance = token
-        .allowance(client.address(), bridge_ext_address)
-        .call()
-        .await
-        .map_err(|e| {
+    let msg_value_wei = if let Some(msg_val) = args.msg_value {
+        let msg_val_wei = U256::from_dec_str(msg_val).map_err(|e| {
             crate::error::AggSandboxError::Config(crate::error::ConfigError::validation_failed(
-                &format!("Failed to check allowance: {e}"),
+                &format!("Invalid msg_value: {e}"),
             ))
         })?;
+        println!("  - Msg Value: {msg_val} wei");
 
-    println!("🔧 Current allowance: {allowance}, Required: {amount_wei}");
+        // For ETH bridges, warn if msg_value != amount
+        if super::is_eth_address(args.token_address) && msg_val_wei != amount_wei {
+            println!(
+                "⚠️  Warning: msg_value ({msg_val_wei}) differs from bridged amount ({amount_wei})"
+            );
+            println!("    The target contract may fail if it expects msg.value == bridged amount");
+        }
 
-    if allowance < amount_wei {
-        info!(
-            "Approving bridge extension contract to spend {} tokens",
-            args.amount
-        );
-        println!("🔧 Calling approve: token.approve({bridge_ext_address:?}, {amount_wei})");
-        let approve_call = token.approve(bridge_ext_address, amount_wei);
-        let approve_tx = approve_call.send().await.map_err(|e| {
-            crate::error::AggSandboxError::Config(crate::error::ConfigError::validation_failed(
-                &format!("Failed to approve tokens: {e}"),
-            ))
-        })?;
-        println!("✅ Token approval transaction: {:#x}", approve_tx.tx_hash());
+        msg_val_wei
+    } else {
+        println!("  - Msg Value: Using bridged amount ({amount_wei} wei)");
+        amount_wei
+    };
 
-        // Wait for approval to be mined
-        approve_tx.await.map_err(|e| {
-            crate::error::AggSandboxError::Config(crate::error::ConfigError::validation_failed(
-                &format!("Approval transaction failed: {e}"),
-            ))
-        })?;
+    // Step 1: Check and approve bridge extension to spend tokens (skip for ETH)
+    if !super::is_eth_address(args.token_address) {
+        let token = ERC20Contract::new(token_addr, Arc::new(client.clone()));
+
+        println!("🔧 Checking allowance for bridge extension...");
+        let allowance = token
+            .allowance(client.address(), bridge_ext_address)
+            .call()
+            .await
+            .map_err(|e| {
+                crate::error::AggSandboxError::Config(crate::error::ConfigError::validation_failed(
+                    &format!("Failed to check allowance: {e}"),
+                ))
+            })?;
+
+        println!("🔧 Current allowance: {allowance}, Required: {amount_wei}");
+
+        if allowance < amount_wei {
+            info!(
+                "Approving bridge extension contract to spend {} tokens",
+                args.amount
+            );
+            println!("🔧 Calling approve: token.approve({bridge_ext_address:?}, {amount_wei})");
+            let approve_call = token.approve(bridge_ext_address, amount_wei);
+            let approve_tx = approve_call.send().await.map_err(|e| {
+                crate::error::AggSandboxError::Config(crate::error::ConfigError::validation_failed(
+                    &format!("Failed to approve tokens: {e}"),
+                ))
+            })?;
+            println!("✅ Token approval transaction: {:#x}", approve_tx.tx_hash());
+
+            // Wait for approval to be mined
+            approve_tx.await.map_err(|e| {
+                crate::error::AggSandboxError::Config(crate::error::ConfigError::validation_failed(
+                    &format!("Approval transaction failed: {e}"),
+                ))
+            })?;
+        }
+    } else {
+        println!("🔧 Skipping allowance check for ETH (native token)");
     }
 
     // Step 2: Execute bridgeAndCall
@@ -588,6 +630,11 @@ pub async fn bridge_and_call_with_approval(args: BridgeAndCallArgs<'_>) -> Resul
         call_data_bytes.into(),
         true, // forceUpdateGlobalExitRoot
     );
+
+    // Add ETH value for native token transfers
+    if super::is_eth_address(args.token_address) {
+        call = call.value(msg_value_wei);
+    }
 
     if args.gas_options.gas_limit.is_none() {
         call = call.gas(3_000_000u64); // Default high gas limit

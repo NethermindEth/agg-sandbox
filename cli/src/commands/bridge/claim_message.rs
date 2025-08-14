@@ -40,6 +40,7 @@ pub struct ClaimMessageArgs<'a> {
     pub amount_wei: U256,
     pub metadata_bytes: Vec<u8>,
     pub gas_options: &'a GasOptions,
+    pub msg_value: Option<U256>,
 }
 
 impl<'a> ClaimMessageArgs<'a> {
@@ -105,6 +106,7 @@ pub struct ClaimMessageArgsBuilder<'a> {
     amount_wei: Option<U256>,
     metadata_bytes: Option<Vec<u8>>,
     gas_options: Option<&'a GasOptions>,
+    msg_value: Option<U256>,
 }
 
 impl<'a> ClaimMessageArgsBuilder<'a> {
@@ -174,6 +176,12 @@ impl<'a> ClaimMessageArgsBuilder<'a> {
         self
     }
 
+    /// Set ETH value to send with the claim message transaction
+    pub fn msg_value(mut self, msg_value: Option<U256>) -> Self {
+        self.msg_value = msg_value;
+        self
+    }
+
     /// Build the ClaimMessageArgs with validation
     pub fn build(self) -> std::result::Result<ClaimMessageArgs<'a>, &'static str> {
         let bridge = self.bridge.ok_or("Bridge contract is required")?;
@@ -217,6 +225,7 @@ impl<'a> ClaimMessageArgsBuilder<'a> {
             amount_wei,
             metadata_bytes,
             gas_options,
+            msg_value: self.msg_value,
         })
     }
 
@@ -241,6 +250,11 @@ pub async fn execute_claim_message(args: ClaimMessageArgs<'_>) -> Result<H256> {
         args.amount_wei,
         ethers::types::Bytes::from(args.metadata_bytes), // message data
     );
+
+    // Add ETH value if specified for message bridge claims
+    if let Some(value) = args.msg_value {
+        call = call.value(value);
+    }
 
     if args.gas_options.gas_limit.is_none() {
         call = call.gas(3_000_000u64); // Default high gas limit for claims

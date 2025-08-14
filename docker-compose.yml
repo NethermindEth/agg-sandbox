@@ -34,7 +34,8 @@ services:
       start_period: 10s
 
   contract-deployer:
-    image: ametelnethermind/aggsandbox-deployer:latest
+    image: ametelnethermind/aggsandbox-deployer
+    pull_policy: always
     depends_on:
       anvil-l1:
         condition: service_healthy
@@ -50,6 +51,7 @@ services:
 
   aggkit-wait:
     image: alpine:latest
+    pull_policy: always
     depends_on:
       contract-deployer:
         condition: service_completed_successfully
@@ -83,6 +85,7 @@ services:
 
   aggkit:
     image: ametelnethermind/aggkit:latest
+    pull_policy: always
     depends_on:
       aggkit-wait:
         condition: service_completed_successfully

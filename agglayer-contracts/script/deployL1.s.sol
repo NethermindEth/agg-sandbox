@@ -37,7 +37,7 @@ contract DeployContractsL1 is Script {
         PolygonZkEVMGlobalExitRootV2 polygonZkEVMGlobalExitRootV2 =
             new PolygonZkEVMGlobalExitRootV2(deployer, address(polygonZkEVMBridgeV2));
 
-        PolygonZkEVM polygonZkEVM = new PolygonZkEVM(
+        PolygonZkEVM polygonZkEVM = new PolygonZkEVM{value: 50 ether}(
             IPolygonZkEVMGlobalExitRootV2(address(polygonZkEVMGlobalExitRootV2)),
             IERC20(address(aggERC20)),
             IVerifierRollup(address(fflonkVerifier)),
@@ -59,7 +59,11 @@ contract DeployContractsL1 is Script {
             IPolygonZkEVMBridge(address(polygonZkEVMBridgeV2))
         );
 
-        BridgeExtension bridgeExtension = new BridgeExtension(address(polygonZkEVMBridgeV2));
+        BridgeExtension bridgeExtension = new BridgeExtension(payable(address(polygonZkEVMBridgeV2)));
+
+        // Fund the L1 bridge with 50 ETH so it can handle bridge operations
+        (bool successL1,) = payable(address(polygonZkEVMBridgeV2)).call{value: 50 ether}("");
+        require(successL1, "Failed to fund L1 bridge");
 
         // Initialize the bridge
         polygonZkEVMBridgeV2.initialize(
@@ -128,6 +132,7 @@ contract DeployContractsL1 is Script {
         console2.log("PolygonRollupManager:   ", address(polygonRollupManager));
         console2.log("AggERC20:              ", address(aggERC20));
         console2.log("BridgeExtension:       ", address(bridgeExtension));
+        console2.log("L1 Bridge Balance:     ", address(polygonZkEVMBridgeV2).balance / 1e18, "ETH");
         console2.log("Bridge initialized successfully!");
         console2.log("RollupManager initialized and rollups registered!");
         console2.log("L2 Rollup registered with ID: 1 (Chain ID: 1101)");

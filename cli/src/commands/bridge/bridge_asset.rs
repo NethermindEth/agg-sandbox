@@ -154,7 +154,7 @@ impl<'a> BridgeAssetArgsBuilder<'a> {
         self
     }
 
-    /// Set the amount to bridge (in wei as string)
+    /// Set the amount to bridge (in wei)
     pub fn amount(mut self, amount: &'a str) -> Self {
         self.amount = Some(amount);
         self

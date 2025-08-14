@@ -121,20 +121,32 @@ contract PolygonZkEVMBridgeV2 is
      * @dev Emitted when a claim is done from another network
      */
     event ClaimEvent(
-        uint256 globalIndex, uint32 originNetwork, address originAddress, address destinationAddress, uint256 amount
+        uint256 globalIndex,
+        uint32 originNetwork,
+        address originAddress,
+        address destinationAddress,
+        uint256 amount
     );
 
     /**
      * @dev Emitted when a new wrapped token is created
      */
     event NewWrappedToken(
-        uint32 originNetwork, address originTokenAddress, address wrappedTokenAddress, bytes metadata
+        uint32 originNetwork,
+        address originTokenAddress,
+        address wrappedTokenAddress,
+        bytes metadata
     );
 
     /**
      * Disable initalizers on the implementation following the best practices
      */
-    constructor() {}
+    constructor() payable {}
+
+    /**
+     * @notice Allow the contract to receive ETH
+     */
+    receive() external payable {}
 
     /**
      * @param _networkID networkID
@@ -243,7 +255,9 @@ contract PolygonZkEVMBridgeV2 is
                 // Both origin network and originTokenAddress will be 0
                 // Metadata will be empty
             } else {
-                TokenInformation memory tokenInfo = wrappedTokenToTokenInfo[token];
+                TokenInformation memory tokenInfo = wrappedTokenToTokenInfo[
+                    token
+                ];
 
                 if (tokenInfo.originTokenAddress != address(0)) {
                     // The token is a wrapped token from another network
@@ -259,9 +273,17 @@ contract PolygonZkEVMBridgeV2 is
                     }
 
                     // In order to support fee tokens check the amount received, not the transferred
-                    uint256 balanceBefore = IERC20(token).balanceOf(address(this));
-                    IERC20(token).safeTransferFrom(msg.sender, address(this), amount);
-                    uint256 balanceAfter = IERC20(token).balanceOf(address(this));
+                    uint256 balanceBefore = IERC20(token).balanceOf(
+                        address(this)
+                    );
+                    IERC20(token).safeTransferFrom(
+                        msg.sender,
+                        address(this),
+                        amount
+                    );
+                    uint256 balanceAfter = IERC20(token).balanceOf(
+                        address(this)
+                    );
 
                     // Override leafAmount with the received amount
                     leafAmount = balanceAfter - balanceBefore;
@@ -322,7 +344,13 @@ contract PolygonZkEVMBridgeV2 is
             revert NoValueInMessagesOnGasTokenNetworks();
         }
 
-        _bridgeMessage(destinationNetwork, destinationAddress, msg.value, forceUpdateGlobalExitRoot, metadata);
+        _bridgeMessage(
+            destinationNetwork,
+            destinationAddress,
+            msg.value,
+            forceUpdateGlobalExitRoot,
+            metadata
+        );
     }
 
     /**
@@ -349,7 +377,13 @@ contract PolygonZkEVMBridgeV2 is
         // Burn wETH tokens
         _bridgeWrappedAsset(WETHToken, amountWETH);
 
-        _bridgeMessage(destinationNetwork, destinationAddress, amountWETH, forceUpdateGlobalExitRoot, metadata);
+        _bridgeMessage(
+            destinationNetwork,
+            destinationAddress,
+            amountWETH,
+            forceUpdateGlobalExitRoot,
+            metadata
+        );
     }
 
     /**
@@ -455,7 +489,9 @@ contract PolygonZkEVMBridgeV2 is
             if (address(WETHToken) == address(0)) {
                 // Ether is the native token
                 /* solhint-disable avoid-low-level-calls */
-                (bool success,) = destinationAddress.call{value: amount}(new bytes(0));
+                (bool success, ) = destinationAddress.call{value: amount}(
+                    new bytes(0)
+                );
                 if (!success) {
                     revert EtherTransferFailed();
                 }
@@ -465,10 +501,15 @@ contract PolygonZkEVMBridgeV2 is
             }
         } else {
             // Check if it's gas token
-            if (originTokenAddress == gasTokenAddress && gasTokenNetwork == originNetwork) {
+            if (
+                originTokenAddress == gasTokenAddress &&
+                gasTokenNetwork == originNetwork
+            ) {
                 // Transfer gas token
                 /* solhint-disable avoid-low-level-calls */
-                (bool success,) = destinationAddress.call{value: amount}(new bytes(0));
+                (bool success, ) = destinationAddress.call{value: amount}(
+                    new bytes(0)
+                );
                 if (!success) {
                     revert EtherTransferFailed();
                 }
@@ -476,38 +517,70 @@ contract PolygonZkEVMBridgeV2 is
                 // Transfer tokens
                 if (originNetwork == networkID) {
                     // The token is an ERC20 from this network
-                    IERC20(originTokenAddress).safeTransfer(destinationAddress, amount);
+                    IERC20(originTokenAddress).safeTransfer(
+                        destinationAddress,
+                        amount
+                    );
                 } else {
                     // The tokens is not from this network
                     // Create a wrapper for the token if not exist yet
-                    bytes32 tokenInfoHash = keccak256(abi.encodePacked(originNetwork, originTokenAddress));
-                    address wrappedToken = tokenInfoToWrappedToken[tokenInfoHash];
+                    bytes32 tokenInfoHash = keccak256(
+                        abi.encodePacked(originNetwork, originTokenAddress)
+                    );
+                    address wrappedToken = tokenInfoToWrappedToken[
+                        tokenInfoHash
+                    ];
 
                     if (wrappedToken == address(0)) {
                         // Get ERC20 metadata
 
                         // Create a new wrapped erc20 using create2
-                        TokenWrapped newWrappedToken = _deployWrappedToken(tokenInfoHash, metadata);
+                        TokenWrapped newWrappedToken = _deployWrappedToken(
+                            tokenInfoHash,
+                            metadata
+                        );
 
                         // Mint tokens for the destination address
-                        _claimWrappedAsset(newWrappedToken, destinationAddress, amount);
+                        _claimWrappedAsset(
+                            newWrappedToken,
+                            destinationAddress,
+                            amount
+                        );
 
                         // Create mappings
-                        tokenInfoToWrappedToken[tokenInfoHash] = address(newWrappedToken);
+                        tokenInfoToWrappedToken[tokenInfoHash] = address(
+                            newWrappedToken
+                        );
 
-                        wrappedTokenToTokenInfo[address(newWrappedToken)] =
-                            TokenInformation(originNetwork, originTokenAddress);
+                        wrappedTokenToTokenInfo[
+                            address(newWrappedToken)
+                        ] = TokenInformation(originNetwork, originTokenAddress);
 
-                        emit NewWrappedToken(originNetwork, originTokenAddress, address(newWrappedToken), metadata);
+                        emit NewWrappedToken(
+                            originNetwork,
+                            originTokenAddress,
+                            address(newWrappedToken),
+                            metadata
+                        );
                     } else {
                         // Use the existing wrapped erc20
-                        _claimWrappedAsset(TokenWrapped(wrappedToken), destinationAddress, amount);
+                        _claimWrappedAsset(
+                            TokenWrapped(wrappedToken),
+                            destinationAddress,
+                            amount
+                        );
                     }
                 }
             }
         }
 
-        emit ClaimEvent(globalIndex, originNetwork, originTokenAddress, destinationAddress, amount);
+        emit ClaimEvent(
+            globalIndex,
+            originNetwork,
+            originTokenAddress,
+            destinationAddress,
+            amount
+        );
     }
 
     /**
@@ -569,8 +642,11 @@ contract PolygonZkEVMBridgeV2 is
             // Native token is ether
             // Transfer ether
             /* solhint-disable avoid-low-level-calls */
-            (success,) = destinationAddress.call{value: amount}(
-                abi.encodeCall(IBridgeMessageReceiver.onMessageReceived, (originAddress, originNetwork, metadata))
+            (success, ) = destinationAddress.call{value: amount}(
+                abi.encodeCall(
+                    IBridgeMessageReceiver.onMessageReceived,
+                    (originAddress, originNetwork, metadata)
+                )
             );
         } else {
             // Mint wETH tokens
@@ -578,8 +654,11 @@ contract PolygonZkEVMBridgeV2 is
 
             // Execute message
             /* solhint-disable avoid-low-level-calls */
-            (success,) = destinationAddress.call(
-                abi.encodeCall(IBridgeMessageReceiver.onMessageReceived, (originAddress, originNetwork, metadata))
+            (success, ) = destinationAddress.call(
+                abi.encodeCall(
+                    IBridgeMessageReceiver.onMessageReceived,
+                    (originAddress, originNetwork, metadata)
+                )
             );
         }
 
@@ -587,7 +666,13 @@ contract PolygonZkEVMBridgeV2 is
             revert MessageFailed();
         }
 
-        emit ClaimEvent(globalIndex, originNetwork, originAddress, destinationAddress, amount);
+        emit ClaimEvent(
+            globalIndex,
+            originNetwork,
+            originAddress,
+            destinationAddress,
+            amount
+        );
     }
 
     /**
@@ -608,14 +693,21 @@ contract PolygonZkEVMBridgeV2 is
         string memory symbol,
         uint8 decimals
     ) public view returns (address) {
-        bytes32 salt = keccak256(abi.encodePacked(originNetwork, originTokenAddress));
+        bytes32 salt = keccak256(
+            abi.encodePacked(originNetwork, originTokenAddress)
+        );
 
         bytes32 hashCreate2 = keccak256(
             abi.encodePacked(
                 bytes1(0xff),
                 address(this),
                 salt,
-                keccak256(abi.encodePacked(BASE_INIT_BYTECODE_WRAPPED_TOKEN, abi.encode(name, symbol, decimals)))
+                keccak256(
+                    abi.encodePacked(
+                        BASE_INIT_BYTECODE_WRAPPED_TOKEN,
+                        abi.encode(name, symbol, decimals)
+                    )
+                )
             )
         );
 
@@ -628,8 +720,14 @@ contract PolygonZkEVMBridgeV2 is
      * @param originNetwork Origin network
      * @param originTokenAddress Origin token address, 0 address is reserved for gas token address. If WETH address is zero, means this gas token is ether, else means is a custom erc20 gas token
      */
-    function getTokenWrappedAddress(uint32 originNetwork, address originTokenAddress) external view returns (address) {
-        return tokenInfoToWrappedToken[keccak256(abi.encodePacked(originNetwork, originTokenAddress))];
+    function getTokenWrappedAddress(
+        uint32 originNetwork,
+        address originTokenAddress
+    ) external view returns (address) {
+        return
+            tokenInfoToWrappedToken[
+                keccak256(abi.encodePacked(originNetwork, originTokenAddress))
+            ];
     }
 
     /**
@@ -655,14 +753,21 @@ contract PolygonZkEVMBridgeV2 is
      * @param rollupExitRoot Rollup exit root
      * @param leafValue leaf value
      */
-    function _verifyLeaf(uint256 globalIndex, bytes32 mainnetExitRoot, bytes32 rollupExitRoot, bytes32 leafValue)
-        internal
-    {
+    function _verifyLeaf(
+        uint256 globalIndex,
+        bytes32 mainnetExitRoot,
+        bytes32 rollupExitRoot,
+        bytes32 leafValue
+    ) internal {
         // Check blockhash where the global exit root was set
         // Note that previusly timestamps were setted, since in only checked if != 0 it's ok
-        uint256 blockHashGlobalExitRoot = globalExitRootManager.globalExitRootMap(
-            GlobalExitRootLib.calculateGlobalExitRoot(mainnetExitRoot, rollupExitRoot)
-        );
+        uint256 blockHashGlobalExitRoot = globalExitRootManager
+            .globalExitRootMap(
+                GlobalExitRootLib.calculateGlobalExitRoot(
+                    mainnetExitRoot,
+                    rollupExitRoot
+                )
+            );
 
         // check that this global exit root exist
         if (blockHashGlobalExitRoot == 0) {
@@ -692,7 +797,13 @@ contract PolygonZkEVMBridgeV2 is
             leafIndex = uint32(globalIndex);
 
             // Verify merkle proof agains rollup exit root
-            if (!verifyMerkleProof(calculateRoot(leafValue, leafIndex), indexRollup, rollupExitRoot)) {
+            if (
+                !verifyMerkleProof(
+                    calculateRoot(leafValue, leafIndex),
+                    indexRollup,
+                    rollupExitRoot
+                )
+            ) {
                 // TODO: we are in sandbox mode, proof are not required;
                 // revert InvalidSmtProof();
             }
@@ -707,14 +818,23 @@ contract PolygonZkEVMBridgeV2 is
      * @param leafIndex Index
      * @param sourceBridgeNetwork Origin network
      */
-    function isClaimed(uint32 leafIndex, uint32 sourceBridgeNetwork) external view virtual returns (bool) {
+    function isClaimed(
+        uint32 leafIndex,
+        uint32 sourceBridgeNetwork
+    ) external view virtual returns (bool) {
         uint256 globalIndex;
 
         // For consistency with the previous setted nullifiers
-        if (networkID == _MAINNET_NETWORK_ID && sourceBridgeNetwork == _ZKEVM_NETWORK_ID) {
+        if (
+            networkID == _MAINNET_NETWORK_ID &&
+            sourceBridgeNetwork == _ZKEVM_NETWORK_ID
+        ) {
             globalIndex = uint256(leafIndex);
         } else {
-            globalIndex = uint256(leafIndex) + uint256(sourceBridgeNetwork) * _MAX_LEAFS_PER_NETWORK;
+            globalIndex =
+                uint256(leafIndex) +
+                uint256(sourceBridgeNetwork) *
+                _MAX_LEAFS_PER_NETWORK;
         }
         (uint256 wordPos, uint256 bitPos) = _bitmapPositions(globalIndex);
         uint256 mask = (1 << bitPos);
@@ -726,14 +846,23 @@ contract PolygonZkEVMBridgeV2 is
      * @param leafIndex Index
      * @param sourceBridgeNetwork Origin network
      */
-    function _setAndCheckClaimed(uint32 leafIndex, uint32 sourceBridgeNetwork) internal virtual {
+    function _setAndCheckClaimed(
+        uint32 leafIndex,
+        uint32 sourceBridgeNetwork
+    ) internal virtual {
         uint256 globalIndex;
 
         // For consistency with the previous setted nullifiers
-        if (networkID == _MAINNET_NETWORK_ID && sourceBridgeNetwork == _ZKEVM_NETWORK_ID) {
+        if (
+            networkID == _MAINNET_NETWORK_ID &&
+            sourceBridgeNetwork == _ZKEVM_NETWORK_ID
+        ) {
             globalIndex = uint256(leafIndex);
         } else {
-            globalIndex = uint256(leafIndex) + uint256(sourceBridgeNetwork) * _MAX_LEAFS_PER_NETWORK;
+            globalIndex =
+                uint256(leafIndex) +
+                uint256(sourceBridgeNetwork) *
+                _MAX_LEAFS_PER_NETWORK;
         }
         (uint256 wordPos, uint256 bitPos) = _bitmapPositions(globalIndex);
         uint256 mask = 1 << bitPos;
@@ -766,7 +895,10 @@ contract PolygonZkEVMBridgeV2 is
      * @param tokenWrapped Wrapped token to burnt
      * @param amount Amount of tokens
      */
-    function _bridgeWrappedAsset(TokenWrapped tokenWrapped, uint256 amount) internal virtual {
+    function _bridgeWrappedAsset(
+        TokenWrapped tokenWrapped,
+        uint256 amount
+    ) internal virtual {
         // Burn tokens
         tokenWrapped.burn(msg.sender, amount);
     }
@@ -778,10 +910,11 @@ contract PolygonZkEVMBridgeV2 is
      * @param destinationAddress Minted token receiver
      * @param amount Amount of tokens
      */
-    function _claimWrappedAsset(TokenWrapped tokenWrapped, address destinationAddress, uint256 amount)
-        internal
-        virtual
-    {
+    function _claimWrappedAsset(
+        TokenWrapped tokenWrapped,
+        address destinationAddress,
+        uint256 amount
+    ) internal virtual {
         // Mint tokens
         tokenWrapped.mint(destinationAddress, amount);
     }
@@ -790,7 +923,9 @@ contract PolygonZkEVMBridgeV2 is
      * @notice Function decode an index into a wordPos and bitPos
      * @param index Index
      */
-    function _bitmapPositions(uint256 index) internal pure returns (uint256 wordPos, uint256 bitPos) {
+    function _bitmapPositions(
+        uint256 index
+    ) internal pure returns (uint256 wordPos, uint256 bitPos) {
         wordPos = uint248(index >> 8);
         bitPos = uint8(index);
     }
@@ -801,11 +936,33 @@ contract PolygonZkEVMBridgeV2 is
      * @param amount Quantity that is expected to be allowed
      * @param permitData Raw data of the call `permit` of the token
      */
-    function _permit(address token, uint256 amount, bytes calldata permitData) internal virtual {
+    function _permit(
+        address token,
+        uint256 amount,
+        bytes calldata permitData
+    ) internal virtual {
         bytes4 sig = bytes4(permitData[:4]);
         if (sig == _PERMIT_SIGNATURE) {
-            (address owner, address spender, uint256 value, uint256 deadline, uint8 v, bytes32 r, bytes32 s) =
-                abi.decode(permitData[4:], (address, address, uint256, uint256, uint8, bytes32, bytes32));
+            (
+                address owner,
+                address spender,
+                uint256 value,
+                uint256 deadline,
+                uint8 v,
+                bytes32 r,
+                bytes32 s
+            ) = abi.decode(
+                    permitData[4:],
+                    (
+                        address,
+                        address,
+                        uint256,
+                        uint256,
+                        uint8,
+                        bytes32,
+                        bytes32
+                    )
+                );
             if (owner != msg.sender) {
                 revert NotValidOwner();
             }
@@ -821,8 +978,18 @@ contract PolygonZkEVMBridgeV2 is
             // the following transferFrom should be fail. This prevents DoS attacks from using a signature
             // before the smartcontract call
             /* solhint-disable avoid-low-level-calls */
-            (bool success,) =
-                address(token).call(abi.encodeWithSelector(_PERMIT_SIGNATURE, owner, spender, value, deadline, v, r, s));
+            (bool success, ) = address(token).call(
+                abi.encodeWithSelector(
+                    _PERMIT_SIGNATURE,
+                    owner,
+                    spender,
+                    value,
+                    deadline,
+                    v,
+                    r,
+                    s
+                )
+            );
             if (!success) {
                 revert NotValidSignature();
             }
@@ -840,7 +1007,19 @@ contract PolygonZkEVMBridgeV2 is
                 uint8 v,
                 bytes32 r,
                 bytes32 s
-            ) = abi.decode(permitData[4:], (address, address, uint256, uint256, bool, uint8, bytes32, bytes32));
+            ) = abi.decode(
+                    permitData[4:],
+                    (
+                        address,
+                        address,
+                        uint256,
+                        uint256,
+                        bool,
+                        uint8,
+                        bytes32,
+                        bytes32
+                    )
+                );
 
             if (holder != msg.sender) {
                 revert NotValidOwner();
@@ -854,8 +1033,18 @@ contract PolygonZkEVMBridgeV2 is
             // the following transferFrom should be fail. This prevents DoS attacks from using a signature
             // before the smartcontract call
             /* solhint-disable avoid-low-level-calls */
-            (bool success,) = address(token).call(
-                abi.encodeWithSelector(_PERMIT_SIGNATURE_DAI, holder, spender, nonce, expiry, allowed, v, r, s)
+            (bool success, ) = address(token).call(
+                abi.encodeWithSelector(
+                    _PERMIT_SIGNATURE_DAI,
+                    holder,
+                    spender,
+                    nonce,
+                    expiry,
+                    allowed,
+                    v,
+                    r,
+                    s
+                )
             );
             if (!success) {
                 revert NotValidSignature();
@@ -869,15 +1058,23 @@ contract PolygonZkEVMBridgeV2 is
      * tokenInfoHash will be used as salt for all wrappeds except for bridge native WETH, that will be bytes32(0)
      * @param constructorArgs Encoded constructor args for the wrapped token
      */
-    function _deployWrappedToken(bytes32 salt, bytes memory constructorArgs)
-        internal
-        returns (TokenWrapped newWrappedToken)
-    {
-        bytes memory initBytecode = abi.encodePacked(BASE_INIT_BYTECODE_WRAPPED_TOKEN, constructorArgs);
+    function _deployWrappedToken(
+        bytes32 salt,
+        bytes memory constructorArgs
+    ) internal returns (TokenWrapped newWrappedToken) {
+        bytes memory initBytecode = abi.encodePacked(
+            BASE_INIT_BYTECODE_WRAPPED_TOKEN,
+            constructorArgs
+        );
 
         /// @solidity memory-safe-assembly
         assembly {
-            newWrappedToken := create2(0, add(initBytecode, 0x20), mload(initBytecode), salt)
+            newWrappedToken := create2(
+                0,
+                add(initBytecode, 0x20),
+                mload(initBytecode),
+                salt
+            )
         }
         if (address(newWrappedToken) == address(0)) {
             revert FailedTokenWrappedDeployment();
@@ -891,7 +1088,9 @@ contract PolygonZkEVMBridgeV2 is
      * @param token The address of the ERC-20 token contract
      */
     function _safeSymbol(address token) internal view returns (string memory) {
-        (bool success, bytes memory data) = address(token).staticcall(abi.encodeCall(IERC20Metadata.symbol, ()));
+        (bool success, bytes memory data) = address(token).staticcall(
+            abi.encodeCall(IERC20Metadata.symbol, ())
+        );
         return success ? _returnDataToString(data) : "NO_SYMBOL";
     }
 
@@ -900,7 +1099,9 @@ contract PolygonZkEVMBridgeV2 is
      * @param token The address of the ERC-20 token contract.
      */
     function _safeName(address token) internal view returns (string memory) {
-        (bool success, bytes memory data) = address(token).staticcall(abi.encodeCall(IERC20Metadata.name, ()));
+        (bool success, bytes memory data) = address(token).staticcall(
+            abi.encodeCall(IERC20Metadata.name, ())
+        );
         return success ? _returnDataToString(data) : "NO_NAME";
     }
 
@@ -910,7 +1111,9 @@ contract PolygonZkEVMBridgeV2 is
      * @param token The address of the ERC-20 token contract
      */
     function _safeDecimals(address token) internal view returns (uint8) {
-        (bool success, bytes memory data) = address(token).staticcall(abi.encodeCall(IERC20Metadata.decimals, ()));
+        (bool success, bytes memory data) = address(token).staticcall(
+            abi.encodeCall(IERC20Metadata.decimals, ())
+        );
         return success && data.length == 32 ? abi.decode(data, (uint8)) : 18;
     }
 
@@ -919,7 +1122,9 @@ contract PolygonZkEVMBridgeV2 is
      * returns 'NOT_VALID_ENCODING' as fallback value.
      * @param data returned data
      */
-    function _returnDataToString(bytes memory data) internal pure returns (string memory) {
+    function _returnDataToString(
+        bytes memory data
+    ) internal pure returns (string memory) {
         if (data.length >= 64) {
             return abi.decode(data, (string));
         } else if (data.length == 32) {
@@ -948,8 +1153,15 @@ contract PolygonZkEVMBridgeV2 is
      * @notice Returns the encoded token metadata
      * @param token Address of the token
      */
-    function getTokenMetadata(address token) public view returns (bytes memory) {
-        return abi.encode(_safeName(token), _safeSymbol(token), _safeDecimals(token));
+    function getTokenMetadata(
+        address token
+    ) public view returns (bytes memory) {
+        return
+            abi.encode(
+                _safeName(token),
+                _safeSymbol(token),
+                _safeDecimals(token)
+            );
     }
 
     /**
@@ -961,13 +1173,18 @@ contract PolygonZkEVMBridgeV2 is
      * @param originTokenAddress Origin token address, 0 address is reserved for gas token address. If WETH address is zero, means this gas token is ether, else means is a custom erc20 gas token
      * @param token Address of the token to calculate the wrapper address
      */
-    function calculateTokenWrapperAddress(uint32 originNetwork, address originTokenAddress, address token)
-        external
-        view
-        returns (address)
-    {
-        return precalculatedWrapperAddress(
-            originNetwork, originTokenAddress, _safeName(token), _safeSymbol(token), _safeDecimals(token)
-        );
+    function calculateTokenWrapperAddress(
+        uint32 originNetwork,
+        address originTokenAddress,
+        address token
+    ) external view returns (address) {
+        return
+            precalculatedWrapperAddress(
+                originNetwork,
+                originTokenAddress,
+                _safeName(token),
+                _safeSymbol(token),
+                _safeDecimals(token)
+            );
     }
 }

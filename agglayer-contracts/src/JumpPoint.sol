@@ -10,7 +10,7 @@ contract JumpPoint {
     using SafeERC20 for IERC20;
 
     constructor(
-        address bridge,
+        address payable bridge,
         uint32 assetOriginalNetwork,
         address assetOriginalAddress,
         address callAddress,
@@ -29,7 +29,8 @@ contract JumpPoint {
         // origin asset is not empty, then it's either gas token or erc20
         else {
             if (
-                assetOriginalAddress == zkBridge.gasTokenAddress() && assetOriginalNetwork == zkBridge.gasTokenNetwork()
+                assetOriginalAddress == zkBridge.gasTokenAddress() &&
+                assetOriginalNetwork == zkBridge.gasTokenNetwork()
             ) {
                 // it was the native gas token (not eth)
                 // asset will be null (use msg.value)
@@ -45,7 +46,12 @@ contract JumpPoint {
                     asset = IERC20(
                         // NOTE: this weird logic is how we find the corresponding asset address in the current network
                         zkBridge.tokenInfoToWrappedToken(
-                            keccak256(abi.encodePacked(assetOriginalNetwork, assetOriginalAddress))
+                            keccak256(
+                                abi.encodePacked(
+                                    assetOriginalNetwork,
+                                    assetOriginalAddress
+                                )
+                            )
                         )
                     );
                 }
@@ -58,13 +64,15 @@ contract JumpPoint {
             uint256 balance = address(this).balance; // because we don't receive the amount
 
             // call the target contract with the callData that was received, passing the native token
-            (bool success,) = callAddress.call{value: balance}(callData);
+            (bool success, ) = callAddress.call{value: balance}(callData);
 
             // if call was unsuccessful, then transfer the native token to the fallback address
             // ATTN: if the transfer to fallback is unsuccessful (maybe it's a contract that does not allow receive)
             // then the native gas token will be stuck in this instance of the JumpPoint
             if (!success) {
-                (bool fallbackSuccess,) = fallbackAddress.call{value: balance}("");
+                (bool fallbackSuccess, ) = fallbackAddress.call{value: balance}(
+                    ""
+                );
                 // If fallback also fails, the native token will be stuck in this contract
                 fallbackSuccess; // silence unused variable warning
             }
@@ -73,7 +81,7 @@ contract JumpPoint {
 
             // call the target contract with the callData that was received, allowing the erc20 to be taken
             asset.approve(callAddress, balance);
-            (bool success,) = callAddress.call(callData);
+            (bool success, ) = callAddress.call(callData);
 
             // if call was unsuccessful, then transfer the asset to the fallback address
             if (!success) asset.safeTransfer(fallbackAddress, balance);

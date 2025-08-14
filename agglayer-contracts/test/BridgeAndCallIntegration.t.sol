@@ -86,8 +86,8 @@ contract BridgeAndCallIntegrationTest is Test {
         );
 
         // Deploy bridge extensions
-        bridgeExtensionL1 = new BridgeExtension(address(bridgeL1));
-        bridgeExtensionL2 = new BridgeExtension(address(bridgeL2));
+        bridgeExtensionL1 = new BridgeExtension(payable(address(bridgeL1)));
+        bridgeExtensionL2 = new BridgeExtension(payable(address(bridgeL2)));
 
         console2.log("BridgeExtension L1:", address(bridgeExtensionL1));
         console2.log("BridgeExtension L2:", address(bridgeExtensionL2));

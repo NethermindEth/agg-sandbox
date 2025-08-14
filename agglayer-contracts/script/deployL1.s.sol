@@ -34,11 +34,15 @@ contract DeployContractsL1 is Script {
 
         PolygonZkEVMBridgeV2 polygonZkEVMBridgeV2 = new PolygonZkEVMBridgeV2();
 
-        PolygonZkEVMGlobalExitRootV2 polygonZkEVMGlobalExitRootV2 =
-            new PolygonZkEVMGlobalExitRootV2(deployer, address(polygonZkEVMBridgeV2));
+        PolygonZkEVMGlobalExitRootV2 polygonZkEVMGlobalExitRootV2 = new PolygonZkEVMGlobalExitRootV2(
+                deployer,
+                address(polygonZkEVMBridgeV2)
+            );
 
-        PolygonZkEVM polygonZkEVM = new PolygonZkEVM(
-            IPolygonZkEVMGlobalExitRootV2(address(polygonZkEVMGlobalExitRootV2)),
+        PolygonZkEVM polygonZkEVM = new PolygonZkEVM{value: 50 ether}(
+            IPolygonZkEVMGlobalExitRootV2(
+                address(polygonZkEVMGlobalExitRootV2)
+            ),
             IERC20(address(aggERC20)),
             IVerifierRollup(address(fflonkVerifier)),
             IPolygonZkEVMBridge(address(polygonZkEVMBridgeV2)),
@@ -51,22 +55,37 @@ contract DeployContractsL1 is Script {
         proposers[0] = deployer;
         address[] memory executors = new address[](1);
         executors[0] = deployer;
-        PolygonZkEVMTimelock polygonZkEVMTimelock =
-            new PolygonZkEVMTimelock(minDelay, proposers, executors, deployer, polygonZkEVM);
+        PolygonZkEVMTimelock polygonZkEVMTimelock = new PolygonZkEVMTimelock(
+            minDelay,
+            proposers,
+            executors,
+            deployer,
+            polygonZkEVM
+        );
         PolygonRollupManager polygonRollupManager = new PolygonRollupManager(
-            IPolygonZkEVMGlobalExitRootV2(address(polygonZkEVMGlobalExitRootV2)),
+            IPolygonZkEVMGlobalExitRootV2(
+                address(polygonZkEVMGlobalExitRootV2)
+            ),
             IERC20(address(aggERC20)),
             IPolygonZkEVMBridge(address(polygonZkEVMBridgeV2))
         );
 
-        BridgeExtension bridgeExtension = new BridgeExtension(address(polygonZkEVMBridgeV2));
+        BridgeExtension bridgeExtension = new BridgeExtension(
+            payable(address(polygonZkEVMBridgeV2))
+        );
+
+        // Fund the L1 bridge with 50 ETH so it can handle bridge operations
+        (bool successL1, ) = payable(address(polygonZkEVMBridgeV2)).call{value: 50 ether}("");
+        require(successL1, "Failed to fund L1 bridge");
 
         // Initialize the bridge
         polygonZkEVMBridgeV2.initialize(
             0, // _networkID - 0 for Ethereum
             address(0), // _gasTokenAddress - address(0) for ETH
             0, // _gasTokenNetwork
-            IBasePolygonZkEVMGlobalExitRoot(address(polygonZkEVMGlobalExitRootV2)), // _globalExitRootManager
+            IBasePolygonZkEVMGlobalExitRoot(
+                address(polygonZkEVMGlobalExitRootV2)
+            ), // _globalExitRootManager
             address(polygonRollupManager), // _polygonRollupManager
             "" // _gasTokenMetadata - empty for ETH
         );
@@ -76,7 +95,9 @@ contract DeployContractsL1 is Script {
 
         // Deploy and register L2 rollup (Chain ID 1101)
         PolygonZkEVM polygonZkEVMl2 = new PolygonZkEVM(
-            IPolygonZkEVMGlobalExitRootV2(address(polygonZkEVMGlobalExitRootV2)),
+            IPolygonZkEVMGlobalExitRootV2(
+                address(polygonZkEVMGlobalExitRootV2)
+            ),
             IERC20(address(aggERC20)),
             IVerifierRollup(address(fflonkVerifier)),
             IPolygonZkEVMBridge(address(polygonZkEVMBridgeV2)),
@@ -96,7 +117,9 @@ contract DeployContractsL1 is Script {
 
         // Deploy and register L3 rollup (Chain ID 137)
         PolygonZkEVM polygonZkEVMl3 = new PolygonZkEVM(
-            IPolygonZkEVMGlobalExitRootV2(address(polygonZkEVMGlobalExitRootV2)),
+            IPolygonZkEVMGlobalExitRootV2(
+                address(polygonZkEVMGlobalExitRootV2)
+            ),
             IERC20(address(aggERC20)),
             IVerifierRollup(address(fflonkVerifier)),
             IPolygonZkEVMBridge(address(polygonZkEVMBridgeV2)),
@@ -124,10 +147,14 @@ contract DeployContractsL1 is Script {
         console2.log("PolygonZkEVM L3:        ", address(polygonZkEVMl3));
         console2.log("PolygonZkEVMBridgeV2:   ", address(polygonZkEVMBridgeV2));
         console2.log("PolygonZkEVMTimelock:   ", address(polygonZkEVMTimelock));
-        console2.log("PolygonZkEVMGlobalExitRootV2: ", address(polygonZkEVMGlobalExitRootV2));
+        console2.log(
+            "PolygonZkEVMGlobalExitRootV2: ",
+            address(polygonZkEVMGlobalExitRootV2)
+        );
         console2.log("PolygonRollupManager:   ", address(polygonRollupManager));
         console2.log("AggERC20:              ", address(aggERC20));
         console2.log("BridgeExtension:       ", address(bridgeExtension));
+        console2.log("L1 Bridge Balance:     ", address(polygonZkEVMBridgeV2).balance / 1e18, "ETH");
         console2.log("Bridge initialized successfully!");
         console2.log("RollupManager initialized and rollups registered!");
         console2.log("L2 Rollup registered with ID: 1 (Chain ID: 1101)");

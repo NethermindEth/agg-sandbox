@@ -353,7 +353,7 @@ contract PolygonZkEVM is OwnableUpgradeable, EmergencyManager, IPolygonZkEVMErro
         IPolygonZkEVMBridge _bridgeAddress,
         uint64 _chainID,
         uint64 _forkID
-    ) {
+    ) payable {
         globalExitRootManager = _globalExitRootManager;
         matic = _matic;
         rollupVerifier = _rollupVerifier;

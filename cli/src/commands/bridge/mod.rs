@@ -73,8 +73,8 @@ pub enum BridgeCommands {
         /// Destination network ID
         #[arg(short = 'd', long, help = "Destination network ID")]
         destination_network: u64,
-        /// Amount to bridge (in token units)
-        #[arg(short, long, help = "Amount to bridge")]
+        /// Amount to bridge (in wei)
+        #[arg(short, long, help = "Amount to bridge (in wei)")]
         amount: String,
         /// Token contract address (use 0x0000000000000000000000000000000000000000 for ETH)
         #[arg(short, long, help = "Token contract address")]
@@ -138,6 +138,12 @@ pub enum BridgeCommands {
             help = "Custom metadata for message bridge claims (hex encoded, for BridgeExtension messages)"
         )]
         data: Option<String>,
+        /// ETH value to send with message bridge claim (in wei)
+        #[arg(
+            long,
+            help = "ETH value to send with contract call for message bridge claims (in wei)"
+        )]
+        msg_value: Option<String>,
     },
     /// 📬 Bridge with contract call (bridgeAndCall)
     #[command(
@@ -156,8 +162,8 @@ pub enum BridgeCommands {
         /// Call data for the contract (hex encoded)
         #[arg(long, help = "Contract call data (hex encoded)")]
         data: String,
-        /// Amount of ETH to send with the call
-        #[arg(short, long, help = "Amount of ETH to send")]
+        /// Amount of ETH to send with the call (in wei)
+        #[arg(short, long, help = "Amount of ETH to send (in wei)")]
         amount: Option<String>,
         /// Fallback address if contract call fails
         #[arg(long, help = "Fallback address if call fails")]
@@ -186,8 +192,8 @@ pub enum BridgeCommands {
         /// Token contract address to bridge
         #[arg(short = 't', long, help = "Token contract address")]
         token: String,
-        /// Amount to bridge (in token units)
-        #[arg(short, long, help = "Amount to bridge")]
+        /// Amount to bridge (in wei)
+        #[arg(short, long, help = "Amount to bridge (in wei)")]
         amount: String,
         /// Target contract address on destination network
         #[arg(long, help = "Target contract address for call")]
@@ -207,6 +213,9 @@ pub enum BridgeCommands {
         /// Private key to use for the transaction (hex string with 0x prefix)
         #[arg(long, help = "Private key to use for the transaction")]
         private_key: Option<String>,
+        /// ETH value to send with the contract call on destination network (in wei)
+        #[arg(long, help = "ETH value to send with contract call (in wei)")]
+        msg_value: Option<String>,
     },
     /// 🔧 Bridge utility functions
     #[command(subcommand)]
@@ -266,6 +275,7 @@ pub async fn handle_bridge(subcommand: BridgeCommands) -> Result<()> {
             gas_price,
             private_key,
             data,
+            msg_value,
         } => {
             info!(
                 network = network,
@@ -293,6 +303,9 @@ pub async fn handle_bridge(subcommand: BridgeCommands) -> Result<()> {
             }
             if let Some(custom_data) = data.as_deref() {
                 builder = builder.custom_data(Some(custom_data));
+            }
+            if let Some(value) = msg_value.as_deref() {
+                builder = builder.msg_value(Some(value));
             }
 
             let args = builder.build_with_crate_error()?;
@@ -348,6 +361,7 @@ pub async fn handle_bridge(subcommand: BridgeCommands) -> Result<()> {
             gas_limit,
             gas_price,
             private_key,
+            msg_value,
         } => {
             info!(
                 network = network,
@@ -372,6 +386,9 @@ pub async fn handle_bridge(subcommand: BridgeCommands) -> Result<()> {
 
             if let Some(key) = private_key.as_deref() {
                 builder = builder.private_key(key);
+            }
+            if let Some(value) = msg_value.as_deref() {
+                builder = builder.msg_value(value);
             }
 
             let args = builder.build_with_crate_error()?;

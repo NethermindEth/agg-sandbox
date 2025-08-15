@@ -476,41 +476,24 @@ pub async fn claim_asset(args: ClaimAssetArgs<'_>) -> Result<()> {
         .map(|n| n as u32)
         .unwrap_or_else(|| args.network as u32);
 
-    // For message bridges (leaf_type = 1), read actual addresses from bridge data
-    // For asset bridges (leaf_type = 0), use the original bridge addresses
-    let (origin_address, destination_address) = if leaf_type == 1 {
-        // Message bridge - read actual addresses from bridge transaction data
-        let origin_addr = bridge_info["origin_address"].as_str().ok_or_else(|| {
-            crate::error::AggSandboxError::Config(crate::error::ConfigError::validation_failed(
-                "Missing origin_address in bridge info",
-            ))
-        })?;
-        let dest_addr = bridge_info["destination_address"].as_str().ok_or_else(|| {
-            crate::error::AggSandboxError::Config(crate::error::ConfigError::validation_failed(
-                "Missing destination_address in bridge info",
-            ))
-        })?;
-        println!("🔗 Using actual addresses from message bridge data:");
-        println!("   Origin: {origin_addr} (network {})", args.source_network);
-        println!("   Destination: {dest_addr} (network {})", args.network);
-        (origin_addr.to_string(), dest_addr.to_string())
-    } else {
-        // Asset bridge - use original addresses from bridge_info
-        let origin_addr = bridge_info["origin_address"].as_str().ok_or_else(|| {
-            crate::error::AggSandboxError::Config(crate::error::ConfigError::validation_failed(
-                "Missing origin_address in bridge info",
-            ))
-        })?;
-        let dest_addr = bridge_info["destination_address"].as_str().ok_or_else(|| {
-            crate::error::AggSandboxError::Config(crate::error::ConfigError::validation_failed(
-                "Missing destination_address in bridge info",
-            ))
-        })?;
-        println!("🏦 Using original bridge addresses for asset bridge:");
-        println!("   Origin: {origin_addr} (network {})", args.source_network);
-        println!("   Destination: {dest_addr} (network {})", args.network);
-        (origin_addr.to_string(), dest_addr.to_string())
-    };
+    // For both message and asset bridges, use the addresses from bridge data
+    let origin_addr = bridge_info["origin_address"].as_str().ok_or_else(|| {
+        crate::error::AggSandboxError::Config(crate::error::ConfigError::validation_failed(
+            "Missing origin_address in bridge info",
+        ))
+    })?;
+    let dest_addr = bridge_info["destination_address"].as_str().ok_or_else(|| {
+        crate::error::AggSandboxError::Config(crate::error::ConfigError::validation_failed(
+            "Missing destination_address in bridge info",
+        ))
+    })?;
+    
+    let bridge_type = if leaf_type == 1 { "message" } else { "asset" };
+    println!("🔗 Using bridge addresses for {} bridge:", bridge_type);
+    println!("   Origin: {origin_addr} (network {})", args.source_network);
+    println!("   Destination: {dest_addr} (network {})", args.network);
+    
+    let (origin_address, destination_address) = (origin_addr.to_string(), dest_addr.to_string());
     let amount = bridge_info["amount"].as_str().ok_or_else(|| {
         crate::error::AggSandboxError::Config(crate::error::ConfigError::validation_failed(
             "Missing amount in bridge info",

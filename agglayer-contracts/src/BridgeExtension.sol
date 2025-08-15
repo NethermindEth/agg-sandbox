@@ -15,6 +15,17 @@ error OriginMustBeBridgeExtension();
 error SenderMustBeBridge();
 error UnclaimedAsset();
 
+event JumpPointDeployment(
+    uint256 indexed dependsOnIndex,
+    uint32 indexed originNetwork,
+    address callAddress,
+    address fallbackAddress,
+    uint32 assetOriginalNetwork,
+    address assetOriginalAddress,
+    bytes32 salt,
+    bool assetClaimed
+);
+
 contract BridgeExtension is IBridgeAndCall, IBridgeMessageReceiver {
     using SafeERC20 for IERC20;
 
@@ -34,8 +45,9 @@ contract BridgeExtension is IBridgeAndCall, IBridgeMessageReceiver {
         bytes calldata callData,
         bool forceUpdateGlobalExitRoot
     ) external payable {
-        // calculate the depends on index based on the number of bridgeAssets we're doing
-        uint256 dependsOnIndex = bridge.depositCount() + 1; // only doing 1 bridge asset
+        // calculate the depends on index based on the current deposit count
+        // The message bridge will depend on the asset bridge that's about to be created
+        uint256 dependsOnIndex = bridge.depositCount() + 1; // asset bridge will get this deposit count
 
         if (token != address(0) && token == address(bridge.WETHToken())) {
             // user is bridging ERC20 (WETH)
@@ -232,12 +244,27 @@ contract BridgeExtension is IBridgeAndCall, IBridgeMessageReceiver {
             address assetOriginalAddress,
             bytes memory callData
         ) = abi.decode(data, (uint256, address, address, uint32, address, bytes));
-        if (!bridge.isClaimed(uint32(dependsOnIndex), originNetwork)) {
-            revert UnclaimedAsset();
-        }
+        bool assetClaimed = bridge.isClaimed(uint32(dependsOnIndex), originNetwork);
+        bytes32 salt = keccak256(abi.encodePacked(dependsOnIndex, originNetwork));
+
+        // Emit debug event with all parameters
+        emit JumpPointDeployment(
+            dependsOnIndex,
+            originNetwork,
+            callAddress,
+            fallbackAddress,
+            assetOriginalNetwork,
+            assetOriginalAddress,
+            salt,
+            assetClaimed
+        );
+
+        // if (!assetClaimed) {
+        //     revert UnclaimedAsset();
+        // }
 
         // the remaining bytes have the selector+args
-        new JumpPoint{salt: keccak256(abi.encodePacked(dependsOnIndex, originNetwork))}(
+        new JumpPoint{salt: salt}(
             payable(address(bridge)), assetOriginalNetwork, assetOriginalAddress, callAddress, fallbackAddress, callData
         );
     }

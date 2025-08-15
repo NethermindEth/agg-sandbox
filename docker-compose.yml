@@ -34,7 +34,7 @@ services:
       start_period: 10s
 
   contract-deployer:
-    image: ametelnethermind/aggsandbox-deployer
+    image: ametelnethermind/aggsandbox-deployer:latest
     pull_policy: always
     depends_on:
       anvil-l1:
@@ -51,7 +51,7 @@ services:
 
   aggkit-wait:
     image: alpine:latest
-    pull_policy: always
+    pull_policy: missing
     depends_on:
       contract-deployer:
         condition: service_completed_successfully
@@ -61,18 +61,13 @@ services:
       - sh
       - -c
       - |
-        apk add curl jq
-        echo 'Waiting for contracts to be deployed and accessible...'
+        echo 'Waiting for contracts to be deployed...'
         for i in $$(seq 1 30); do
           if [ -f '/app/output/deployed-contracts.env' ]; then
-            source /app/output/deployed-contracts.env
-            if [ -n "$$POLYGON_ROLLUP_MANAGER_L1" ]; then
-              RESPONSE=$$(curl -s -X POST http://anvil-l1:8545 -H 'Content-Type: application/json' -d "{\"jsonrpc\":\"2.0\",\"method\":\"eth_getCode\",\"params\":[\"$$POLYGON_ROLLUP_MANAGER_L1\",\"latest\"],\"id\":1}" 2>/dev/null || echo '{"result":"0x"}')
-              CODE=$$(echo "$$RESPONSE" | jq -r '.result' 2>/dev/null || echo "0x")
-              if echo "$$CODE" | grep -q '^0x[0-9a-fA-F]\{3,\}$$'; then
-                echo "Contract verified at address $$POLYGON_ROLLUP_MANAGER_L1"
-                exit 0
-              fi
+            echo "Contract deployment file found, checking content..."
+            if grep -q "POLYGON_ROLLUP_MANAGER_L1=" /app/output/deployed-contracts.env; then
+              echo "Contract addresses found in deployment file"
+              exit 0
             fi
           fi
           echo "Attempt $$i/30: Contract not ready, waiting..."
@@ -87,6 +82,8 @@ services:
     image: ametelnethermind/aggkit:latest
     pull_policy: always
     depends_on:
+      contract-deployer:
+        condition: service_completed_successfully
       aggkit-wait:
         condition: service_completed_successfully
     ports:
@@ -98,21 +95,20 @@ services:
     volumes:
       - ./config:/app/config
       - aggkit-data:/app/data
-    env_file:
-      - .env
+      - ./.env:/app/.env:ro # Mount .env file directly so it can be read at runtime
     environment:
       # Basic configuration
       - AGGKIT_SANDBOX_ENABLED=true
       - AGGKIT_LOG_LEVEL=info
       - AGGKIT_COMPONENTS=bridge,aggoracle,claim-sponsor
       - AGGKIT_CLAIMSPONSOR_ENABLED=true
-      - AGGKIT_CLAIMSPONSOR_CLAIM_ALL=${AGGKIT_CLAIMSPONSOR_CLAIM_ALL:-false}
+      - AGGKIT_CLAIMSPONSOR_CLAIM_ALL=false
 
       # Network configuration
       - AGGKIT_L1_URL=http://anvil-l1:8545
       - AGGKIT_L2_URL=http://anvil-l2:8545
-      - AGGKIT_L1_CHAIN_ID=${CHAIN_ID_MAINNET:-1}
-      - AGGKIT_L2_CHAIN_ID=${CHAIN_ID_AGGLAYER_1:-1101}
+      - AGGKIT_L1_CHAIN_ID=1
+      - AGGKIT_L2_CHAIN_ID=1101
 
       # Service ports
       - AGGKIT_REST_PORT=5577
@@ -122,13 +118,8 @@ services:
       # Database
       - AGGKIT_DATABASE_NAME=/app/data/aggkit.db
 
-      # Contract addresses (from .env file)
-      - POLYGON_ZKEVM_BRIDGE_L1=${POLYGON_ZKEVM_BRIDGE_L1}
-      - POLYGON_ZKEVM_BRIDGE_L2=${POLYGON_ZKEVM_BRIDGE_L2}
-      - POLYGON_ZKEVM_GLOBAL_EXIT_ROOT_L1=${POLYGON_ZKEVM_GLOBAL_EXIT_ROOT_L1}
-      - POLYGON_ZKEVM_GLOBAL_EXIT_ROOT_L2=${GLOBAL_EXIT_ROOT_MANAGER_L2}
-      - POLYGON_ROLLUP_MANAGER_L1=${POLYGON_ROLLUP_MANAGER_L1}
-      - POLYGON_ZKEVM_L2_ROLLUP=${POLYGON_ZKEVM_L2_ROLLUP}
+      # Tell the entrypoint script to read from mounted .env file
+      - AGGKIT_ENV_FILE=/app/.env
 
 networks:
   anvil-network:

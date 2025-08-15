@@ -487,12 +487,12 @@ pub async fn claim_asset(args: ClaimAssetArgs<'_>) -> Result<()> {
             "Missing destination_address in bridge info",
         ))
     })?;
-    
+
     let bridge_type = if leaf_type == 1 { "message" } else { "asset" };
-    println!("🔗 Using bridge addresses for {} bridge:", bridge_type);
+    println!("🔗 Using bridge addresses for {bridge_type} bridge:");
     println!("   Origin: {origin_addr} (network {})", args.source_network);
     println!("   Destination: {dest_addr} (network {})", args.network);
-    
+
     let (origin_address, destination_address) = (origin_addr.to_string(), dest_addr.to_string());
     let amount = bridge_info["amount"].as_str().ok_or_else(|| {
         crate::error::AggSandboxError::Config(crate::error::ConfigError::validation_failed(

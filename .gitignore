@@ -10,3 +10,5 @@ cli/target/
 CLAUDE.md
 .claude/
 RUST_CONTEXT.md
+
+agglayer-contracts/deployment_output.json

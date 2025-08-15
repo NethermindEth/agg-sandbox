@@ -29,12 +29,11 @@ contract DeployContractsL1 is Script {
 
         AggERC20 aggERC20 = new AggERC20(deployer, deployer);
 
-        BridgeExtension bridgeExtension = new BridgeExtension(payable(address(0x5FbDB2315678afecb367f032d93F642f64180aa3))); // Use same bridge address as L2
-
-        // actual on-chain deploys
-        FflonkVerifier fflonkVerifier = new FflonkVerifier();
-
         PolygonZkEVMBridgeV2 polygonZkEVMBridgeV2 = new PolygonZkEVMBridgeV2();
+
+        BridgeExtension bridgeExtension = new BridgeExtension(payable(address(polygonZkEVMBridgeV2)));
+
+        FflonkVerifier fflonkVerifier = new FflonkVerifier();
 
         PolygonZkEVMGlobalExitRootV2 polygonZkEVMGlobalExitRootV2 =
             new PolygonZkEVMGlobalExitRootV2(deployer, address(polygonZkEVMBridgeV2));

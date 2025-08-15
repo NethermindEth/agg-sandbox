@@ -20,6 +20,11 @@ contract DeployContractsL2 is Script {
         // start broadcasting transactions
         vm.startBroadcast(deployerKey);
 
+        AggERC20 aggERC20 = new AggERC20(deployer, deployer);
+
+        // Placeholder deployment to match L1 nonce order (FflonkVerifier equivalent)
+        // This ensures BridgeExtension gets deployed at the same nonce across networks
+
         BridgeL2SovereignChain polygonZkEVMBridgeV2 = new BridgeL2SovereignChain();
 
         BridgeExtension bridgeExtension = new BridgeExtension(payable(address(polygonZkEVMBridgeV2)));
@@ -50,8 +55,6 @@ contract DeployContractsL2 is Script {
 
         // Initialize the global exit root manager
         globalExitRootManagerL2SovereignChain.initialize(deployer, address(0));
-
-        AggERC20 aggERC20 = new AggERC20(deployer, deployer);
 
         AssetAndCallReceiver assetAndCallReceiver = new AssetAndCallReceiver();
 

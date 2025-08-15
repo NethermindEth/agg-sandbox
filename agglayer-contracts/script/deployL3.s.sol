@@ -20,6 +20,9 @@ contract DeployContractsL2 is Script {
         vm.startBroadcast(deployerKey);
 
         BridgeL2SovereignChain polygonZkEVMBridgeV2 = new BridgeL2SovereignChain();
+
+        BridgeExtension bridgeExtension = new BridgeExtension(payable(address(polygonZkEVMBridgeV2)));
+
         GlobalExitRootManagerL2SovereignChain globalExitRootManagerL2SovereignChain =
             new GlobalExitRootManagerL2SovereignChain(address(polygonZkEVMBridgeV2));
 
@@ -48,8 +51,6 @@ contract DeployContractsL2 is Script {
         globalExitRootManagerL2SovereignChain.initialize(deployer, address(0));
 
         AggERC20 aggERC20 = new AggERC20(deployer, deployer);
-
-        BridgeExtension bridgeExtension = new BridgeExtension(payable(address(polygonZkEVMBridgeV2)));
 
         // stop broadcasting so logs don't count as on-chain txs
         vm.stopBroadcast();

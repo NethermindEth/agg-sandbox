@@ -29,6 +29,8 @@ contract DeployContractsL1 is Script {
 
         AggERC20 aggERC20 = new AggERC20(deployer, deployer);
 
+        BridgeExtension bridgeExtension = new BridgeExtension(payable(address(0x5FbDB2315678afecb367f032d93F642f64180aa3))); // Use same bridge address as L2
+
         // actual on-chain deploys
         FflonkVerifier fflonkVerifier = new FflonkVerifier();
 
@@ -58,8 +60,6 @@ contract DeployContractsL1 is Script {
             IERC20(address(aggERC20)),
             IPolygonZkEVMBridge(address(polygonZkEVMBridgeV2))
         );
-
-        BridgeExtension bridgeExtension = new BridgeExtension(payable(address(polygonZkEVMBridgeV2)));
 
         // Fund the L1 bridge with 50 ETH so it can handle bridge operations
         (bool successL1,) = payable(address(polygonZkEVMBridgeV2)).call{value: 50 ether}("");

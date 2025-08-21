@@ -451,10 +451,10 @@ pub async fn bridge_message(
     })?;
 
     println!(
-        "✅ Bridge and call transaction submitted: {:#x}",
+        "✅ Bridge message transaction submitted: {:#x}",
         tx.tx_hash()
     );
-    println!("💡 This creates both asset and message bridges. The message should execute automatically when ready.");
+    println!("💡 This creates a message bridge that will execute automatically when ready.");
 
     Ok(())
 }

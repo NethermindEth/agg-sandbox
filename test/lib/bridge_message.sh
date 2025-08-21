@@ -48,7 +48,7 @@ bridge_message_modern() {
         
         # Extract transaction hash from output
         local tx_hash
-        tx_hash=$(echo "$output" | grep -o '0x[a-fA-F0-9]\{64\}' | head -1)
+        tx_hash=$(echo "$output" | grep -oE '0x[a-fA-F0-9]{64}' | head -1)
         
         if [ -n "$tx_hash" ]; then
             print_info "Bridge message transaction hash: $tx_hash"

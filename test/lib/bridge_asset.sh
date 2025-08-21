@@ -48,7 +48,7 @@ bridge_asset_modern() {
         
         # Extract transaction hash from output
         local tx_hash
-        tx_hash=$(echo "$output" | grep -o '0x[a-fA-F0-9]\{64\}' | head -1)
+        tx_hash=$(echo "$output" | grep -oE '0x[a-fA-F0-9]{64}' | head -1)
         
         if [ -n "$tx_hash" ]; then
             print_info "Bridge transaction hash: $tx_hash"
@@ -146,49 +146,55 @@ execute_l1_to_l2_asset_bridge() {
     local source_private_key="${5:-$PRIVATE_KEY_1}"
     local dest_private_key="${6:-$PRIVATE_KEY_2}"
     
-    print_step "Executing complete L1 to L2 asset bridge flow"
-    print_info "Amount: $amount tokens"
-    print_info "Token: $token_address"
-    print_info "From: $source_account (L1)"
-    print_info "To: $dest_account (L2)"
+    {
+        print_step "Executing complete L1 to L2 asset bridge flow"
+        print_info "Amount: $amount tokens"
+        print_info "Token: $token_address"
+        print_info "From: $source_account (L1)"
+        print_info "To: $dest_account (L2)"
+        
+        # Step 1: Bridge assets from L1 to L2
+        local bridge_tx_hash
+        if ! bridge_tx_hash=$(bridge_asset_modern \
+            "$NETWORK_ID_MAINNET" \
+            "$NETWORK_ID_AGGLAYER_1" \
+            "$amount" \
+            "$token_address" \
+            "$dest_account" \
+            "$source_private_key"); then
+            print_error "Failed to bridge assets from L1 to L2"
+            return 1
+        fi
+        
+        print_success "Bridge transaction completed: $bridge_tx_hash"
+        
+        # Step 2: Wait for bridge indexing
+        if ! wait_for_bridge_indexing "$NETWORK_ID_AGGLAYER_1" "$bridge_tx_hash"; then
+            print_error "Bridge indexing failed or timed out"
+            return 1
+        fi
+        
+        # Step 3: Claim assets on L2
+        local claim_tx_hash
+        if ! claim_tx_hash=$(claim_asset_modern \
+            "$NETWORK_ID_AGGLAYER_1" \
+            "$bridge_tx_hash" \
+            "$NETWORK_ID_MAINNET" \
+            "" \
+            "$dest_private_key"); then
+            print_error "Failed to claim assets on L2"
+            return 1
+        fi
+        
+        print_success "Claim transaction completed: ${claim_tx_hash:-N/A}"
+    } >&2
     
-    # Step 1: Bridge assets from L1 to L2
-    local bridge_tx_hash
-    if ! bridge_tx_hash=$(bridge_asset_modern \
-        "$NETWORK_ID_MAINNET" \
-        "$NETWORK_ID_AGGLAYER_1" \
-        "$amount" \
-        "$token_address" \
-        "$dest_account" \
-        "$source_private_key"); then
-        print_error "Failed to bridge assets from L1 to L2"
-        return 1
+    # Return both transaction hashes (bridge_tx:claim_tx)
+    if [ -n "$claim_tx_hash" ]; then
+        echo "$bridge_tx_hash:$claim_tx_hash"
+    else
+        echo "$bridge_tx_hash"
     fi
-    
-    print_success "Bridge transaction completed: $bridge_tx_hash"
-    
-    # Step 2: Wait for bridge indexing
-    if ! wait_for_bridge_indexing "$NETWORK_ID_AGGLAYER_1" "$bridge_tx_hash"; then
-        print_error "Bridge indexing failed or timed out"
-        return 1
-    fi
-    
-    # Step 3: Claim assets on L2
-    local claim_tx_hash
-    if ! claim_tx_hash=$(claim_asset_modern \
-        "$NETWORK_ID_AGGLAYER_1" \
-        "$bridge_tx_hash" \
-        "$NETWORK_ID_MAINNET" \
-        "" \
-        "$dest_private_key"); then
-        print_error "Failed to claim assets on L2"
-        return 1
-    fi
-    
-    print_success "Claim transaction completed: ${claim_tx_hash:-N/A}"
-    
-    # Return bridge transaction hash for further processing
-    echo "$bridge_tx_hash"
     return 0
 }
 

@@ -46,7 +46,7 @@ claim_asset_modern() {
         
         # Extract transaction hash from output
         local claim_tx_hash
-        claim_tx_hash=$(echo "$output" | grep -o '0x[a-fA-F0-9]\{64\}' | head -1)
+        claim_tx_hash=$(echo "$output" | grep -oE '0x[a-fA-F0-9]{64}' | head -1)
         
         if [ -n "$claim_tx_hash" ]; then
             print_info "Claim transaction hash: $claim_tx_hash"

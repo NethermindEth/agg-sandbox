@@ -257,8 +257,8 @@ get_bridge_info() {
     local output
     if output=$(aggsandbox show bridges --network-id "$network_id" 2>&1); then
         if [ -n "$tx_hash" ]; then
-            # Filter for specific transaction hash
-            echo "$output" | grep -A 20 -B 5 "$tx_hash" || echo ""
+            # Filter for specific transaction hash (use -F for fixed string, not regex)
+            echo "$output" | grep -F -A 20 -B 5 "$tx_hash" || echo ""
         else
             echo "$output"
         fi
@@ -292,7 +292,7 @@ wait_for_bridge_indexing() {
         
         local bridge_info
         if bridge_info=$(get_bridge_info "$network_id" "$tx_hash"); then
-            if echo "$bridge_info" | grep -q "$tx_hash"; then
+            if echo "$bridge_info" | grep -Fq "$tx_hash"; then
                 print_success "Bridge found in indexing system"
                 bridge_found=true
                 break

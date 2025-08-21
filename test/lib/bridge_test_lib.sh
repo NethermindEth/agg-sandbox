@@ -1,9 +1,12 @@
 #!/bin/bash
-# Bridge Test Library
-# Shared functions for aggsandbox bridge testing scripts
-# Version: 2.0 - Updated for modern aggsandbox CLI
+# Bridge Test Library - Main Index
+# Modular bridge testing library that sources all bridge operation modules
+# Version: 3.0 - Modular architecture with separate modules for each function
 
 set -e  # Exit on error
+
+# Get the directory of this script for relative imports
+BRIDGE_LIB_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 # ============================================================================
 # CONFIGURATION AND CONSTANTS
@@ -184,124 +187,61 @@ wait_for_transaction() {
 }
 
 # ============================================================================
-# MODERN AGGSANDBOX BRIDGE OPERATIONS
+# MODULE IMPORTS
 # ============================================================================
 
-# Bridge assets using the modern aggsandbox CLI
-bridge_asset_modern() {
-    local source_network="$1"
-    local dest_network="$2"
-    local amount="$3"
-    local token_address="$4"
-    local to_address="${5:-}" # Optional
-    local private_key="${6:-}" # Optional
-    
-    print_step "Bridging $amount tokens from network $source_network to network $dest_network"
-    print_info "Token: $token_address"
-    print_info "To address: ${to_address:-auto-detected}"
-    
-    # Build the bridge command
-    local cmd="aggsandbox bridge asset"
-    cmd="$cmd --network $source_network"
-    cmd="$cmd --destination-network $dest_network"
-    cmd="$cmd --amount $amount"
-    cmd="$cmd --token-address $token_address"
-    
-    if [ -n "$to_address" ]; then
-        cmd="$cmd --to-address $to_address"
-    fi
-    
-    if [ -n "$private_key" ]; then
-        cmd="$cmd --private-key $private_key"
-    fi
-    
-    if [ "${DEBUG:-0}" = "1" ]; then
-        cmd="$cmd --verbose"
-    fi
-    
-    print_debug "Executing: $cmd"
-    
-    # Execute the bridge command and capture output
-    local output
-    if output=$(eval "$cmd" 2>&1); then
-        print_success "Bridge transaction initiated successfully"
-        
-        # Extract transaction hash from output
-        local tx_hash
-        tx_hash=$(echo "$output" | grep -o '0x[a-fA-F0-9]\{64\}' | head -1)
-        
-        if [ -n "$tx_hash" ]; then
-            print_info "Bridge transaction hash: $tx_hash"
-            echo "$tx_hash"
-            return 0
-        else
-            print_warning "Could not extract transaction hash from output"
-            print_debug "Output: $output"
-            return 1
-        fi
-    else
-        print_error "Bridge transaction failed"
-        print_error "Error: $output"
-        return 1
-    fi
-}
+# Import all bridge operation modules
+print_debug "Loading bridge operation modules..."
 
-# Claim bridged assets using the modern aggsandbox CLI
-claim_asset_modern() {
-    local dest_network="$1"
-    local tx_hash="$2"
-    local source_network="$3"
-    local deposit_count="${4:-}" # Optional
-    local private_key="${5:-}" # Optional
-    
-    print_step "Claiming bridged assets on network $dest_network"
-    print_info "Source transaction: $tx_hash"
-    print_info "Source network: $source_network"
-    
-    # Build the claim command
-    local cmd="aggsandbox bridge claim"
-    cmd="$cmd --network $dest_network"
-    cmd="$cmd --tx-hash $tx_hash"
-    cmd="$cmd --source-network $source_network"
-    
-    if [ -n "$deposit_count" ]; then
-        cmd="$cmd --deposit-count $deposit_count"
-    fi
-    
-    if [ -n "$private_key" ]; then
-        cmd="$cmd --private-key $private_key"
-    fi
-    
-    if [ "${DEBUG:-0}" = "1" ]; then
-        cmd="$cmd --verbose"
-    fi
-    
-    print_debug "Executing: $cmd"
-    
-    # Execute the claim command
-    local output
-    if output=$(eval "$cmd" 2>&1); then
-        print_success "Claim transaction completed successfully"
-        
-        # Extract transaction hash from output
-        local claim_tx_hash
-        claim_tx_hash=$(echo "$output" | grep -o '0x[a-fA-F0-9]\{64\}' | head -1)
-        
-        if [ -n "$claim_tx_hash" ]; then
-            print_info "Claim transaction hash: $claim_tx_hash"
-            echo "$claim_tx_hash"
-            return 0
-        else
-            print_warning "Could not extract claim transaction hash"
-            print_debug "Output: $output"
-            return 0  # Still success even if we can't extract the hash
-        fi
-    else
-        print_error "Claim transaction failed"
-        print_error "Error: $output"
-        return 1
-    fi
-}
+# Load bridge asset operations
+if [ -f "$BRIDGE_LIB_DIR/bridge_asset.sh" ]; then
+    source "$BRIDGE_LIB_DIR/bridge_asset.sh"
+else
+    print_error "Bridge asset module not found: $BRIDGE_LIB_DIR/bridge_asset.sh"
+    exit 1
+fi
+
+# Load bridge message operations  
+if [ -f "$BRIDGE_LIB_DIR/bridge_message.sh" ]; then
+    source "$BRIDGE_LIB_DIR/bridge_message.sh"
+else
+    print_error "Bridge message module not found: $BRIDGE_LIB_DIR/bridge_message.sh"
+    exit 1
+fi
+
+# Load claim asset operations
+if [ -f "$BRIDGE_LIB_DIR/claim_asset.sh" ]; then
+    source "$BRIDGE_LIB_DIR/claim_asset.sh"
+else
+    print_error "Claim asset module not found: $BRIDGE_LIB_DIR/claim_asset.sh"
+    exit 1
+fi
+
+# Load claim message operations
+if [ -f "$BRIDGE_LIB_DIR/claim_message.sh" ]; then
+    source "$BRIDGE_LIB_DIR/claim_message.sh"
+else
+    print_error "Claim message module not found: $BRIDGE_LIB_DIR/claim_message.sh"
+    exit 1
+fi
+
+# Load bridge and call operations
+if [ -f "$BRIDGE_LIB_DIR/bridge_and_call.sh" ]; then
+    source "$BRIDGE_LIB_DIR/bridge_and_call.sh"
+else
+    print_error "Bridge and call module not found: $BRIDGE_LIB_DIR/bridge_and_call.sh"
+    exit 1
+fi
+
+# Load claim bridge and call operations
+if [ -f "$BRIDGE_LIB_DIR/claim_bridge_and_call.sh" ]; then
+    source "$BRIDGE_LIB_DIR/claim_bridge_and_call.sh"
+else
+    print_error "Claim bridge and call module not found: $BRIDGE_LIB_DIR/claim_bridge_and_call.sh"
+    exit 1
+fi
+
+print_debug "All bridge operation modules loaded successfully"
 
 # ============================================================================
 # BRIDGE INFORMATION QUERIES
@@ -391,62 +331,13 @@ get_claims_info() {
 }
 
 # ============================================================================
-# COMPLETE BRIDGE FLOW FUNCTIONS
+# LEGACY COMPATIBILITY FUNCTIONS
 # ============================================================================
 
-# Execute complete L1 to L2 bridge flow
+# Legacy wrapper for execute_l1_to_l2_asset_bridge (for backward compatibility)
 execute_l1_to_l2_bridge() {
-    local amount="${1:-$DEFAULT_BRIDGE_AMOUNT}"
-    local token_address="${2:-$AGG_ERC20_L1}"
-    local source_account="${3:-$ACCOUNT_ADDRESS_1}"
-    local dest_account="${4:-$ACCOUNT_ADDRESS_2}"
-    local source_private_key="${5:-$PRIVATE_KEY_1}"
-    local dest_private_key="${6:-$PRIVATE_KEY_2}"
-    
-    print_step "Executing complete L1 to L2 bridge flow"
-    print_info "Amount: $amount tokens"
-    print_info "Token: $token_address"
-    print_info "From: $source_account (L1)"
-    print_info "To: $dest_account (L2)"
-    
-    # Step 1: Bridge assets from L1 to L2
-    local bridge_tx_hash
-    if ! bridge_tx_hash=$(bridge_asset_modern \
-        "$NETWORK_ID_MAINNET" \
-        "$NETWORK_ID_AGGLAYER_1" \
-        "$amount" \
-        "$token_address" \
-        "$dest_account" \
-        "$source_private_key"); then
-        print_error "Failed to bridge assets from L1 to L2"
-        return 1
-    fi
-    
-    print_success "Bridge transaction completed: $bridge_tx_hash"
-    
-    # Step 2: Wait for bridge indexing
-    if ! wait_for_bridge_indexing "$NETWORK_ID_AGGLAYER_1" "$bridge_tx_hash"; then
-        print_error "Bridge indexing failed or timed out"
-        return 1
-    fi
-    
-    # Step 3: Claim assets on L2
-    local claim_tx_hash
-    if ! claim_tx_hash=$(claim_asset_modern \
-        "$NETWORK_ID_AGGLAYER_1" \
-        "$bridge_tx_hash" \
-        "$NETWORK_ID_MAINNET" \
-        "" \
-        "$dest_private_key"); then
-        print_error "Failed to claim assets on L2"
-        return 1
-    fi
-    
-    print_success "Claim transaction completed: ${claim_tx_hash:-N/A}"
-    
-    # Return bridge transaction hash for further processing
-    echo "$bridge_tx_hash"
-    return 0
+    print_debug "Using legacy wrapper - consider updating to execute_l1_to_l2_asset_bridge"
+    execute_l1_to_l2_asset_bridge "$@"
 }
 
 # ============================================================================
@@ -544,14 +435,23 @@ init_bridge_test_environment() {
 # EXPORTS
 # ============================================================================
 
-# Export functions for use in other scripts
+# Export core functions for use in other scripts
 export -f print_step print_info print_error print_success print_debug print_warning
 export -f load_environment validate_bridge_environment validate_sandbox_status
 export -f get_token_balance get_balance_decimal wait_for_transaction
-export -f bridge_asset_modern claim_asset_modern
 export -f get_bridge_info wait_for_bridge_indexing get_claims_info
-export -f execute_l1_to_l2_bridge
 export -f print_bridge_summary print_test_config show_recent_events
 export -f init_bridge_test_environment
 
-print_debug "Bridge test library loaded successfully" 
+# Export legacy compatibility functions
+export -f execute_l1_to_l2_bridge
+
+# Note: Module functions are exported by their respective modules
+# Bridge Asset Module: bridge_asset_modern, bridge_asset_with_approval, execute_l1_to_l2_asset_bridge, execute_l2_to_l1_asset_bridge
+# Bridge Message Module: bridge_message_modern, bridge_text_message, bridge_function_call_message, execute_l1_to_l2_message_bridge, execute_l2_to_l1_message_bridge
+# Claim Asset Module: claim_asset_modern, claim_asset_with_retry, get_claim_proof, is_asset_claimed, wait_for_asset_claimable, verify_claim_transaction
+# Claim Message Module: claim_message_modern, claim_message_with_retry, is_message_claimed, get_message_proof, wait_for_message_claimable, verify_message_claim_transaction, decode_message_data
+# Bridge and Call Module: bridge_and_call_modern, bridge_and_call_function, deploy_bridge_call_receiver, execute_l1_to_l2_bridge_and_call, execute_l2_to_l1_bridge_and_call, verify_bridge_and_call_execution
+# Claim Bridge and Call Module: claim_bridge_and_call_modern, claim_bridge_and_call_with_retry, get_bridge_and_call_info, wait_for_bridge_and_call_claimable, verify_bridge_and_call_claim, extract_bridge_and_call_details
+
+print_debug "Bridge test library v3.0 loaded successfully (modular architecture)" 

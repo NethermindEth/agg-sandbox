@@ -14,3 +14,5 @@ RUST_CONTEXT.md
 cache/
 out/
 agglayer-contracts/deployment_output.json
+
+test/lib/__pycache__/

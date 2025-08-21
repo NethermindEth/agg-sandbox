@@ -1,230 +1,319 @@
-# Bridge Test Library - Modular Architecture
+# Bridge Test Library - Python Implementation
 
-This directory contains the modular bridge test library for the Agglayer Nether Sandbox. The library is structured as separate modules for each type of bridge operation, making it easier to maintain and understand.
+This directory contains the Python implementation of the modular bridge test library for the Agglayer Nether Sandbox. The Python version provides clean, maintainable code with proper error handling and JSON parsing.
 
 ## Architecture Overview
 
 ```
 test/lib/
-├── bridge_test_lib.sh          # Main index file that loads all modules
-├── bridge_asset.sh             # Asset bridging operations
-├── bridge_message.sh           # Message bridging operations
-├── claim_asset.sh              # Asset claiming operations
-├── claim_message.sh            # Message claiming operations
-├── bridge_and_call.sh          # Bridge and call operations
-├── claim_bridge_and_call.sh    # Bridge and call claiming operations
-└── README.md                   # This file
+├── __init__.py                 # Package initialization and exports
+├── bridge_lib.py               # Core utilities and configuration
+├── bridge_asset.py             # Asset bridging operations
+├── bridge_message.py           # Message bridging operations
+├── claim_asset.py              # Asset claiming operations
+├── claim_message.py            # Message claiming operations
+├── bridge_and_call.py          # Bridge and call operations
+├── claim_bridge_and_call.py    # Bridge and call claiming operations
+└── README_python.md            # This file
 ```
 
-## Main Library (bridge_test_lib.sh)
+## Key Advantages Over Bash
 
-The main library acts as an index that:
-- Loads all individual modules
-- Provides core utility functions (logging, environment validation, etc.)
-- Maintains backward compatibility with legacy functions
-- Exports all functions for use in test scripts
+✅ **Clean JSON Parsing** - No more grep/jq complexity  
+✅ **Proper Error Handling** - Try/catch blocks instead of bash error codes  
+✅ **Type Safety** - Type hints and dataclasses  
+✅ **Better Debugging** - Clear error messages and logging  
+✅ **Maintainable Code** - Object-oriented structure  
+✅ **No Regex Hell** - Simple string methods  
 
-### Usage
+## Quick Start
 
-```bash
-# Source the main library in your test script
-source "test/lib/bridge_test_lib.sh"
+```python
+#!/usr/bin/env python3
+import sys
+sys.path.append('test/lib')
 
-# All module functions are now available
-bridge_asset_modern 0 1 100 $TOKEN_ADDRESS $DEST_ADDRESS $PRIVATE_KEY
+from bridge_lib import init_bridge_environment, BridgeLogger, BRIDGE_CONFIG
+from bridge_asset import BridgeAsset
+from claim_asset import ClaimAsset
+
+# Initialize environment
+if not init_bridge_environment():
+    exit(1)
+
+# Bridge 100 tokens from L1 to L2
+bridge_tx, claim_tx = BridgeAsset.execute_l1_to_l2_bridge(
+    amount=100,
+    token_address=BRIDGE_CONFIG.agg_erc20_l1,
+    source_account=BRIDGE_CONFIG.account_address_1,
+    dest_account=BRIDGE_CONFIG.account_address_2,
+    source_private_key=BRIDGE_CONFIG.private_key_1,
+    dest_private_key=BRIDGE_CONFIG.private_key_2
+)
+
+BridgeLogger.success(f"Bridge TX: {bridge_tx}")
+BridgeLogger.success(f"Claim TX: {claim_tx}")
 ```
 
 ## Module Breakdown
 
-### 1. Bridge Asset Module (`bridge_asset.sh`)
+### 1. Core Library (`bridge_lib.py`)
 
-Handles asset bridging operations using the modern aggsandbox CLI.
-
-**Key Functions:**
-- `bridge_asset_modern()` - Bridge assets between networks
-- `bridge_asset_with_approval()` - Bridge with automatic token approval
-- `execute_l1_to_l2_asset_bridge()` - Complete L1→L2 asset flow
-- `execute_l2_to_l1_asset_bridge()` - Complete L2→L1 asset flow
+**Key Classes:**
+- `BridgeConfig` - Environment configuration dataclass
+- `BridgeLogger` - Colored logging with step/info/success/error methods
+- `BridgeEnvironment` - Environment loading and validation
+- `AggsandboxAPI` - Clean interface to aggsandbox CLI commands
+- `BridgeUtils` - Utility functions for common operations
 
 **Example:**
-```bash
-# Bridge 100 tokens from L1 to L2
-bridge_tx_hash=$(bridge_asset_modern 0 1 100 $TOKEN_ADDRESS $DEST_ADDRESS $PRIVATE_KEY)
+```python
+from bridge_lib import BridgeLogger, AggsandboxAPI
+
+# Clean logging
+BridgeLogger.step("Starting bridge operation")
+BridgeLogger.success("Operation completed!")
+
+# Clean JSON parsing
+bridge_data = AggsandboxAPI.get_bridges(network_id=0)
+bridges = bridge_data['bridges']
 ```
 
-### 2. Bridge Message Module (`bridge_message.sh`)
+### 2. Bridge Asset (`bridge_asset.py`)
 
-Handles message bridging operations.
+**Key Methods:**
+- `bridge_asset()` - Bridge assets between networks
+- `wait_for_bridge_indexing()` - Wait for bridge to be indexed
+- `execute_l1_to_l2_bridge()` - Complete L1→L2 flow
+- `execute_l2_to_l1_bridge()` - Complete L2→L1 flow
 
-**Key Functions:**
-- `bridge_message_modern()` - Bridge arbitrary message data
-- `bridge_text_message()` - Bridge simple text messages
+**Example:**
+```python
+from bridge_asset import BridgeAsset
+
+# Simple asset bridge
+tx_hash = BridgeAsset.bridge_asset(0, 1, 100, token_addr, dest_addr, private_key)
+
+# Complete flow with claiming
+bridge_tx, claim_tx = BridgeAsset.execute_l1_to_l2_bridge(
+    100, token_addr, src_addr, dest_addr, src_key, dest_key
+)
+```
+
+### 3. Bridge Message (`bridge_message.py`)
+
+**Key Methods:**
+- `bridge_message()` - Bridge arbitrary message data
+- `bridge_text_message()` - Bridge simple text messages  
 - `bridge_function_call_message()` - Bridge encoded function calls
-- `execute_l1_to_l2_message_bridge()` - Complete L1→L2 message flow
-- `execute_l2_to_l1_message_bridge()` - Complete L2→L1 message flow
 
 **Example:**
-```bash
-# Bridge a text message
-bridge_tx_hash=$(bridge_text_message 0 1 $TARGET_CONTRACT "Hello World!" $PRIVATE_KEY)
+```python
+from bridge_message import BridgeMessage
+
+# Bridge text message
+tx_hash = BridgeMessage.bridge_text_message(0, 1, target_addr, "Hello World!", private_key)
+
+# Bridge function call
+tx_hash = BridgeMessage.bridge_function_call_message(
+    0, 1, target_addr, "transfer(address,uint256)", private_key, dest_addr, 100
+)
 ```
 
-### 3. Claim Asset Module (`claim_asset.sh`)
+### 4. Claim Asset (`claim_asset.py`)
 
-Handles claiming of bridged assets.
-
-**Key Functions:**
-- `claim_asset_modern()` - Claim bridged assets
+**Key Methods:**
+- `claim_asset()` - Claim bridged assets
 - `claim_asset_with_retry()` - Claim with retry logic
-- `get_claim_proof()` - Get proof data for manual claiming
-- `is_asset_claimed()` - Check if asset is already claimed
-- `wait_for_asset_claimable()` - Wait for GER propagation
-- `verify_claim_transaction()` - Verify claim was successful
+- `verify_claim_transaction()` - Verify claim success
 
 **Example:**
-```bash
-# Claim bridged assets with retry
-claim_tx_hash=$(claim_asset_with_retry 1 $BRIDGE_TX_HASH 0 "" $PRIVATE_KEY)
+```python
+from claim_asset import ClaimAsset
+
+# Simple claim
+claim_tx = ClaimAsset.claim_asset(1, bridge_tx_hash, 0, private_key)
+
+# Claim with retry
+claim_tx = ClaimAsset.claim_asset_with_retry(1, bridge_tx_hash, 0, private_key)
 ```
 
-### 4. Claim Message Module (`claim_message.sh`)
+### 5. Bridge and Call (`bridge_and_call.py`)
 
-Handles claiming of bridged messages.
-
-**Key Functions:**
-- `claim_message_modern()` - Claim bridged messages
-- `claim_message_with_retry()` - Claim with retry logic
-- `is_message_claimed()` - Check if message is already claimed
-- `get_message_proof()` - Get proof data for manual claiming
-- `wait_for_message_claimable()` - Wait for GER propagation
-- `verify_message_claim_transaction()` - Verify claim and execution
-- `decode_message_data()` - Decode message data for debugging
-
-**Example:**
-```bash
-# Claim bridged message
-claim_tx_hash=$(claim_message_modern 1 $BRIDGE_TX_HASH 0 "" $PRIVATE_KEY)
-```
-
-### 5. Bridge and Call Module (`bridge_and_call.sh`)
-
-Handles bridge and call operations (atomic token bridge + function execution).
-
-**Key Functions:**
-- `bridge_and_call_modern()` - Execute bridge and call
+**Key Methods:**
+- `bridge_and_call()` - Execute bridge and call
 - `bridge_and_call_function()` - Bridge and call with function encoding
 - `deploy_bridge_call_receiver()` - Deploy test receiver contracts
-- `execute_l1_to_l2_bridge_and_call()` - Complete L1→L2 bridge and call flow
-- `execute_l2_to_l1_bridge_and_call()` - Complete L2→L1 bridge and call flow
-- `verify_bridge_and_call_execution()` - Verify call was executed
+- `verify_bridge_and_call_execution()` - Verify call execution
 
 **Example:**
-```bash
-# Deploy receiver and execute bridge and call
-receiver=$(deploy_bridge_call_receiver 1 $PRIVATE_KEY)
-call_data=$(cast abi-encode "receiveTokens(address,uint256,string)" $TOKEN $AMOUNT "Hello")
-bridge_tx_hash=$(bridge_and_call_modern 0 1 100 $TOKEN $receiver $call_data $PRIVATE_KEY)
+```python
+from bridge_and_call import BridgeAndCall
+
+# Deploy receiver
+receiver_addr = BridgeAndCall.deploy_bridge_call_receiver(1, private_key)
+
+# Bridge and call
+tx_hash = BridgeAndCall.bridge_and_call_function(
+    0, 1, 100, token_addr, receiver_addr, 
+    "receiveTokens(address,uint256,string)", private_key, 
+    None, token_addr, 10, "Hello"
+)
 ```
 
-### 6. Claim Bridge and Call Module (`claim_bridge_and_call.sh`)
+## Usage Patterns
 
-Handles claiming of bridge and call transactions.
+### Simple Asset Bridge
 
-**Key Functions:**
-- `claim_bridge_and_call_modern()` - Claim bridge and call
-- `claim_bridge_and_call_with_retry()` - Claim with retry logic
-- `get_bridge_and_call_info()` - Get bridge and call information
-- `wait_for_bridge_and_call_claimable()` - Wait for both asset and message indexing
-- `verify_bridge_and_call_claim()` - Verify claim and call execution
-- `extract_bridge_and_call_details()` - Extract event details
+```python
+#!/usr/bin/env python3
+import sys
+sys.path.append('test/lib')
 
-**Example:**
-```bash
-# Claim bridge and call transaction
-claim_tx_hash=$(claim_bridge_and_call_modern 1 $BRIDGE_TX_HASH 0 "" $PRIVATE_KEY)
-```
+from bridge_lib import init_bridge_environment, BRIDGE_CONFIG, BridgeLogger
+from bridge_asset import BridgeAsset
 
-## Common Patterns
+def main():
+    # Initialize
+    if not init_bridge_environment():
+        return 1
+    
+    # Bridge assets
+    bridge_tx, claim_tx = BridgeAsset.execute_l1_to_l2_bridge(
+        amount=50,
+        token_address=BRIDGE_CONFIG.agg_erc20_l1,
+        source_account=BRIDGE_CONFIG.account_address_1,
+        dest_account=BRIDGE_CONFIG.account_address_2,
+        source_private_key=BRIDGE_CONFIG.private_key_1,
+        dest_private_key=BRIDGE_CONFIG.private_key_2
+    )
+    
+    if bridge_tx and claim_tx:
+        BridgeLogger.success("🎉 Bridge and claim completed!")
+        BridgeLogger.info(f"Bridge TX: {bridge_tx}")
+        BridgeLogger.info(f"Claim TX: {claim_tx}")
+        return 0
+    else:
+        BridgeLogger.error("Bridge or claim failed")
+        return 1
 
-### Complete Bridge Flow
-
-```bash
-# L1 to L2 Asset Bridge
-source "test/lib/bridge_test_lib.sh"
-
-# Initialize environment
-init_bridge_test_environment
-
-# Execute complete flow
-bridge_tx_hash=$(execute_l1_to_l2_asset_bridge 100 $TOKEN_ADDRESS $SRC_ADDR $DEST_ADDR $SRC_KEY $DEST_KEY)
+if __name__ == "__main__":
+    sys.exit(main())
 ```
 
 ### Bridge and Call Flow
 
-```bash
-# Deploy receiver contract
-receiver=$(deploy_bridge_call_receiver 1 $PRIVATE_KEY)
+```python
+#!/usr/bin/env python3
+import sys
+sys.path.append('test/lib')
 
-# Prepare call data
-call_data=$(cast abi-encode "receiveTokensWithMessage(address,uint256,string)" $TOKEN 10 "Hello")
+from bridge_lib import init_bridge_environment, BRIDGE_CONFIG, BridgeLogger
+from bridge_and_call import BridgeAndCall
+from claim_bridge_and_call import ClaimBridgeAndCall
 
-# Execute bridge and call
-bridge_tx_hash=$(execute_l1_to_l2_bridge_and_call 100 $TOKEN $receiver $call_data)
+def main():
+    # Initialize
+    if not init_bridge_environment():
+        return 1
+    
+    # Deploy receiver contract
+    receiver = BridgeAndCall.deploy_bridge_call_receiver(1, BRIDGE_CONFIG.private_key_1)
+    if not receiver:
+        return 1
+    
+    # Execute bridge and call
+    bridge_tx = BridgeAndCall.bridge_and_call_function(
+        0, 1, 100, BRIDGE_CONFIG.agg_erc20_l1, receiver,
+        "receiveTokensWithMessage(address,uint256,string)",
+        BRIDGE_CONFIG.private_key_1, None,
+        BRIDGE_CONFIG.agg_erc20_l1, 10, "Hello from L1!"
+    )
+    
+    if not bridge_tx:
+        return 1
+    
+    # Claim bridge and call
+    claim_tx = ClaimBridgeAndCall.claim_bridge_and_call(
+        1, bridge_tx, 0, BRIDGE_CONFIG.private_key_2
+    )
+    
+    if claim_tx:
+        # Verify execution
+        BridgeAndCall.verify_bridge_and_call_execution(receiver, 1, "Hello from L1!", 10)
+        BridgeLogger.success("🎉 Bridge and call completed!")
+        return 0
+    else:
+        BridgeLogger.error("Bridge and call failed")
+        return 1
 
-# Verify execution
-verify_bridge_and_call_execution $receiver 1 "Hello" 10
+if __name__ == "__main__":
+    sys.exit(main())
 ```
 
-### Error Handling
+## Error Handling
 
-All functions return appropriate exit codes:
-- `0` - Success
-- `1` - General failure
-- `2` - Already claimed/processed
-- `3` - Global Exit Root invalid (retry recommended)
-- `4` - Dependency not met (e.g., unclaimed asset)
+Python version provides clean error handling:
 
-### Debugging
-
-Enable debug mode for detailed logging:
-```bash
-export DEBUG=1
-source "test/lib/bridge_test_lib.sh"
+```python
+try:
+    bridge_tx = BridgeAsset.bridge_asset(0, 1, 100, token, dest, key)
+    if not bridge_tx:
+        BridgeLogger.error("Bridge failed")
+        return None
+    
+    claim_tx = ClaimAsset.claim_asset(1, bridge_tx, 0, key)
+    if claim_tx == "already_claimed":
+        BridgeLogger.info("Asset was already claimed")
+    elif not claim_tx:
+        BridgeLogger.error("Claim failed")
+        return None
+    
+    return bridge_tx, claim_tx
+    
+except Exception as e:
+    BridgeLogger.error(f"Unexpected error: {e}")
+    return None
 ```
 
-## Migration from Legacy Library
+## Benefits Over Bash
 
-The modular library maintains backward compatibility:
+| Feature | Bash Version | Python Version |
+|---------|-------------|----------------|
+| **JSON Parsing** | grep/jq complexity | `json.loads()` |
+| **Error Handling** | Exit codes | Try/catch blocks |
+| **Data Types** | String manipulation | Proper types |
+| **Code Structure** | Functions | Classes and methods |
+| **Debugging** | Complex logging | Clean error messages |
+| **Maintainability** | Fragile regex | Robust parsing |
+| **Testing** | Hard to unit test | Easy to test |
 
-```bash
-# Old way (still works)
-execute_l1_to_l2_bridge 100 $TOKEN $SRC $DEST $SRC_KEY $DEST_KEY
+## Environment Variables
 
-# New way (recommended)
-execute_l1_to_l2_asset_bridge 100 $TOKEN $SRC $DEST $SRC_KEY $DEST_KEY
+Same as bash version - loaded from `.env` file:
+
+```
+PRIVATE_KEY_1=0x...
+PRIVATE_KEY_2=0x...
+ACCOUNT_ADDRESS_1=0x...
+ACCOUNT_ADDRESS_2=0x...
+RPC_1=http://localhost:8545
+RPC_2=http://localhost:8546
+# ... etc
 ```
 
-## Best Practices
+## Migration from Bash
 
-1. **Always source the main library**: Use `bridge_test_lib.sh` as your entry point
-2. **Use specific functions**: Choose the most appropriate function for your use case
-3. **Handle errors**: Check return codes and handle common error patterns
-4. **Enable debugging**: Use `DEBUG=1` for troubleshooting
-5. **Wait for indexing**: Use the provided waiting functions for proper timing
-6. **Verify results**: Use verification functions to ensure operations completed
+The Python version maintains the same functionality:
 
-## Environment Requirements
+```bash
+# Bash
+bridge_tx_hash=$(bridge_asset_modern 0 1 100 $TOKEN $DEST $PRIVATE_KEY)
+```
 
-- `aggsandbox` CLI installed and running
-- `cast` (Foundry) for blockchain interactions
-- `jq` for JSON parsing
-- Required environment variables set (see main library for details)
+```python
+# Python
+bridge_tx_hash = BridgeAsset.bridge_asset(0, 1, 100, token, dest, private_key)
+```
 
-## Contributing
-
-When adding new functionality:
-1. Choose the appropriate module or create a new one
-2. Follow the existing function naming conventions
-3. Add proper error handling and debugging
-4. Export new functions in the module
-5. Update this README with examples
+Much cleaner and more reliable! 🐍✨

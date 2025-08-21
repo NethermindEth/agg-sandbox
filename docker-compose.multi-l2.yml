@@ -55,6 +55,7 @@ services:
   # === CONTRACT DEPLOYMENT ===
   contract-deployer:
     image: ametelnethermind/aggsandbox-deployer:latest
+    pull_policy: always
     depends_on:
       anvil-l1:
         condition: service_healthy
@@ -75,6 +76,7 @@ services:
   # Contract verification service for AggKit startup
   aggkit-wait:
     image: alpine:latest
+    pull_policy: missing
     depends_on:
       contract-deployer:
         condition: service_completed_successfully
@@ -109,7 +111,10 @@ services:
   # AggKit for L2 (L1 ↔ L2 bridge)
   aggkit-l2:
     image: ametelnethermind/aggkit:latest
+    pull_policy: always
     depends_on:
+      contract-deployer:
+        condition: service_completed_successfully
       aggkit-wait:
         condition: service_completed_successfully
     ports:
@@ -121,21 +126,20 @@ services:
     volumes:
       - ./config:/app/config
       - aggkit-l2-data:/app/data
-    env_file:
-      - .env
+      - ./.env:/app/.env:ro  # Mount .env file directly so it can be read at runtime
     environment:
       # Basic configuration
       - AGGKIT_SANDBOX_ENABLED=true
       - AGGKIT_LOG_LEVEL=info
       - AGGKIT_COMPONENTS=bridge,aggoracle,claim-sponsor
       - AGGKIT_CLAIMSPONSOR_ENABLED=true
-      - AGGKIT_CLAIMSPONSOR_CLAIM_ALL=${AGGKIT_CLAIMSPONSOR_CLAIM_ALL:-false}
+      - AGGKIT_CLAIMSPONSOR_CLAIM_ALL=false
 
       # Network configuration
       - AGGKIT_L1_URL=http://anvil-l1:8545
       - AGGKIT_L2_URL=http://anvil-l2:8545
-      - AGGKIT_L1_CHAIN_ID=${CHAIN_ID_MAINNET:-1}
-      - AGGKIT_L2_CHAIN_ID=${CHAIN_ID_AGGLAYER_1:-1101}
+      - AGGKIT_L1_CHAIN_ID=1
+      - AGGKIT_L2_CHAIN_ID=1101
 
       # Service ports
       - AGGKIT_REST_PORT=5577
@@ -145,19 +149,17 @@ services:
       # Database
       - AGGKIT_DATABASE_NAME=/app/data/aggkit_l2.db
 
-      # Contract addresses (from .env file)
-      - POLYGON_ZKEVM_BRIDGE_L1=${POLYGON_ZKEVM_BRIDGE_L1}
-      - POLYGON_ZKEVM_BRIDGE_L2=${POLYGON_ZKEVM_BRIDGE_L2}
-      - POLYGON_ZKEVM_GLOBAL_EXIT_ROOT_L1=${POLYGON_ZKEVM_GLOBAL_EXIT_ROOT_L1}
-      - POLYGON_ZKEVM_GLOBAL_EXIT_ROOT_L2=${GLOBAL_EXIT_ROOT_MANAGER_L2}
-      - POLYGON_ROLLUP_MANAGER_L1=${POLYGON_ROLLUP_MANAGER_L1}
-      - POLYGON_ZKEVM_L2_ROLLUP=${POLYGON_ZKEVM_L2_ROLLUP}
+      # Tell the entrypoint script to read from mounted .env file
+      - AGGKIT_ENV_FILE=/app/.env
     container_name: aggkit-l2
 
   # AggKit for L3 (L1 ↔ L3 bridge)
   aggkit-l3:
     image: ametelnethermind/aggkit:latest
+    pull_policy: always
     depends_on:
+      contract-deployer:
+        condition: service_completed_successfully
       aggkit-wait:
         condition: service_completed_successfully
     ports:
@@ -169,21 +171,20 @@ services:
     volumes:
       - ./config:/app/config
       - aggkit-l3-data:/app/data
-    env_file:
-      - .env
+      - ./.env:/app/.env:ro  # Mount .env file directly so it can be read at runtime
     environment:
       # Basic configuration
       - AGGKIT_SANDBOX_ENABLED=true
       - AGGKIT_LOG_LEVEL=info
       - AGGKIT_COMPONENTS=bridge,aggoracle,claim-sponsor
       - AGGKIT_CLAIMSPONSOR_ENABLED=true
-      - AGGKIT_CLAIMSPONSOR_CLAIM_ALL=${AGGKIT_CLAIMSPONSOR_CLAIM_ALL:-false}
+      - AGGKIT_CLAIMSPONSOR_CLAIM_ALL=false
 
       # Network configuration
       - AGGKIT_L1_URL=http://anvil-l1:8545
       - AGGKIT_L2_URL=http://anvil-l3:8545
-      - AGGKIT_L1_CHAIN_ID=${CHAIN_ID_MAINNET:-1}
-      - AGGKIT_L2_CHAIN_ID=${CHAIN_ID_AGGLAYER_2:-137}
+      - AGGKIT_L1_CHAIN_ID=1
+      - AGGKIT_L2_CHAIN_ID=137
 
       # Service ports (different internal ports to avoid conflicts)
       - AGGKIT_REST_PORT=5578
@@ -193,13 +194,8 @@ services:
       # Database (different path to avoid conflicts)
       - AGGKIT_DATABASE_NAME=/app/data/aggkit_l3.db
 
-      # Contract addresses for L3 (using deployed L3 contracts)
-      - POLYGON_ZKEVM_BRIDGE_L1=${POLYGON_ZKEVM_BRIDGE_L1}
-      - POLYGON_ZKEVM_BRIDGE_L2=${POLYGON_ZKEVM_BRIDGE_L3}
-      - POLYGON_ZKEVM_GLOBAL_EXIT_ROOT_L1=${POLYGON_ZKEVM_GLOBAL_EXIT_ROOT_L1}
-      - POLYGON_ZKEVM_GLOBAL_EXIT_ROOT_L2=${GLOBAL_EXIT_ROOT_MANAGER_L3}
-      - POLYGON_ROLLUP_MANAGER_L1=${POLYGON_ROLLUP_MANAGER_L1}
-      - POLYGON_ZKEVM_L3_ROLLUP=${POLYGON_ZKEVM_L3_ROLLUP}
+      # Tell the entrypoint script to read from mounted .env file
+      - AGGKIT_ENV_FILE=/app/.env
     container_name: aggkit-l3
 
 networks:

@@ -51,8 +51,8 @@ contract BridgeExtensionAddressTest is Test {
         // Deploy BridgeExtensions using CREATE2 with same salt
         bytes32 salt = keccak256("BRIDGE_EXTENSION_SALT_V1");
 
-        BridgeExtension bridgeExtensionL1 = new BridgeExtension{salt: salt}(address(bridgeL1));
-        BridgeExtension bridgeExtensionL2 = new BridgeExtension{salt: salt}(address(bridgeL2));
+        BridgeExtension bridgeExtensionL1 = new BridgeExtension{salt: salt}(payable(address(bridgeL1)));
+        BridgeExtension bridgeExtensionL2 = new BridgeExtension{salt: salt}(payable(address(bridgeL2)));
 
         console2.log("BridgeExtension L1 address:", address(bridgeExtensionL1));
         console2.log("BridgeExtension L2 address:", address(bridgeExtensionL2));

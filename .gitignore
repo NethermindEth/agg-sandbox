@@ -13,3 +13,4 @@ RUST_CONTEXT.md
 
 cache/
 out/
+agglayer-contracts/deployment_output.json

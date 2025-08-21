@@ -48,10 +48,11 @@ POLYGON_ZKEVM_BRIDGE_L2=0x2279B7A0a67DB372996a5FaB50D91eAA73d2eBe6
 ```bash
 # Bridge 0.1 ETH from L1 to L2
 aggsandbox bridge asset \
-  --network 0 \
-  --destination-network 1 \
-  --amount 1 \ # Wei
-  --token-address 0x0000000000000000000000000000000000000000
+    --network 0 \
+    --destination-network 1 \
+    --amount 100000000000000000 \
+    --token-address 0x0000000000000000000000000000000000000000 \
+    --to-address $ACCOUNT_ADDRESS_2
 ```
 
 #### 2. Monitor Bridge Transaction
@@ -120,11 +121,11 @@ aggsandbox claim-status --global-index <global_index> --network-id <network_id>
 #### 1. Bridge ERC20 Tokens
 
 ```bash
-# Bridge 100 tokens from L1 to L2
+# Bridge 100 tokens from L1 to L2 (100 * 10^18 wei for 18 decimal token)
 aggsandbox bridge asset \
   --network 0 \
   --destination-network 1 \
-  --amount 100 \
+  --amount 100000000000000000000 \
   --token-address $AGG_ERC20_L1 \
   --to-address $ACCOUNT_ADDRESS_2
 ```
@@ -176,7 +177,7 @@ The CLI automatically:
 aggsandbox bridge asset \
   --network 1 \
   --destination-network 0 \
-  --amount 50 \
+  --amount 50000000000000000000 \
   --token-address $WRAPPED_TOKEN_ADDRESS \
   --to-address $ACCOUNT_ADDRESS_1
 ```
@@ -205,7 +206,7 @@ aggsandbox bridge message \
   --destination-network 1 \
   --target $AGG_ERC20_L2 \
   --data $MESSAGE_DATA \
-  --amount 1 \
+  --amount 1000000000000000000 \
   --fallback-address $ACCOUNT_ADDRESS_1
 ```
 
@@ -223,42 +224,37 @@ The CLI automatically detects it's a message bridge and calls `claimMessage`.
 
 ## Advanced Bridge-and-Call
 
-Bridge-and-Call combines asset bridging with contract execution in a single atomic operation.
+Bridge-and-Call combines asset bridging with contract execution in a single atomic operation. This follows the Agglayer tutorial pattern for bridging ETH and calling a contract that expects `msg.value == assetAmount`.
 
 ### Setup Bridge-and-Call
 
 #### 1. Prepare Call Data
 
 ```bash
-# Encode transfer function call
-TRANSFER_DATA=$(cast calldata "transfer(address,uint256)" $ACCOUNT_ADDRESS_1 10)
-
-# Get precalculated L2 token address
-L2_TOKEN_ADDRESS=$(aggsandbox bridge utils precalculate \
-    --network 1 \
-    --origin-network 0 \
-    --origin-token "$AGG_ERC20_L1" \
-    --json | jq -r '.precalculated_address')
+# Encode the processTransferAndCall function call with amount parameter
+# The amount parameter should match the bridged ETH amount in wei
+TRANSFER_DATA=$(cast calldata "processTransferAndCall(uint256)" 10000000000000000)
 ```
 
 #### 2. Execute Bridge-and-Call
 
 ```bash
-# Execute bridge-and-call operation
+# Execute bridge-and-call operation - bridges 1 ETH from L1 to L2
 aggsandbox bridge bridge-and-call \
   --network 0 \
   --destination-network 1 \
-  --token $AGG_ERC20_L1 \
-  --amount 10 \
-  --target $L2_TOKEN_ADDRESS \
+  --token 0x0000000000000000000000000000000000000000 \
+  --amount 10000000000000000 \
+  --target $ASSET_AND_CALL_RECEIVER_L2 \
   --data $TRANSFER_DATA \
-  --fallback $ACCOUNT_ADDRESS_1
+  --fallback $ACCOUNT_ADDRESS_1 \
+  --msg-value 10000000000000000
 ```
 
 This creates **two** bridge transactions:
 
-- **Asset Bridge** (deposit_count = 0): Bridges tokens to JumpPoint
-- **Message Bridge** (deposit_count = 1): Contains execution instructions
+- **Asset Bridge** (deposit_count = 0): Bridges ETH to destination network
+- **Message Bridge** (deposit_count = 1): Contains contract call instructions
 
 ### Two-Phase Claiming Process
 
@@ -278,21 +274,16 @@ aggsandbox bridge claim \
   --deposit-count 0
 ```
 
-#### Phase 2: Claim Message Bridge
+#### Phase 2: Claim Message Bridge with ETH Value
 
 ```bash
-METADATA=$(cast abi-encode "f(uint256,address,address,uint32,address,bytes)" \
-  0 $L2_TOKEN_ADDRESS $ACCOUNT_ADDRESS_2 0 $AGG_ERC20_L1 $TRANSFER_DATA)
-```
-
-```bash
-# Claim message bridge SECOND (deposit_count = 1)
+# Claim message bridge SECOND (deposit_count = 1) with msg.value
+# The --msg-value must match the assetAmount parameter in the call data (both in wei)
 aggsandbox bridge claim \
   --network 1 \
   --tx-hash <bridge_tx_hash> \
   --source-network 0 \
   --deposit-count 1 \
-  --data $METADATA
 ```
 
 **Important**: The asset bridge must be claimed first. The message bridge automatically executes the contract call when claimed.
@@ -371,7 +362,7 @@ aggsandbox start --multi-l2 --detach
 aggsandbox bridge asset \
   --network 1 \
   --destination-network 2 \
-  --amount 1.0 \
+  --amount 1000000000000000000 \
   --token-address 0x0000000000000000000000000000000000000000
 
 # Claim on L2-2
@@ -468,7 +459,7 @@ aggsandbox bridge claim \
 aggsandbox start --detach && source .env
 
 # 2. Bridge assets
-aggsandbox bridge asset --network 0 --destination-network 1 --amount 0.5 --token-address 0x0000000000000000000000000000000000000000
+aggsandbox bridge asset --network 0 --destination-network 1 --amount 500000000000000000 --token-address 0x0000000000000000000000000000000000000000
 
 # 3. Wait for confirmation
 aggsandbox show bridges --network-id 0
@@ -483,18 +474,34 @@ aggsandbox show claims --network-id 1
 ### Bridge-and-Call Workflow
 
 ```bash
-# 1. Prepare call data
-TRANSFER_DATA=$(cast calldata "transfer(address,uint256)" $ACCOUNT_ADDRESS_1 1000000000000000000)
-L2_TOKEN_ADDRESS=$(aggsandbox bridge utils precalculate --network 1 --origin-network 0 --origin-token $AGG_ERC20_L1 --json | jq -r '.precalculated_address')
+# 1. Prepare call data for AssetAndCallReceiver contract
+TRANSFER_DATA=$(cast calldata "processTransferAndCall(uint256)" 1000000000000000000)
 
-# 2. Execute bridge-and-call
-aggsandbox bridge bridge-and-call --network 0 --destination-network 1 --token $AGG_ERC20_L1 --amount 10 --target $L2_TOKEN_ADDRESS --data $TRANSFER_DATA --fallback $ACCOUNT_ADDRESS_1
+# 2. Execute bridge-and-call with ETH (1 ETH)
+aggsandbox bridge bridge-and-call \
+  --network 0 \
+  --destination-network 1 \
+  --token 0x0000000000000000000000000000000000000000 \
+  --amount 1000000000000000000 \
+  --target $ASSET_AND_CALL_RECEIVER_L2 \
+  --data $TRANSFER_DATA \
+  --fallback $ACCOUNT_ADDRESS_1 \
+  --msg-value 1000000000000000000000000000000000000
 
 # 3. Claim asset bridge (must be first)
-aggsandbox bridge claim --network 1 --tx-hash <hash> --source-network 0 --deposit-count 0
+aggsandbox bridge claim \
+  --network 1 \
+  --tx-hash <hash> \
+  --source-network 0 \
+  --deposit-count 0
 
-# 4. Claim message bridge (triggers execution)
-aggsandbox bridge claim --network 1 --tx-hash <hash> --source-network 0 --deposit-count 1
+# 4. Claim message bridge with ETH value (triggers contract execution)
+aggsandbox bridge claim \
+  --network 1 \
+  --tx-hash <hash> \
+  --source-network 0 \
+  --deposit-count 1 \
+  --msg-value 1000000000000000000
 ```
 
 ## Next Steps

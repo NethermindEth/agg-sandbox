@@ -10,7 +10,7 @@ contract JumpPoint {
     using SafeERC20 for IERC20;
 
     constructor(
-        address bridge,
+        address payable bridge,
         uint32 assetOriginalNetwork,
         address assetOriginalAddress,
         address callAddress,

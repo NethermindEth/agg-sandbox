@@ -197,6 +197,16 @@ fn get_event_signatures() -> HashMap<&'static str, &'static str> {
         "TransferAdminRole(address)",
     );
 
+    // AssetAndCallReceiver Events
+    m.insert(
+        "0x14b249705272b1faf0992521c9b70ab502f779d6688eb29cc0b65686f171c4e9",
+        "MessageReceived(address,uint32,bytes,uint256)",
+    );
+    m.insert(
+        "0x9487f004efd5b1c61d445fef51ea041e80ce3afe8c4c7853f833eaaba68fd036",
+        "AssetReceived(address,uint256)",
+    );
+
     m
 }
 
@@ -413,6 +423,12 @@ fn decode_known_event(event_name: &str, log: &Log) {
         }
         "NewWrappedToken(uint32,address,address,bytes)" => {
             decode_new_wrapped_token_event(log);
+        }
+        "MessageReceived(address,uint32,bytes,uint256)" => {
+            decode_message_received_event(log);
+        }
+        "AssetReceived(address,uint256)" => {
+            decode_asset_received_event(log);
         }
         _ => {
             println!("  ⚠️  Decoding not implemented for this event type");
@@ -651,6 +667,35 @@ fn decode_new_wrapped_token_event(log: &Log) {
                 }
             }
         }
+    }
+}
+
+fn decode_message_received_event(log: &Log) {
+    println!("  📨 Message Received:");
+    if log.topics.len() >= 2 && !log.data.is_empty() && log.data.len() >= 96 {
+        let origin_address = format!("0x{}", hex::encode(&log.topics[1][12..]));
+        let origin_network = U256::from(&log.data[0..32]);
+        let eth_amount = U256::from(&log.data[64..96]);
+
+        println!("  📍 Origin Address: {}", origin_address.yellow());
+        println!("  🌐 Origin Network: {}", origin_network.to_string().cyan());
+        println!("  💰 ETH Amount: {} wei", eth_amount.to_string().green());
+
+        // Try to decode the data bytes
+        if log.data.len() > 96 {
+            println!("  📋 Message Data: Available");
+        }
+    }
+}
+
+fn decode_asset_received_event(log: &Log) {
+    println!("  💰 Asset Received:");
+    if log.topics.len() >= 2 && !log.data.is_empty() && log.data.len() >= 32 {
+        let sender = format!("0x{}", hex::encode(&log.topics[1][12..]));
+        let amount = U256::from(&log.data[0..32]);
+
+        println!("  👤 Sender: {}", sender.yellow());
+        println!("  💰 Amount: {} wei", amount.to_string().green());
     }
 }
 

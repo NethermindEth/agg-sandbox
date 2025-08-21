@@ -41,6 +41,7 @@ abigen!(
     BridgeContract,
     r#"[
         function bridgeAsset(uint32 destinationNetwork, address destinationAddress, uint256 amount, address token, bool forceUpdateGlobalExitRoot, bytes permitData) external payable
+        function bridgeMessage(uint32 destinationNetwork, address destinationAddress, bool forceUpdateGlobalExitRoot, bytes metadata) external payable
         function claimAsset(uint256 globalIndex, bytes32 mainnetExitRoot, bytes32 rollupExitRoot, uint32 originNetwork, address originTokenAddress, uint32 destinationNetwork, address destinationAddress, uint256 amount, bytes metadata) external
         function claimMessage(uint256 globalIndex, bytes32 mainnetExitRoot, bytes32 rollupExitRoot, uint32 originNetwork, address originAddress, uint32 destinationNetwork, address destinationAddress, uint256 amount, bytes metadata) external
         function precalculatedWrapperAddress(uint32 originNetwork, address originTokenAddress, string name, string symbol, uint8 decimals) external view returns (address)
@@ -145,9 +146,9 @@ pub enum BridgeCommands {
         )]
         msg_value: Option<String>,
     },
-    /// 📬 Bridge with contract call (bridgeAndCall)
+    /// 📬 Bridge message to destination network
     #[command(
-        long_about = "Bridge assets or ETH with a contract call on the destination network.\n\nThis combines bridging with executing a contract call, allowing for\ncomplex cross-chain interactions in a single transaction.\n\nThe call data should be hex-encoded function call data for the target contract.\nIf the contract call fails, assets will be sent to the fallback address.\n\nExamples:\n  aggsandbox bridge message --network 1 --destination-network 1101 --target 0x123... --data 0xabc...\n  aggsandbox bridge message -n 1 -d 0 -t 0x456... --data 0xdef... --amount 0.1 --fallback-address 0x789..."
+        long_about = "Send a message to the destination network that can be claimed and executed.\n\nThis creates a pure message bridge using the bridgeMessage function,\nwhich must be manually claimed on the destination network.\n\nThe call data should be hex-encoded data that will be passed to the target address.\nThis is useful for sending data or triggering specific actions on the destination chain.\n\nExamples:\n  aggsandbox bridge message --network 0 --destination-network 1 --target 0x123... --data 0xabc...\n  aggsandbox bridge message -n 0 -d 1 -t 0x456... --data 0xdef... --amount 0.1"
     )]
     Message {
         /// Source network ID

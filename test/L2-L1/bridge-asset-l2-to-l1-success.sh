@@ -1,334 +1,314 @@
 #!/bin/bash
-# Test script for successful L2 to L1 bridging
-# This tests the complete flow of bridging assets from L2 back to L1
+# Test script for bridging assets from L2 to L1 using modern aggsandbox CLI
+# This script demonstrates how to reuse the modular bridge library for different directions
+# Version: 2.0 - Updated for modern aggsandbox CLI with modular design
 
 set -e  # Exit on error
 
-# Colors for output
-GREEN='\033[0;32m'
-YELLOW='\033[1;33m'
-RED='\033[0;31m'
-BLUE='\033[0;34m'
-NC='\033[0m' # No Color
+# ============================================================================
+# SCRIPT CONFIGURATION
+# ============================================================================
 
-# Helper functions
-print_step() {
-    echo -e "${GREEN}[STEP]${NC} $1"
-}
+# Get the directory of this script
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
 
-print_info() {
-    echo -e "${YELLOW}[INFO]${NC} $1"
-}
-
-print_error() {
-    echo -e "${RED}[ERROR]${NC} $1"
-}
-
-print_success() {
-    echo -e "${GREEN}[SUCCESS]${NC} $1"
-}
-
-print_debug() {
-    if [ "$DEBUG" = "1" ]; then
-        echo -e "${BLUE}[DEBUG]${NC} $1"
-    fi
-}
-
-# Helper function to extract JSON from aggsandbox output
-extract_json() {
-    sed -n '/^{/,/^}/p'
-}
-
-# Load environment variables
-if [ -f .env ]; then
-    source .env
-    print_info "Loaded environment variables from .env"
+# Load the shared bridge test library
+LIB_PATH="$SCRIPT_DIR/../lib/bridge_test_lib.sh"
+if [ -f "$LIB_PATH" ]; then
+    source "$LIB_PATH"
 else
-    print_error ".env file not found. Please ensure you have the environment file."
+    echo "Error: Bridge test library not found at $LIB_PATH"
+    echo "Please ensure the test library exists and is accessible."
     exit 1
 fi
 
-# Parse command line arguments
-BRIDGE_AMOUNT=${1:-10}  # Default to 10 tokens if not specified
+# ============================================================================
+# SCRIPT-SPECIFIC CONFIGURATION
+# ============================================================================
 
-echo ""
-print_info "========== L2 TO L1 BRIDGE TEST =========="
-print_info "Bridge Amount: $BRIDGE_AMOUNT AGG tokens"
-echo ""
+# Script metadata
+readonly SCRIPT_NAME="L2-L1 Bridge Asset Test"
+readonly SCRIPT_VERSION="2.0"
+readonly SCRIPT_DESCRIPTION="Test bridging assets from L2 to L1 using modern aggsandbox CLI"
 
-# Step 1: Check initial balances
-print_step "1. Checking initial balances"
+# Default configuration
+BRIDGE_AMOUNT=${DEFAULT_BRIDGE_AMOUNT:-50}
+TOKEN_ADDRESS=""
+SHOW_EVENTS=false
+VERBOSE=false
+DRY_RUN=false
 
-# Get L1 balance
-L1_BALANCE_BEFORE=$(cast call $AGG_ERC20_L1 \
-    "balanceOf(address)" \
-    $ACCOUNT_ADDRESS_1 \
-    --rpc-url $RPC_1 | sed 's/0x//' | tr '[:lower:]' '[:upper:]')
-L1_BALANCE_BEFORE_DEC=$((16#$L1_BALANCE_BEFORE))
+# ============================================================================
+# L2-L1 SPECIFIC FUNCTIONS
+# ============================================================================
 
-# Get L2 balance
-L2_BALANCE_BEFORE=$(cast call $AGG_ERC20_L2 \
-    "balanceOf(address)" \
-    $ACCOUNT_ADDRESS_1 \
-    --rpc-url $RPC_2 | sed 's/0x//' | tr '[:lower:]' '[:upper:]')
-L2_BALANCE_BEFORE_DEC=$((16#$L2_BALANCE_BEFORE))
+# Execute L2 to L1 bridge flow (reverse direction)
+execute_l2_to_l1_bridge() {
+    local amount="${1:-$DEFAULT_BRIDGE_AMOUNT}"
+    local token_address="${2:-$AGG_ERC20_L2}"
+    local source_account="${3:-$ACCOUNT_ADDRESS_2}"
+    local dest_account="${4:-$ACCOUNT_ADDRESS_1}"
+    local source_private_key="${5:-$PRIVATE_KEY_2}"
+    local dest_private_key="${6:-$PRIVATE_KEY_1}"
+    
+    print_step "Executing complete L2 to L1 bridge flow"
+    print_info "Amount: $amount tokens"
+    print_info "Token: $token_address"
+    print_info "From: $source_account (L2)"
+    print_info "To: $dest_account (L1)"
+    
+    # Step 1: Bridge assets from L2 to L1
+    local bridge_tx_hash
+    if ! bridge_tx_hash=$(bridge_asset_modern \
+        "$NETWORK_ID_AGGLAYER_1" \
+        "$NETWORK_ID_MAINNET" \
+        "$amount" \
+        "$token_address" \
+        "$dest_account" \
+        "$source_private_key"); then
+        print_error "Failed to bridge assets from L2 to L1"
+        return 1
+    fi
+    
+    print_success "Bridge transaction completed: $bridge_tx_hash"
+    
+    # Step 2: Wait for bridge indexing (L1 network for L2->L1 bridges)
+    if ! wait_for_bridge_indexing "$NETWORK_ID_MAINNET" "$bridge_tx_hash"; then
+        print_error "Bridge indexing failed or timed out"
+        return 1
+    fi
+    
+    # Step 3: Claim assets on L1
+    local claim_tx_hash
+    if ! claim_tx_hash=$(claim_asset_modern \
+        "$NETWORK_ID_MAINNET" \
+        "$bridge_tx_hash" \
+        "$NETWORK_ID_AGGLAYER_1" \
+        "" \
+        "$dest_private_key"); then
+        print_error "Failed to claim assets on L1"
+        return 1
+    fi
+    
+    print_success "Claim transaction completed: ${claim_tx_hash:-N/A}"
+    
+    # Return bridge transaction hash for further processing
+    echo "$bridge_tx_hash"
+    return 0
+}
 
-print_info "Account: $ACCOUNT_ADDRESS_1"
-print_info "L1 Balance: $L1_BALANCE_BEFORE_DEC AGG tokens"
-print_info "L2 Balance: $L2_BALANCE_BEFORE_DEC AGG tokens"
+# Validate L2-L1 specific prerequisites
+validate_l2_prerequisites() {
+    print_step "Validating L2-L1 bridge prerequisites"
+    
+    # Check if we're in the right directory
+    if [ ! -f "$PROJECT_ROOT/.env" ] && [ ! -f "$PROJECT_ROOT/.env.example" ]; then
+        print_error "Not in project root directory. Please run from the aggsandbox project root."
+        return 1
+    fi
+    
+    # Change to project root if not already there
+    cd "$PROJECT_ROOT"
+    
+    # Initialize environment
+    if ! init_bridge_test_environment; then
+        return 1
+    fi
+    
+    # Set default token address if not specified (use L2 wrapped token)
+    if [ -z "$TOKEN_ADDRESS" ]; then
+        # For L2->L1, we typically bridge wrapped tokens back
+        # This would be the wrapped token created from previous L1->L2 bridge
+        TOKEN_ADDRESS="0x19e2b7738a026883d08c3642984ab6d7510ca238"  # Common wrapped token address
+        print_info "Using default L2 wrapped token: $TOKEN_ADDRESS"
+        print_info "Note: This assumes you have previously bridged tokens from L1 to L2"
+    fi
+    
+    # Validate token address format
+    if [[ ! "$TOKEN_ADDRESS" =~ ^0x[a-fA-F0-9]{40}$ ]]; then
+        print_error "Invalid token address format: $TOKEN_ADDRESS"
+        return 1
+    fi
+    
+    print_success "L2-L1 bridge prerequisites validated"
+    return 0
+}
 
-# Check if we have enough balance on L2
-if [ $L2_BALANCE_BEFORE_DEC -lt $BRIDGE_AMOUNT ]; then
-    print_error "Insufficient L2 balance. Need $BRIDGE_AMOUNT but have $L2_BALANCE_BEFORE_DEC"
-    print_info "Please ensure you have bridged tokens from L1 to L2 first"
-    exit 1
-fi
+# Check L2 initial balances
+check_l2_initial_balances() {
+    print_step "Checking initial L2 token balances"
+    
+    # L2 balance for source account
+    local l2_balance_hex
+    l2_balance_hex=$(get_token_balance "$TOKEN_ADDRESS" "$ACCOUNT_ADDRESS_2" "$NETWORK_ID_AGGLAYER_1")
+    local l2_balance_dec
+    l2_balance_dec=$(get_balance_decimal "$l2_balance_hex")
+    
+    print_info "L2 Balance ($ACCOUNT_ADDRESS_2): $l2_balance_dec tokens"
+    
+    # Check if sufficient balance for bridge
+    if [ "$l2_balance_dec" -lt "$BRIDGE_AMOUNT" ]; then
+        print_error "Insufficient L2 balance. Have: $l2_balance_dec, Need: $BRIDGE_AMOUNT"
+        print_info "Tip: Run the L1-L2 bridge test first to get tokens on L2"
+        return 1
+    fi
+    
+    print_success "L2 balance check passed"
+    return 0
+}
 
-echo ""
+# ============================================================================
+# MAIN EXECUTION FLOW
+# ============================================================================
 
-# Step 2: Approve the bridge contract on L2
-print_step "2. Approving bridge contract on L2"
-
-APPROVE_TX=$(cast send $AGG_ERC20_L2 \
-    "approve(address,uint256)" \
-    $POLYGON_ZKEVM_BRIDGE_L2 $BRIDGE_AMOUNT \
-    --private-key $PRIVATE_KEY_1 \
-    --rpc-url $RPC_2 \
-    --json | jq -r '.transactionHash')
-
-print_info "Approval TX: $APPROVE_TX"
-print_debug "Waiting for approval confirmation..."
-sleep 2
-
-# Check approval
-ALLOWANCE=$(cast call $AGG_ERC20_L2 \
-    "allowance(address,address)" \
-    $ACCOUNT_ADDRESS_1 $POLYGON_ZKEVM_BRIDGE_L2 \
-    --rpc-url $RPC_2 | sed 's/0x//' | tr '[:lower:]' '[:upper:]')
-ALLOWANCE_DEC=$((16#$ALLOWANCE))
-
-print_info "Approved allowance: $ALLOWANCE_DEC"
-echo ""
-
-# Step 3: Bridge from L2 to L1
-print_step "3. Bridging $BRIDGE_AMOUNT tokens from L2 to L1"
-
-# Destination network for L2->L1 is always 0 (mainnet)
-DESTINATION_NETWORK=0
-
-BRIDGE_TX=$(cast send $POLYGON_ZKEVM_BRIDGE_L2 \
-    "bridgeAsset(uint32,address,uint256,address,bool,bytes)" \
-    $DESTINATION_NETWORK \
-    $ACCOUNT_ADDRESS_1 \
-    $BRIDGE_AMOUNT \
-    $AGG_ERC20_L2 \
-    true \
-    0x \
-    --private-key $PRIVATE_KEY_1 \
-    --rpc-url $RPC_2 \
-    --json | jq -r '.transactionHash')
-
-if [ -z "$BRIDGE_TX" ] || [ "$BRIDGE_TX" = "null" ]; then
-    print_error "Failed to get bridge transaction hash"
-    exit 1
-fi
-
-print_success "Bridge TX: $BRIDGE_TX"
-echo ""
-
-# Step 4: Get bridge event details
-print_step "4. Getting bridge event details"
-
-# Wait a bit for event indexing
-sleep 3
-
-# Get the bridge receipt
-print_debug "Getting transaction receipt..."
-RECEIPT=$(cast receipt $BRIDGE_TX --rpc-url $RPC_2 --json)
-
-if [ "$DEBUG" = "1" ]; then
-    echo "$RECEIPT" | jq '.'
-fi
-
-# Extract deposit count from logs (should be in the BridgeEvent)
-DEPOSIT_COUNT=$(echo "$RECEIPT" | jq -r '.logs[] | select(.topics[0] == "0x501781209a1f8899323b96b4ef08b168df93e0a90c673d1e4cce39366cb62f9b") | .topics[3]' | sed 's/^0x//')
-DEPOSIT_COUNT_DEC=$((16#$DEPOSIT_COUNT))
-
-print_info "Deposit count: $DEPOSIT_COUNT_DEC"
-
-# Get block number
-BLOCK_NUMBER=$(echo "$RECEIPT" | jq -r '.blockNumber')
-print_info "Block number: $BLOCK_NUMBER"
-
-echo ""
-
-# Step 5: Wait for global exit root propagation
-print_step "5. Waiting for global exit root to propagate to L1"
-print_info "This typically takes 15-20 seconds..."
-
-for i in {1..20}; do
-    echo -n "."
-    sleep 1
-done
-echo ""
-
-echo ""
-
-# Step 6: Get bridge information from API
-print_step "6. Getting bridge information from bridge service"
-
-# Query bridges for L2 network (network_id 1101)
-BRIDGE_INFO=$(aggsandbox show bridges --network-id 1101 | extract_json)
-
-if [ "$DEBUG" = "1" ]; then
-    print_debug "Bridge API response:"
-    echo "$BRIDGE_INFO" | jq '.'
-fi
-
-# Find our bridge transaction
-MATCHING_BRIDGE=$(echo $BRIDGE_INFO | jq -r --arg tx "$BRIDGE_TX" '.bridges[] | select(.tx_hash == $tx)')
-
-if [ -z "$MATCHING_BRIDGE" ] || [ "$MATCHING_BRIDGE" = "null" ]; then
-    print_error "Could not find bridge transaction in API response"
-    print_info "This might be a timing issue. Try running the script again."
-    exit 1
-fi
-
-print_info "Found bridge in API:"
-echo "$MATCHING_BRIDGE" | jq '.'
-
-# Extract necessary values
-API_DEPOSIT_COUNT=$(echo $MATCHING_BRIDGE | jq -r '.deposit_count')
-CLAIM_TX_HASH=$(echo $MATCHING_BRIDGE | jq -r '.claim_tx_hash')
-READY_FOR_CLAIM=$(echo $MATCHING_BRIDGE | jq -r '.ready_for_claim')
-
-print_info "API Deposit count: $API_DEPOSIT_COUNT"
-print_info "Ready for claim: $READY_FOR_CLAIM"
-print_info "Claim TX hash: $CLAIM_TX_HASH"
-
-echo ""
-
-# Step 7: Get claim proof
-print_step "7. Getting claim proof for L1"
-
-# For L2->L1, we need proof from network 1101 with the deposit count
-PROOF_DATA=$(aggsandbox show claim-proof --network-id 1101 --leaf-index $API_DEPOSIT_COUNT --deposit-count $API_DEPOSIT_COUNT | extract_json)
-
-if [ "$DEBUG" = "1" ]; then
-    print_debug "Proof data:"
-    echo "$PROOF_DATA" | jq '.'
-fi
-
-# Extract proof components
-MAINNET_EXIT_ROOT=$(echo $PROOF_DATA | jq -r '.l1_info_tree_leaf.mainnet_exit_root')
-ROLLUP_EXIT_ROOT=$(echo $PROOF_DATA | jq -r '.l1_info_tree_leaf.rollup_exit_root')
-
-print_info "Mainnet exit root: $MAINNET_EXIT_ROOT"
-print_info "Rollup exit root: $ROLLUP_EXIT_ROOT"
-
-echo ""
-
-# Step 8: Claim on L1
-print_step "8. Claiming tokens on L1"
-
-# Encode metadata for the wrapped token
-METADATA=$(cast abi-encode "f(string,string,uint8)" "AggERC20" "AGGERC20" 18)
-print_debug "Metadata: $METADATA"
-
-# The origin network for L2->L1 is the L2 chain ID
-ORIGIN_NETWORK=$CHAIN_ID_AGGLAYER_1
-
-print_info "Submitting claim transaction on L1..."
-CLAIM_TX=$(cast send $POLYGON_ZKEVM_BRIDGE_L1 \
-    "claimAsset(uint256,bytes32,bytes32,uint32,address,uint32,address,uint256,bytes)" \
-    $API_DEPOSIT_COUNT \
-    $MAINNET_EXIT_ROOT \
-    $ROLLUP_EXIT_ROOT \
-    $ORIGIN_NETWORK \
-    $AGG_ERC20_L2 \
-    $DESTINATION_NETWORK \
-    $ACCOUNT_ADDRESS_1 \
-    $BRIDGE_AMOUNT \
-    $METADATA \
-    --private-key $PRIVATE_KEY_1 \
-    --rpc-url $RPC_1 \
-    --json 2>&1)
-
-# Check if claim was successful
-if echo "$CLAIM_TX" | jq -e '.transactionHash' > /dev/null 2>&1; then
-    CLAIM_TX_HASH=$(echo "$CLAIM_TX" | jq -r '.transactionHash')
-    print_success "Claim TX: $CLAIM_TX_HASH"
+main() {
+    # Print script header
+    echo ""
+    print_success "==================== $SCRIPT_NAME v$SCRIPT_VERSION ===================="
+    print_info "$SCRIPT_DESCRIPTION"
     echo ""
     
-    # Wait for claim confirmation
-    print_info "Waiting for claim confirmation..."
-    sleep 3
+    # Parse command line arguments (reuse from L1-L2 script pattern)
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            --token-address)
+                TOKEN_ADDRESS="$2"
+                shift 2
+                ;;
+            --show-events)
+                SHOW_EVENTS=true
+                shift
+                ;;
+            --verbose)
+                VERBOSE=true
+                export VERBOSE=1
+                shift
+                ;;
+            --debug)
+                DEBUG=true
+                export DEBUG=1
+                shift
+                ;;
+            --dry-run)
+                DRY_RUN=true
+                shift
+                ;;
+            --help|-h)
+                cat << EOF
+$SCRIPT_NAME v$SCRIPT_VERSION
+$SCRIPT_DESCRIPTION
+
+Usage: $0 [OPTIONS] [AMOUNT]
+
+Arguments:
+  AMOUNT                 Amount of tokens to bridge from L2 to L1 (default: $BRIDGE_AMOUNT)
+
+Options:
+  --token-address ADDR   L2 token contract address to bridge back to L1
+  --show-events         Show recent blockchain events after the test
+  --verbose             Enable verbose output
+  --debug               Enable debug mode with detailed logging
+  --dry-run             Validate environment without executing transactions
+  --help, -h            Show this help message
+
+Examples:
+  $0                                    # Bridge default amount using default wrapped token
+  $0 25                                 # Bridge 25 wrapped tokens back to L1
+  $0 --token-address 0x123... 50        # Bridge 50 of specific L2 token back to L1
+
+Note: This script bridges tokens FROM L2 TO L1. Run the L1-L2 bridge test first
+      to ensure you have wrapped tokens on L2 to bridge back.
+EOF
+                exit 0
+                ;;
+            -*)
+                print_error "Unknown option: $1"
+                exit 1
+                ;;
+            *)
+                if [[ "$1" =~ ^[0-9]+(\.[0-9]+)?$ ]]; then
+                    BRIDGE_AMOUNT="$1"
+                else
+                    print_error "Invalid argument: $1"
+                    exit 1
+                fi
+                shift
+                ;;
+        esac
+    done
     
-    # Step 9: Verify final balances
-    print_step "9. Verifying final balances"
+    # Set debug/verbose flags
+    if [ "$DEBUG" = "true" ]; then
+        export DEBUG=1
+    fi
+    if [ "$VERBOSE" = "true" ]; then
+        export VERBOSE=1
+    fi
     
-    # Get L1 balance after
-    L1_BALANCE_AFTER=$(cast call $AGG_ERC20_L1 \
-        "balanceOf(address)" \
-        $ACCOUNT_ADDRESS_1 \
-        --rpc-url $RPC_1 | sed 's/0x//' | tr '[:lower:]' '[:upper:]')
-    L1_BALANCE_AFTER_DEC=$((16#$L1_BALANCE_AFTER))
-    
-    # Get L2 balance after
-    L2_BALANCE_AFTER=$(cast call $AGG_ERC20_L2 \
-        "balanceOf(address)" \
-        $ACCOUNT_ADDRESS_1 \
-        --rpc-url $RPC_2 | sed 's/0x//' | tr '[:lower:]' '[:upper:]')
-    L2_BALANCE_AFTER_DEC=$((16#$L2_BALANCE_AFTER))
-    
-    print_info "Final L1 Balance: $L1_BALANCE_AFTER_DEC AGG tokens"
-    print_info "Final L2 Balance: $L2_BALANCE_AFTER_DEC AGG tokens"
-    
-    # Calculate differences
-    L1_DIFF=$((L1_BALANCE_AFTER_DEC - L1_BALANCE_BEFORE_DEC))
-    L2_DIFF=$((L2_BALANCE_AFTER_DEC - L2_BALANCE_BEFORE_DEC))
-    
-    print_info "L1 Balance change: +$L1_DIFF"
-    print_info "L2 Balance change: $L2_DIFF"
-    
-    echo ""
-    
-    # Verify the bridge worked correctly
-    if [ $L1_DIFF -eq $BRIDGE_AMOUNT ] && [ $L2_DIFF -eq -$BRIDGE_AMOUNT ]; then
-        print_success " L2 to L1 bridge completed successfully!"
-        print_success "Successfully moved $BRIDGE_AMOUNT tokens from L2 to L1"
-    else
-        print_error "Balance changes don't match expected amounts"
-        print_error "Expected L1: +$BRIDGE_AMOUNT, Got: +$L1_DIFF"
-        print_error "Expected L2: -$BRIDGE_AMOUNT, Got: $L2_DIFF"
+    # Validate prerequisites
+    if ! validate_l2_prerequisites; then
+        print_error "Prerequisites validation failed"
         exit 1
     fi
     
-else
-    # Claim failed
-    print_error "Claim transaction failed!"
-    
-    # Check for common errors
-    if echo "$CLAIM_TX" | grep -q "0x002f6fad"; then
-        print_error "Error: GlobalExitRootInvalid (0x002f6fad)"
-        print_info "The global exit root has not been synchronized to L1 yet"
-        print_info "Try waiting longer before claiming, or run the script again"
-    elif echo "$CLAIM_TX" | grep -q "AlreadyClaimed"; then
-        print_error "Error: This deposit has already been claimed"
-    else
-        print_error "Error details:"
-        echo "$CLAIM_TX"
+    # Print test configuration
+    if [ "$VERBOSE" = "true" ] || [ "$DEBUG" = "true" ]; then
+        print_test_config
     fi
     
-    exit 1
-fi
+    # Check if this is a dry run
+    if [ "$DRY_RUN" = "true" ]; then
+        print_success "✅ Dry run completed - environment is properly configured"
+        print_info "Would bridge $BRIDGE_AMOUNT tokens of $TOKEN_ADDRESS from L2 to L1"
+        exit 0
+    fi
+    
+    # Check initial L2 balances
+    if ! check_l2_initial_balances; then
+        print_error "L2 balance check failed"
+        exit 1
+    fi
+    
+    # Execute the L2-L1 bridge test
+    print_info "Bridge amount: $BRIDGE_AMOUNT tokens"
+    print_info "Token address: $TOKEN_ADDRESS"
+    print_info "From: $ACCOUNT_ADDRESS_2 (L2)"
+    print_info "To: $ACCOUNT_ADDRESS_1 (L1)"
+    
+    local bridge_tx_hash
+    if ! bridge_tx_hash=$(execute_l2_to_l1_bridge \
+        "$BRIDGE_AMOUNT" \
+        "$TOKEN_ADDRESS" \
+        "$ACCOUNT_ADDRESS_2" \
+        "$ACCOUNT_ADDRESS_1" \
+        "$PRIVATE_KEY_2" \
+        "$PRIVATE_KEY_1"); then
+        print_error "L2-L1 bridge test failed"
+        exit 1
+    fi
+    
+    # Print final summary
+    print_bridge_summary "$bridge_tx_hash" "" "$BRIDGE_AMOUNT" "$TOKEN_ADDRESS"
+    
+    # Show recent events if requested
+    if [ "$SHOW_EVENTS" = "true" ]; then
+        show_recent_events "anvil-l1" 5
+    fi
+    
+    print_success "🎉 L2 to L1 bridge test completed successfully!"
+    
+    echo ""
+    print_info "💡 Next steps:"
+    print_info "  • Check L1 balance: cast call $AGG_ERC20_L1 \"balanceOf(address)\" $ACCOUNT_ADDRESS_1 --rpc-url $RPC_1"
+    print_info "  • View bridge status: aggsandbox show bridges --network-id $NETWORK_ID_MAINNET"
+    print_info "  • Check claims: aggsandbox show claims --network-id $NETWORK_ID_MAINNET"
+}
 
-echo ""
-print_info "========== TEST COMPLETED =========="
-print_info "Summary:"
-print_info "- Bridged $BRIDGE_AMOUNT tokens from L2 to L1"
-print_info "- Bridge TX: $BRIDGE_TX"
-print_info "- Claim TX: $CLAIM_TX_HASH"
-print_info "- Final L1 balance: $L1_BALANCE_AFTER_DEC tokens"
-print_info "- Final L2 balance: $L2_BALANCE_AFTER_DEC tokens"
-echo ""
+# Handle script execution
+if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
+    main "$@"
+else
+    export -f execute_l2_to_l1_bridge validate_l2_prerequisites check_l2_initial_balances
+    print_debug "L2-L1 bridge test script loaded as library"
+fi

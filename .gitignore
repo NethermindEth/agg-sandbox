@@ -10,3 +10,6 @@ cli/target/
 CLAUDE.md
 .claude/
 RUST_CONTEXT.md
+
+cache/
+out/

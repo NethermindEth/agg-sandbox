@@ -33,6 +33,7 @@ pub struct BridgeMessageParams {
     pub target: String,
     pub data: String,
     pub amount: Option<String>,
+    #[allow(dead_code)]
     pub fallback_address: Option<String>,
 }
 
@@ -373,7 +374,7 @@ impl<'a> BridgeAndCallArgsBuilder<'a> {
     }
 }
 
-/// Bridge with contract call (bridgeAndCall)
+/// Bridge message using direct bridgeMessage call
 pub async fn bridge_message(
     config: &Config,
     source_network: u64,
@@ -383,8 +384,8 @@ pub async fn bridge_message(
     private_key: Option<&str>,
 ) -> Result<()> {
     let client = get_wallet_with_provider(config, source_network, private_key).await?;
-    let bridge_ext_address = get_bridge_extension_address(config, source_network)?;
-    let bridge_ext = BridgeExtensionContract::new(bridge_ext_address, Arc::new(client.clone()));
+    let bridge_address = super::get_bridge_contract_address(config, source_network)?;
+    let bridge = super::BridgeContract::new(bridge_address, Arc::new(client.clone()));
 
     let destination_network_id = destination_network as u32;
 
@@ -393,16 +394,6 @@ pub async fn bridge_message(
             &format!("Invalid target address: {e}"),
         ))
     })?;
-
-    let fallback_addr = if let Some(addr) = &params.fallback_address {
-        Address::from_str(addr).map_err(|e| {
-            crate::error::AggSandboxError::Config(crate::error::ConfigError::validation_failed(
-                &format!("Invalid fallback address: {e}"),
-            ))
-        })?
-    } else {
-        client.address()
-    };
 
     let call_data = hex::decode(params.data.trim_start_matches("0x")).map_err(|e| {
         crate::error::AggSandboxError::Config(crate::error::ConfigError::validation_failed(
@@ -425,17 +416,14 @@ pub async fn bridge_message(
         source_network, destination_network, params.target
     );
 
-    // Use zero address as token for ETH bridging with call
-    let token_addr = Address::zero();
+    // Create metadata with the call data
+    let metadata = call_data;
 
-    let mut call = bridge_ext.bridge_and_call(
-        token_addr,
-        eth_amount,
+    let mut call = bridge.bridge_message(
         destination_network_id,
         target_addr,
-        fallback_addr,
-        call_data.into(),
         true, // forceUpdateGlobalExitRoot
+        metadata.into(),
     );
 
     if !eth_amount.is_zero() {
@@ -446,7 +434,7 @@ pub async fn bridge_message(
 
     let tx = call.send().await.map_err(|e| {
         crate::error::AggSandboxError::Config(crate::error::ConfigError::validation_failed(
-            &format!("Failed to send bridge and call transaction: {e}"),
+            &format!("Failed to send bridge message transaction: {e}"),
         ))
     })?;
 
@@ -454,7 +442,7 @@ pub async fn bridge_message(
         "✅ Bridge message transaction submitted: {:#x}",
         tx.tx_hash()
     );
-    println!("💡 This creates a message bridge that will execute automatically when ready.");
+    println!("💡 This creates a pure message bridge that must be manually claimed on the destination network.");
 
     Ok(())
 }

@@ -233,6 +233,14 @@ class BridgeUtils:
                     if word.startswith('0x') and len(word) == 66:
                         return word
         
+        # Look for bridge and call transaction (for message bridges)
+        for line in lines:
+            if 'bridge and call transaction submitted' in line.lower() and '0x' in line:
+                words = line.split()
+                for word in words:
+                    if word.startswith('0x') and len(word) == 66:
+                        return word
+        
         # Look for the bridge transaction specifically (not approval)
         for line in lines:
             if 'bridge transaction submitted' in line.lower() and '0x' in line:

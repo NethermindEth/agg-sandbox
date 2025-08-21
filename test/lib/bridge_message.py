@@ -40,8 +40,11 @@ class BridgeMessage:
         BridgeLogger.debug(f"Executing: {' '.join(cmd)}")
         
         success, output = AggsandboxAPI.bridge_message(
-            source_network, dest_network, to_address, message_data, 
-            private_key=private_key, fallback_address=None
+            network=source_network, 
+            destination_network=dest_network, 
+            target=to_address, 
+            data=message_data, 
+            private_key=private_key
         )
         if not success:
             BridgeLogger.error(f"Bridge message transaction failed: {output}")

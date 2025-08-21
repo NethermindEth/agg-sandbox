@@ -8,7 +8,8 @@ import time
 import os
 import subprocess
 from typing import Optional
-from bridge_lib import BridgeLogger, AggsandboxAPI, BridgeUtils
+from bridge_lib import BridgeLogger, BridgeUtils
+from aggsandbox_api import AggsandboxAPI, BridgeClaimArgs
 
 class ClaimMessage:
     """Message claiming operations"""
@@ -37,7 +38,16 @@ class ClaimMessage:
         
         BridgeLogger.debug(f"Executing: {' '.join(cmd)}")
         
-        success, output = AggsandboxAPI.run_command(cmd)
+        # Create claim args
+        claim_args = BridgeClaimArgs(
+            network=dest_network,
+            tx_hash=tx_hash,
+            source_network=source_network,
+            private_key=private_key,
+            deposit_count=deposit_count
+        )
+        
+        success, output = AggsandboxAPI.bridge_claim(claim_args)
         if not success:
             BridgeLogger.error(f"Claim message transaction failed: {output}")
             

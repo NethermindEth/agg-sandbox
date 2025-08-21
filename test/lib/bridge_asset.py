@@ -8,7 +8,8 @@ import subprocess
 import time
 import os
 from typing import Optional, Tuple
-from bridge_lib import BridgeLogger, AggsandboxAPI, BridgeUtils, BRIDGE_CONFIG
+from bridge_lib import BridgeLogger, BridgeUtils, BRIDGE_CONFIG
+from aggsandbox_api import AggsandboxAPI, BridgeAssetArgs
 
 class BridgeAsset:
     """Asset bridging operations"""
@@ -21,22 +22,17 @@ class BridgeAsset:
         BridgeLogger.info(f"Token: {token_address}")
         BridgeLogger.info(f"To address: {to_address}")
         
-        cmd = [
-            "aggsandbox", "bridge", "asset",
-            "--network", str(source_network),
-            "--destination-network", str(dest_network),
-            "--amount", str(amount),
-            "--token-address", token_address,
-            "--to-address", to_address,
-            "--private-key", private_key
-        ]
+        # Use the new aggsandbox API
+        args = BridgeAssetArgs(
+            network=source_network,
+            destination_network=dest_network,
+            amount=str(amount),
+            token_address=token_address,
+            to_address=to_address,
+            private_key=private_key
+        )
         
-        if os.environ.get('DEBUG') == '1':
-            cmd.append("--verbose")
-        
-        BridgeLogger.debug(f"Executing: {' '.join(cmd)}")
-        
-        success, output = AggsandboxAPI.run_command(cmd)
+        success, output = AggsandboxAPI.bridge_asset(args)
         if not success:
             BridgeLogger.error(f"Bridge transaction failed: {output}")
             return None
@@ -51,137 +47,35 @@ class BridgeAsset:
             return None
     
     @staticmethod
-    def wait_for_bridge_indexing(network_id: int, tx_hash: str, 
-                               max_retries: int = 10, retry_delay: int = 2) -> bool:
-        """Wait for bridge to be indexed"""
-        BridgeLogger.step("Waiting for bridge indexing")
-        BridgeLogger.info(f"Checking network {network_id} for bridge TX: {tx_hash}")
+    def find_bridge_by_tx_hash(tx_hash: str, source_network: int, max_attempts: int = 6) -> Optional[dict]:
+        """Find bridge transaction in bridge events using aggsandbox show bridges --network-id --json"""
+        BridgeLogger.step(f"Finding bridge in network {source_network} bridge events")
+        BridgeLogger.info(f"Looking for bridge TX: {tx_hash}")
         
-        # Initial wait
-        time.sleep(5)
-        
-        for attempt in range(max_retries):
-            BridgeLogger.debug(f"Checking bridge indexing (attempt {attempt + 1}/{max_retries})")
+        for attempt in range(max_attempts):
+            BridgeLogger.info(f"Checking network {source_network} bridge events (attempt {attempt + 1}/{max_attempts})")
+            time.sleep(3)  # Wait between attempts
             
-            bridge_data = AggsandboxAPI.get_bridges(network_id)
-            if bridge_data and 'bridges' in bridge_data:
-                # Look for our transaction hash
+            # Get bridges from source network where bridge events are stored
+            bridge_data = AggsandboxAPI.get_bridges(source_network)
+            if bridge_data and bridge_data.get('bridges'):
+                BridgeLogger.debug(f"Found {len(bridge_data['bridges'])} total bridges on network {source_network}")
+                
+                # Look for our specific bridge transaction
                 for bridge in bridge_data['bridges']:
                     if bridge.get('tx_hash') == tx_hash:
-                        BridgeLogger.success("Bridge found in indexing system")
-                        return True
-            
-            if attempt < max_retries - 1:
-                BridgeLogger.info(f"Bridge not indexed yet, waiting... (attempt {attempt + 1}/{max_retries})")
-                time.sleep(retry_delay)
+                        BridgeLogger.success(f"✅ Found our bridge on network {source_network} (attempt {attempt + 1})!")
+                        return bridge
+                
+                BridgeLogger.debug(f"Our TX {tx_hash} not found yet in network {source_network} bridges")
         
-        BridgeLogger.error(f"Bridge with TX {tx_hash} not found after {max_retries} attempts")
-        return False
+        BridgeLogger.warning(f"Bridge TX {tx_hash} not found after {max_attempts} attempts")
+        return None
     
     @staticmethod
-    def execute_l1_to_l2_bridge(amount: int, token_address: str, 
-                               source_account: str, dest_account: str,
-                               source_private_key: str, dest_private_key: str) -> Optional[Tuple[str, str]]:
-        """Execute complete L1 to L2 asset bridge flow"""
-        if not BRIDGE_CONFIG:
-            BridgeLogger.error("Bridge configuration not initialized")
-            return None
-        
-        BridgeLogger.step("Executing complete L1 to L2 asset bridge flow")
-        BridgeLogger.info(f"Amount: {amount} tokens")
-        BridgeLogger.info(f"Token: {token_address}")
-        BridgeLogger.info(f"From: {source_account} (L1)")
-        BridgeLogger.info(f"To: {dest_account} (L2)")
-        
-        # Import claim module here to avoid circular imports
-        from claim_asset import ClaimAsset
-        
-        # Step 1: Bridge assets
-        bridge_tx_hash = BridgeAsset.bridge_asset(
-            BRIDGE_CONFIG.network_id_mainnet,
-            BRIDGE_CONFIG.network_id_agglayer_1,
-            amount,
-            token_address,
-            dest_account,
-            source_private_key
-        )
-        
-        if not bridge_tx_hash:
-            BridgeLogger.error("Failed to bridge assets from L1 to L2")
-            return None
-        
-        BridgeLogger.success(f"Bridge transaction completed: {bridge_tx_hash}")
-        
-        # Step 2: Wait for indexing
-        if not BridgeAsset.wait_for_bridge_indexing(BRIDGE_CONFIG.network_id_mainnet, bridge_tx_hash):
-            BridgeLogger.error("Bridge indexing failed or timed out")
-            return None
-        
-        # Step 3: Claim assets
-        claim_tx_hash = ClaimAsset.claim_asset(
-            BRIDGE_CONFIG.network_id_agglayer_1,
-            bridge_tx_hash,
-            BRIDGE_CONFIG.network_id_mainnet,
-            dest_private_key
-        )
-        
-        if not claim_tx_hash:
-            BridgeLogger.error("Failed to claim assets on L2")
-            return None
-        
-        BridgeLogger.success(f"Claim transaction completed: {claim_tx_hash}")
-        return bridge_tx_hash, claim_tx_hash
-    
-    @staticmethod
-    def execute_l2_to_l1_bridge(amount: int, token_address: str,
-                               source_account: str, dest_account: str,
-                               source_private_key: str, dest_private_key: str) -> Optional[Tuple[str, str]]:
-        """Execute complete L2 to L1 asset bridge flow"""
-        if not BRIDGE_CONFIG:
-            BridgeLogger.error("Bridge configuration not initialized")
-            return None
-        
-        BridgeLogger.step("Executing complete L2 to L1 asset bridge flow")
-        BridgeLogger.info(f"Amount: {amount} tokens")
-        BridgeLogger.info(f"Token: {token_address}")
-        BridgeLogger.info(f"From: {source_account} (L2)")
-        BridgeLogger.info(f"To: {dest_account} (L1)")
-        
-        # Import claim module here to avoid circular imports
-        from claim_asset import ClaimAsset
-        
-        # Step 1: Bridge assets
-        bridge_tx_hash = BridgeAsset.bridge_asset(
-            BRIDGE_CONFIG.network_id_agglayer_1,
-            BRIDGE_CONFIG.network_id_mainnet,
-            amount,
-            token_address,
-            dest_account,
-            source_private_key
-        )
-        
-        if not bridge_tx_hash:
-            BridgeLogger.error("Failed to bridge assets from L2 to L1")
-            return None
-        
-        BridgeLogger.success(f"Bridge transaction completed: {bridge_tx_hash}")
-        
-        # Step 2: Wait for indexing (L1 network for L2->L1 bridges)
-        if not BridgeAsset.wait_for_bridge_indexing(BRIDGE_CONFIG.network_id_mainnet, bridge_tx_hash):
-            BridgeLogger.error("Bridge indexing failed or timed out")
-            return None
-        
-        # Step 3: Claim assets
-        claim_tx_hash = ClaimAsset.claim_asset(
-            BRIDGE_CONFIG.network_id_mainnet,
-            bridge_tx_hash,
-            BRIDGE_CONFIG.network_id_agglayer_1,
-            dest_private_key
-        )
-        
-        if not claim_tx_hash:
-            BridgeLogger.error("Failed to claim assets on L1")
-            return None
-        
-        BridgeLogger.success(f"Claim transaction completed: {claim_tx_hash}")
-        return bridge_tx_hash, claim_tx_hash
+    def get_most_recent_bridge(source_network: int) -> Optional[dict]:
+        """Get the most recent bridge from specified network bridge events"""
+        bridge_data = AggsandboxAPI.get_bridges(source_network)
+        if bridge_data and bridge_data.get('bridges'):
+            return bridge_data['bridges'][0]  # Most recent
+        return None

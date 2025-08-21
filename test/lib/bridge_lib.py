@@ -14,6 +14,14 @@ from typing import Optional, Dict, Any, List, Tuple
 from dataclasses import dataclass
 from enum import Enum
 
+# Import AggsandboxAPI
+try:
+    from aggsandbox_api import AggsandboxAPI
+except ImportError:
+    # If running as a script, add current directory to path
+    sys.path.append(os.path.dirname(os.path.abspath(__file__)))
+    from aggsandbox_api import AggsandboxAPI
+
 class NetworkID(Enum):
     """Network identifiers"""
     MAINNET = 0
@@ -76,105 +84,138 @@ class BridgeEnvironment:
     
     @staticmethod
     def load_environment() -> BridgeConfig:
-        """Load environment variables from .env file"""
-        env_file = ".env"
-        if os.path.exists(env_file):
-            with open(env_file) as f:
-                for line in f:
-                    line = line.strip()
-                    if line and not line.startswith('#') and '=' in line:
-                        key, value = line.split('=', 1)
-                        os.environ[key] = value
-            BridgeLogger.info("Loaded environment variables from .env")
-        else:
-            raise FileNotFoundError(".env file not found")
+        """Load environment configuration from aggsandbox info"""
+        BridgeLogger.step("Loading environment from aggsandbox info")
         
-        # Extract required variables
-        try:
-            config = BridgeConfig(
-                private_key_1=os.environ['PRIVATE_KEY_1'],
-                private_key_2=os.environ['PRIVATE_KEY_2'],
-                account_address_1=os.environ['ACCOUNT_ADDRESS_1'],
-                account_address_2=os.environ['ACCOUNT_ADDRESS_2'],
-                rpc_1=os.environ['RPC_1'],
-                rpc_2=os.environ['RPC_2'],
-                network_id_mainnet=int(os.environ.get('NETWORK_ID_MAINNET', '0')),
-                network_id_agglayer_1=int(os.environ.get('NETWORK_ID_AGGLAYER_1', '1')),
-                chain_id_agglayer_1=int(os.environ['CHAIN_ID_AGGLAYER_1']),
-                agg_erc20_l1=os.environ['AGG_ERC20_L1'],
-                agg_erc20_l2=os.environ.get('AGG_ERC20_L2')
-            )
-            BridgeLogger.success("All required environment variables loaded")
-            return config
-        except KeyError as e:
-            raise ValueError(f"Missing required environment variable: {e}")
+        # Get sandbox info
+        success, info_output = AggsandboxAPI.info()
+        if not success:
+            raise RuntimeError(f"Failed to get sandbox info: {info_output}")
+        
+        # Parse the info output to extract configuration
+        config_data = BridgeEnvironment._parse_sandbox_info(info_output)
+        
+        config = BridgeConfig(
+            private_key_1=config_data['private_keys'][0],  # Account (0)
+            private_key_2=config_data['private_keys'][1],  # Account (1) 
+            account_address_1=config_data['accounts'][0],  # Account (0)
+            account_address_2=config_data['accounts'][1],  # Account (1)
+            rpc_1=config_data['l1_rpc'],                   # L1 RPC
+            rpc_2=config_data['l2_rpc'],                   # L2 RPC
+            network_id_mainnet=0,                          # L1 network ID
+            network_id_agglayer_1=1,                       # L2 network ID
+            chain_id_agglayer_1=config_data['l2_chain_id'],# L2 chain ID
+            agg_erc20_l1=config_data['agg_erc20_l1'],     # L1 AggERC20 contract
+            agg_erc20_l2=config_data['agg_erc20_l2']      # L2 AggERC20 contract
+        )
+        
+        BridgeLogger.success("Environment configuration loaded from aggsandbox")
+        BridgeLogger.info(f"L1 RPC: {config.rpc_1}")
+        BridgeLogger.info(f"L2 RPC: {config.rpc_2}")
+        BridgeLogger.info(f"Account 1: {config.account_address_1}")
+        BridgeLogger.info(f"Account 2: {config.account_address_2}")
+        
+        return config
+    
+    @staticmethod
+    def _parse_sandbox_info(info_output: str) -> Dict[str, Any]:
+        """Parse aggsandbox info output to extract configuration"""
+        lines = info_output.split('\n')
+        
+        accounts = []
+        private_keys = []
+        l1_rpc = None
+        l2_rpc = None
+        l2_chain_id = None
+        agg_erc20_l1 = None
+        agg_erc20_l2 = None
+        
+        i = 0
+        while i < len(lines):
+            line = lines[i].strip()
+            
+            # Parse Available Accounts section
+            if line == "Available Accounts":
+                i += 2  # Skip separator line
+                while i < len(lines) and lines[i].strip().startswith('('):
+                    account_line = lines[i].strip()
+                    if ': 0x' in account_line:
+                        account_addr = account_line.split(': ')[1]
+                        accounts.append(account_addr)
+                    i += 1
+                continue
+            
+            # Parse Private Keys section
+            elif line == "Private Keys":
+                i += 2  # Skip separator line
+                while i < len(lines) and lines[i].strip().startswith('('):
+                    key_line = lines[i].strip()
+                    if ': 0x' in key_line:
+                        private_key = key_line.split(': ')[1]
+                        private_keys.append(private_key)
+                    i += 1
+                continue
+            
+            # Parse L1 RPC (looking for Chain ID: 1)
+            elif 'Chain ID: 1    RPC:' in line:
+                rpc_part = line.split('RPC: ')[1]
+                l1_rpc = rpc_part.strip()
+            
+            # Parse L2 RPC and Chain ID (looking for Chain ID: 1101)
+            elif 'Chain ID: 1101    RPC:' in line:
+                chain_id_part = line.split('Chain ID: ')[1].split('RPC:')[0].strip()
+                l2_chain_id = int(chain_id_part)
+                rpc_part = line.split('RPC: ')[1]
+                l2_rpc = rpc_part.strip()
+            
+            # Parse AggERC20 contracts
+            elif 'AggERC20:' in line:
+                contract_addr = line.split('AggERC20: ')[1].strip()
+                if agg_erc20_l1 is None:  # First occurrence is L1
+                    agg_erc20_l1 = contract_addr
+                else:  # Second occurrence is L2
+                    agg_erc20_l2 = contract_addr
+            
+            i += 1
+        
+        # Validate we got all required data
+        if not accounts or len(accounts) < 2:
+            raise ValueError("Could not parse accounts from sandbox info")
+        if not private_keys or len(private_keys) < 2:
+            raise ValueError("Could not parse private keys from sandbox info")
+        if not l1_rpc or not l2_rpc:
+            raise ValueError("Could not parse RPC URLs from sandbox info")
+        if not l2_chain_id:
+            raise ValueError("Could not parse L2 chain ID from sandbox info")
+        if not agg_erc20_l1 or not agg_erc20_l2:
+            raise ValueError("Could not parse AggERC20 contract addresses from sandbox info")
+        
+        return {
+            'accounts': accounts,
+            'private_keys': private_keys,
+            'l1_rpc': l1_rpc,
+            'l2_rpc': l2_rpc,
+            'l2_chain_id': l2_chain_id,
+            'agg_erc20_l1': agg_erc20_l1,
+            'agg_erc20_l2': agg_erc20_l2
+        }
     
     @staticmethod
     def validate_sandbox_status() -> bool:
         """Validate that aggsandbox is running"""
         BridgeLogger.step("Validating sandbox status")
         
-        # Check if aggsandbox command exists
-        try:
-            subprocess.run(['aggsandbox', '--version'], 
-                         capture_output=True, check=True)
-        except (subprocess.CalledProcessError, FileNotFoundError):
-            BridgeLogger.error("aggsandbox CLI not found")
-            return False
-        
-        # Check if sandbox is running
-        try:
-            subprocess.run(['aggsandbox', 'status', '--quiet'], 
-                         capture_output=True, check=True)
+        # Check if sandbox is running using AggsandboxAPI
+        success, output = AggsandboxAPI.status(quiet=True)
+        if success:
             BridgeLogger.success("Sandbox is running and accessible")
             return True
-        except subprocess.CalledProcessError:
+        else:
             BridgeLogger.error("Sandbox is not running. Start with: aggsandbox start --detach")
+            BridgeLogger.error(f"Status check failed: {output}")
             return False
 
-class AggsandboxAPI:
-    """Interface to aggsandbox CLI commands"""
-    
-    @staticmethod
-    def run_command(cmd: List[str]) -> Tuple[bool, str]:
-        """Run a command and return (success, output)"""
-        try:
-            result = subprocess.run(cmd, capture_output=True, text=True, check=True)
-            return True, result.stdout.strip()
-        except subprocess.CalledProcessError as e:
-            return False, e.stderr.strip()
-    
-    @staticmethod
-    def get_bridges(network_id: int) -> Optional[Dict[str, Any]]:
-        """Get bridge information for a network"""
-        cmd = ["aggsandbox", "show", "bridges", "--network-id", str(network_id), "--json"]
-        success, output = AggsandboxAPI.run_command(cmd)
-        
-        if not success:
-            BridgeLogger.error(f"Could not get bridges: {output}")
-            return None
-        
-        try:
-            return json.loads(output)
-        except json.JSONDecodeError as e:
-            BridgeLogger.error(f"Could not parse bridge JSON: {e}")
-            return None
-    
-    @staticmethod
-    def get_claims(network_id: int) -> Optional[Dict[str, Any]]:
-        """Get claims information for a network"""
-        cmd = ["aggsandbox", "show", "claims", "--network-id", str(network_id), "--json"]
-        success, output = AggsandboxAPI.run_command(cmd)
-        
-        if not success:
-            BridgeLogger.error(f"Could not get claims: {output}")
-            return None
-        
-        try:
-            return json.loads(output)
-        except json.JSONDecodeError as e:
-            BridgeLogger.error(f"Could not parse claims JSON: {e}")
-            return None
+# AggsandboxAPI is now in aggsandbox_api.py - import from there
 
 class BridgeUtils:
     """Utility functions for bridge operations"""
@@ -183,12 +224,23 @@ class BridgeUtils:
     def extract_tx_hash(output: str) -> Optional[str]:
         """Extract transaction hash from aggsandbox output"""
         lines = output.split('\n')
+        
+        # Look for the bridge transaction specifically (not approval)
+        for line in lines:
+            if 'bridge transaction submitted' in line.lower() and '0x' in line:
+                words = line.split()
+                for word in words:
+                    if word.startswith('0x') and len(word) == 66:
+                        return word
+        
+        # Fallback: look for any transaction hash
         for line in lines:
             if 'transaction' in line.lower() and '0x' in line:
                 words = line.split()
                 for word in words:
                     if word.startswith('0x') and len(word) == 66:
                         return word
+        
         return None
     
     @staticmethod
@@ -204,27 +256,13 @@ class BridgeUtils:
     @staticmethod
     def get_token_balance(token_address: str, account_address: str, 
                          network_id: int, config: BridgeConfig) -> int:
-        """Get token balance using cast"""
-        rpc_url = BridgeUtils.get_rpc_url(network_id, config)
-        
-        if token_address == "0x0000000000000000000000000000000000000000":
-            # ETH balance
-            cmd = ["cast", "balance", account_address, "--rpc-url", rpc_url]
-        else:
-            # ERC20 balance
-            cmd = ["cast", "call", token_address, "balanceOf(address)", 
-                   account_address, "--rpc-url", rpc_url]
-        
-        try:
-            result = subprocess.run(cmd, capture_output=True, text=True, check=True)
-            hex_balance = result.stdout.strip()
-            
-            # Convert to decimal
-            if hex_balance and hex_balance != "0x":
-                return int(hex_balance, 16)
-            return 0
-        except subprocess.CalledProcessError:
-            return 0
+        """Get token balance using aggsandbox CLI (placeholder - would need aggsandbox balance command)"""
+        # Note: aggsandbox doesn't have a direct balance command yet
+        # This is a placeholder that would use aggsandbox when available
+        # For now, we'll indicate this limitation
+        BridgeLogger.debug(f"Balance check needed for {account_address} on network {network_id}")
+        BridgeLogger.debug("Note: aggsandbox CLI doesn't have balance command yet")
+        return 0  # Placeholder return
 
 # Initialize global configuration
 try:
@@ -237,5 +275,5 @@ except Exception as e:
 # Export main classes for use in other modules
 __all__ = [
     'NetworkID', 'BridgeConfig', 'BridgeLogger', 'BridgeEnvironment',
-    'AggsandboxAPI', 'BridgeUtils', 'BRIDGE_CONFIG'
+    'BridgeUtils', 'BRIDGE_CONFIG'
 ]

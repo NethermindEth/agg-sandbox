@@ -7,7 +7,8 @@ Functions for bridging messages using aggsandbox CLI
 import subprocess
 import os
 from typing import Optional
-from bridge_lib import BridgeLogger, AggsandboxAPI, BridgeUtils
+from bridge_lib import BridgeLogger, BridgeUtils
+from aggsandbox_api import AggsandboxAPI
 
 class BridgeMessage:
     """Message bridging operations"""
@@ -38,7 +39,10 @@ class BridgeMessage:
         
         BridgeLogger.debug(f"Executing: {' '.join(cmd)}")
         
-        success, output = AggsandboxAPI.run_command(cmd)
+        success, output = AggsandboxAPI.bridge_message(
+            source_network, dest_network, to_address, message_data, 
+            private_key=private_key, fallback_address=None
+        )
         if not success:
             BridgeLogger.error(f"Bridge message transaction failed: {output}")
             return None

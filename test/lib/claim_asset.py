@@ -9,7 +9,8 @@ import os
 import json
 import subprocess
 from typing import Optional
-from bridge_lib import BridgeLogger, AggsandboxAPI, BridgeUtils, BRIDGE_CONFIG
+from bridge_lib import BridgeLogger, BridgeUtils, BRIDGE_CONFIG
+from aggsandbox_api import AggsandboxAPI, BridgeClaimArgs
 
 class ClaimAsset:
     """Asset claiming operations"""
@@ -22,23 +23,16 @@ class ClaimAsset:
         BridgeLogger.info(f"Source transaction: {tx_hash}")
         BridgeLogger.info(f"Source network: {source_network}")
         
-        cmd = [
-            "aggsandbox", "bridge", "claim",
-            "--network", str(dest_network),
-            "--tx-hash", tx_hash,
-            "--source-network", str(source_network),
-            "--private-key", private_key
-        ]
+        # Use the new aggsandbox API
+        args = BridgeClaimArgs(
+            network=dest_network,
+            tx_hash=tx_hash,
+            source_network=source_network,
+            private_key=private_key,
+            deposit_count=deposit_count
+        )
         
-        if deposit_count is not None:
-            cmd.extend(["--deposit-count", str(deposit_count)])
-        
-        if os.environ.get('DEBUG') == '1':
-            cmd.append("--verbose")
-        
-        BridgeLogger.debug(f"Executing: {' '.join(cmd)}")
-        
-        success, output = AggsandboxAPI.run_command(cmd)
+        success, output = AggsandboxAPI.bridge_claim(args)
         if not success:
             BridgeLogger.error(f"Claim transaction failed: {output}")
             
@@ -89,34 +83,54 @@ class ClaimAsset:
         return None
     
     @staticmethod
-    def verify_claim_transaction(tx_hash: str, network_id: int) -> bool:
-        """Verify claim transaction was successful"""
-        if not BRIDGE_CONFIG:
-            return False
+    def verify_claim_status(network_id: int, bridge_tx_hash: str, deposit_count: int) -> Optional[str]:
+        """Verify claim status using aggsandbox show claims --network-id --json"""
+        BridgeLogger.step(f"Verifying claim status on network {network_id}")
+        BridgeLogger.info(f"Looking for claim of bridge TX: {bridge_tx_hash}")
+        BridgeLogger.info(f"Deposit count: {deposit_count}")
         
-        BridgeLogger.step(f"Verifying claim transaction: {tx_hash}")
+        # Get claims data using aggsandbox API
+        claims_data = AggsandboxAPI.get_claims(network_id)
+        if not claims_data:
+            BridgeLogger.error("Could not get claims data")
+            return None
         
-        rpc_url = BridgeUtils.get_rpc_url(network_id, BRIDGE_CONFIG)
+        claims = claims_data.get('claims', [])
+        BridgeLogger.info(f"Found {len(claims)} total claims on network {network_id}")
         
-        cmd = ["cast", "receipt", tx_hash, "--rpc-url", rpc_url, "--json"]
+        # Look for our specific claim by deposit count or other identifiers
+        our_claim = None
+        for claim in claims:
+            # Match by deposit count (most reliable identifier)
+            if claim.get('deposit_count') == deposit_count:
+                our_claim = claim
+                break
+            # Alternative: match by bridge transaction hash if available
+            elif claim.get('bridge_tx_hash') == bridge_tx_hash:
+                our_claim = claim
+                break
         
-        try:
-            result = subprocess.run(cmd, capture_output=True, text=True, check=True)
-            receipt = json.loads(result.stdout)
+        if our_claim:
+            claim_status = our_claim.get('status', 'unknown')
+            claim_amount = our_claim.get('amount', '0')
+            claim_block = our_claim.get('block_num', 'unknown')
             
-            status = receipt.get('status')
-            if status == '0x1':
-                BridgeLogger.success("Claim transaction was successful")
-                
-                if os.environ.get('DEBUG') == '1':
-                    logs = receipt.get('logs', [])
-                    BridgeLogger.debug(f"Transaction logs: {len(logs)} entries")
-                
-                return True
+            BridgeLogger.success(f"Found our claim:")
+            BridgeLogger.info(f"  Status: {claim_status}")
+            BridgeLogger.info(f"  Amount: {claim_amount} tokens")
+            BridgeLogger.info(f"  Block: {claim_block}")
+            BridgeLogger.info(f"  Deposit Count: {deposit_count}")
+            
+            if claim_status == 'complete' or claim_status == 'completed':
+                BridgeLogger.success("✅ Claim is complete!")
+                return "complete"
+            elif claim_status == 'pending':
+                BridgeLogger.warning("⚠️ Claim is still pending")
+                return "pending"
             else:
-                BridgeLogger.error(f"Claim transaction failed (status: {status})")
-                return False
-                
-        except (subprocess.CalledProcessError, json.JSONDecodeError) as e:
-            BridgeLogger.error(f"Could not verify transaction: {e}")
-            return False
+                BridgeLogger.info(f"Claim status: {claim_status}")
+                return claim_status
+        else:
+            BridgeLogger.warning(f"Our claim not found (deposit_count: {deposit_count})")
+            BridgeLogger.info("This might mean the claim hasn't been processed yet")
+            return "not_found"

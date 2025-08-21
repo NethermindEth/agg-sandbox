@@ -653,20 +653,19 @@ pub async fn bridge_and_call_with_approval(args: BridgeAndCallArgs<'_>) -> Resul
         tx.tx_hash()
     );
     println!("🔧 This creates TWO bridge transactions:");
-    println!("   1. Asset bridge (deposit_count = 0) - bridges tokens to JumpPoint");
-    println!("   2. Message bridge (deposit_count = 1) - contains call instructions");
+    println!("   1. Asset bridge (leaf_type: 0) - bridges tokens to PolygonBridge");
+    println!("   2. Message bridge (leaf_type: 1) - execute calldata from JumpPoint");
     println!();
     println!("💡 To complete the process, you need to claim both bridges:");
     println!(
-        "   1. First claim asset: aggsandbox show bridges --network-id {} (find asset bridge)",
+        "   1. First check bridges: aggsandbox show bridges --network-id {}",
         args.source_network
     );
-    println!("   2. Then: aggsandbox bridge claim --network {} --tx-hash <asset_bridge_tx_hash> --source-network {}", args.destination_network, args.source_network);
-    println!(
-        "   3. Then claim message: aggsandbox show bridges --network-id {} (find message bridge)",
-        args.source_network
-    );
-    println!("   4. Finally: aggsandbox bridge claim --network {} --tx-hash <message_bridge_tx_hash> --source-network {}", args.destination_network, args.source_network);
+    println!("   2. Find entries with tx_hash: {:#x}", tx.tx_hash());
+    println!("   3. Note the deposit_count for asset bridge (leaf_type: 0)");
+    println!("   4. Note the deposit_count for message bridge (leaf_type: 1, has calldata)");
+    println!("   5. Claim asset: aggsandbox bridge claim --network {} --tx-hash {:#x} --source-network {} --deposit-count <asset_deposit_count>", args.destination_network, tx.tx_hash(), args.source_network);
+    println!("   6. Claim message: aggsandbox bridge claim --network {} --tx-hash {:#x} --source-network {} --deposit-count <message_deposit_count>", args.destination_network, tx.tx_hash(), args.source_network);
 
     Ok(())
 }

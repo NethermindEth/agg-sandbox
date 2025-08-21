@@ -131,9 +131,42 @@ impl Config {
     /// Load configuration with automatic source detection
     /// Tries: config files → environment variables → defaults
     pub fn load() -> Result<Self> {
+        Self::load_with_env_refresh(false)
+    }
+
+    /// Parse .env file directly into a HashMap
+    fn parse_env_file() -> Option<std::collections::HashMap<String, String>> {
+        use std::fs;
+        if let Ok(content) = fs::read_to_string(".env") {
+            let mut env_map = std::collections::HashMap::new();
+            for line in content.lines() {
+                let line = line.trim();
+                if line.is_empty() || line.starts_with('#') {
+                    continue;
+                }
+                if let Some((key, value)) = line.split_once('=') {
+                    env_map.insert(key.trim().to_string(), value.trim().to_string());
+                }
+            }
+            Some(env_map)
+        } else {
+            None
+        }
+    }
+
+    /// Load configuration with explicit environment refresh
+    pub fn load_with_env_refresh(force_env_refresh: bool) -> Result<Self> {
         // Load .env file if it exists
         if Path::new(".env").exists() {
-            dotenv::dotenv().ok();
+            if force_env_refresh {
+                // Parse .env file directly instead of relying on environment variables
+                let env_map = Self::parse_env_file();
+
+                // Load the rest of the config normally
+                return Self::load_with_env_map(env_map);
+            } else {
+                dotenv::dotenv().ok();
+            }
         }
 
         // Try to load from configuration files first
@@ -163,6 +196,27 @@ impl Config {
         let networks = NetworkConfig::load();
         let accounts = AccountConfig::load();
         let contracts = ContractConfig::load();
+
+        Ok(Config {
+            api,
+            networks,
+            accounts,
+            contracts,
+        })
+    }
+
+    /// Load configuration with a custom environment map
+    fn load_with_env_map(
+        env_map: Option<std::collections::HashMap<String, String>>,
+    ) -> Result<Self> {
+        let api = ApiConfig::load()?;
+        let networks = NetworkConfig::load();
+        let accounts = AccountConfig::load();
+        let contracts = if let Some(ref env_vars) = env_map {
+            ContractConfig::load_with_env_override(Some(env_vars.clone()))
+        } else {
+            ContractConfig::load()
+        };
 
         Ok(Config {
             api,
@@ -467,13 +521,31 @@ impl AccountConfig {
 
 impl ContractConfig {
     fn load() -> Self {
+        Self::load_with_env_override(None)
+    }
+
+    /// Load contract config with optional direct .env file reading
+    fn load_with_env_override(
+        env_override: Option<std::collections::HashMap<String, String>>,
+    ) -> Self {
         let mut l1_contracts = HashMap::new();
         let mut l2_contracts = HashMap::new();
 
         // Helper function to add contract if valid address
         let add_contract =
-            |contracts: &mut HashMap<String, EthereumAddress>, env_var: &str, name: &str| {
-                if let Ok(addr) = std::env::var(env_var) {
+            |contracts: &mut HashMap<String, EthereumAddress>,
+             env_var: &str,
+             name: &str,
+             env_map: &Option<std::collections::HashMap<String, String>>| {
+                let addr = if let Some(env_map) = env_map {
+                    // Use direct .env file values if provided
+                    env_map.get(env_var).cloned().unwrap_or_default()
+                } else {
+                    // Fall back to environment variables
+                    std::env::var(env_var).unwrap_or_default()
+                };
+
+                if !addr.is_empty() {
                     if let Ok(eth_addr) = EthereumAddress::new(addr) {
                         contracts.insert(name.to_string(), eth_addr);
                     }
@@ -481,34 +553,54 @@ impl ContractConfig {
             };
 
         // L1 contracts
-        add_contract(&mut l1_contracts, "FFLONK_VERIFIER_L1", "FflonkVerifier");
-        add_contract(&mut l1_contracts, "POLYGON_ZKEVM_L1", "PolygonZkEVM");
+        add_contract(
+            &mut l1_contracts,
+            "FFLONK_VERIFIER_L1",
+            "FflonkVerifier",
+            &env_override,
+        );
+        add_contract(
+            &mut l1_contracts,
+            "POLYGON_ZKEVM_L1",
+            "PolygonZkEVM",
+            &env_override,
+        );
         add_contract(
             &mut l1_contracts,
             "POLYGON_ZKEVM_BRIDGE_L1",
             "PolygonZkEVMBridge",
+            &env_override,
         );
         add_contract(
             &mut l1_contracts,
             "POLYGON_ZKEVM_TIMELOCK_L1",
             "PolygonZkEVMTimelock",
+            &env_override,
         );
         add_contract(
             &mut l1_contracts,
             "POLYGON_ZKEVM_GLOBAL_EXIT_ROOT_L1",
             "PolygonZkEVMGlobalExitRoot",
+            &env_override,
         );
         add_contract(
             &mut l1_contracts,
             "POLYGON_ROLLUP_MANAGER_L1",
             "PolygonRollupManager",
+            &env_override,
         );
-        add_contract(&mut l1_contracts, "AGG_ERC20_L1", "AggERC20");
-        add_contract(&mut l1_contracts, "BRIDGE_EXTENSION_L1", "BridgeExtension");
+        add_contract(&mut l1_contracts, "AGG_ERC20_L1", "AggERC20", &env_override);
+        add_contract(
+            &mut l1_contracts,
+            "BRIDGE_EXTENSION_L1",
+            "BridgeExtension",
+            &env_override,
+        );
         add_contract(
             &mut l1_contracts,
             "POLYGON_ZKEVM_GLOBAL_EXIT_ROOT_L1",
             "GlobalExitRootManager",
+            &env_override,
         );
 
         // L2 contracts
@@ -516,18 +608,26 @@ impl ContractConfig {
             &mut l2_contracts,
             "POLYGON_ZKEVM_BRIDGE_L2",
             "PolygonZkEVMBridge",
+            &env_override,
         );
         add_contract(
             &mut l2_contracts,
             "POLYGON_ZKEVM_TIMELOCK_L2",
             "PolygonZkEVMTimelock",
+            &env_override,
         );
-        add_contract(&mut l2_contracts, "AGG_ERC20_L2", "AggERC20");
-        add_contract(&mut l2_contracts, "BRIDGE_EXTENSION_L2", "BridgeExtension");
+        add_contract(&mut l2_contracts, "AGG_ERC20_L2", "AggERC20", &env_override);
+        add_contract(
+            &mut l2_contracts,
+            "BRIDGE_EXTENSION_L2",
+            "BridgeExtension",
+            &env_override,
+        );
         add_contract(
             &mut l2_contracts,
             "GLOBAL_EXIT_ROOT_MANAGER_L2",
             "GlobalExitRootManager",
+            &env_override,
         );
 
         // L3 contracts
@@ -536,18 +636,26 @@ impl ContractConfig {
             &mut l3_contracts,
             "POLYGON_ZKEVM_BRIDGE_L3",
             "PolygonZkEVMBridge",
+            &env_override,
         );
         add_contract(
             &mut l3_contracts,
             "POLYGON_ZKEVM_TIMELOCK_L3",
             "PolygonZkEVMTimelock",
+            &env_override,
         );
-        add_contract(&mut l3_contracts, "AGG_ERC20_L3", "AggERC20");
-        add_contract(&mut l3_contracts, "BRIDGE_EXTENSION_L3", "BridgeExtension");
+        add_contract(&mut l3_contracts, "AGG_ERC20_L3", "AggERC20", &env_override);
+        add_contract(
+            &mut l3_contracts,
+            "BRIDGE_EXTENSION_L3",
+            "BridgeExtension",
+            &env_override,
+        );
         add_contract(
             &mut l3_contracts,
             "GLOBAL_EXIT_ROOT_MANAGER_L3",
             "GlobalExitRootManager",
+            &env_override,
         );
 
         ContractConfig {

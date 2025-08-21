@@ -225,6 +225,14 @@ class BridgeUtils:
         """Extract transaction hash from aggsandbox output"""
         lines = output.split('\n')
         
+        # Look for claim transaction submitted (for claim operations)
+        for line in lines:
+            if '✅ claim transaction submitted:' in line.lower() and '0x' in line:
+                words = line.split()
+                for word in words:
+                    if word.startswith('0x') and len(word) == 66:
+                        return word
+        
         # Look for the bridge transaction specifically (not approval)
         for line in lines:
             if 'bridge transaction submitted' in line.lower() and '0x' in line:

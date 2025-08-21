@@ -29,7 +29,7 @@ class ClaimBridgeAndCall:
         
         # Step 1: Claim the asset first
         BridgeLogger.step("Step 1: Claiming asset")
-        asset_claim_tx = ClaimAsset.claim_asset(dest_network, tx_hash, source_network, private_key, deposit_count)
+        asset_claim_tx = ClaimAsset.claim_asset(dest_network, tx_hash, source_network)
         
         if not asset_claim_tx:
             BridgeLogger.error("Failed to claim asset")

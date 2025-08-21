@@ -53,6 +53,9 @@ class AggsandboxAPI:
     @staticmethod
     def run_command(cmd: List[str], timeout: int = 30) -> Tuple[bool, str]:
         """Run aggsandbox command and return (success, output)"""
+        # Always print the full command being executed
+        print(f"🔧 Executing: {' '.join(cmd)}")
+        
         try:
             result = subprocess.run(
                 cmd, 
@@ -270,17 +273,17 @@ class AggsandboxAPI:
         
         if args.deposit_count is not None:
             cmd.extend(["--deposit-count", str(args.deposit_count)])
-        if args.token_address:
+        if args.token_address is not None:
             cmd.extend(["--token-address", args.token_address])
-        if args.gas_limit:
+        if args.gas_limit is not None:
             cmd.extend(["--gas-limit", str(args.gas_limit)])
-        if args.gas_price:
+        if args.gas_price is not None:
             cmd.extend(["--gas-price", args.gas_price])
-        if args.private_key:
+        if args.private_key is not None:
             cmd.extend(["--private-key", args.private_key])
-        if args.data:
+        if args.data is not None:
             cmd.extend(["--data", args.data])
-        if args.msg_value:
+        if args.msg_value is not None:
             cmd.extend(["--msg-value", args.msg_value])
         
         return AggsandboxAPI.run_command(cmd)

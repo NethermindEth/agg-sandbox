@@ -12,3 +12,7 @@ CLAUDE.md
 RUST_CONTEXT.md
 
 agglayer-contracts/deployment_output.json
+
+out
+
+cache/

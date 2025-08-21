@@ -94,7 +94,7 @@ pub enum BridgeCommands {
     },
     /// 📥 Claim bridged assets on destination network
     #[command(
-        long_about = "Claim assets that were bridged from another network.\n\nUse the transaction hash from the original bridge operation to claim\nthe corresponding assets on the destination network.\n\nFor bridgeAndCall operations that create multiple bridges with the same tx_hash,\nuse the --deposit-count parameter to specify which bridge to claim:\n  • 0 = Asset bridge (must be claimed first)\n  • 1 = Message bridge (claimed after asset bridge)\n\nFor BridgeExtension message claims, use --data to provide custom metadata.\n\nClaiming typically requires waiting for the bridge to process the deposit\nand generate the necessary proofs.\n\nExamples:\n  aggsandbox bridge claim --network 1 --tx-hash 0xabc123... --source-network 0\n  aggsandbox bridge claim -n 1 -t 0xdef456... -s 0 --deposit-count 0  # Claim asset bridge\n  aggsandbox bridge claim -n 1 -t 0xdef456... -s 0 --deposit-count 1 --data 0x123...  # Claim message bridge with custom data"
+        long_about = "Claim assets that were bridged from another network.\n\nUse the transaction hash from the original bridge operation to claim\nthe corresponding assets on the destination network.\n\nThe --deposit-count parameter identifies which specific bridge to claim using a\nglobal sequential counter that increments for EVERY bridge operation system-wide:\n  • deposit-count=0: First bridge ever created\n  • deposit-count=1: Second bridge ever created  \n  • deposit-count=N: The Nth bridge created\n\nBridge operations and their deposit counts:\n  • Single bridge (asset/message): Creates one bridge with current counter\n  • bridgeAndCall: Creates TWO consecutive bridges:\n    - First: Asset bridge (deposit-count=N)\n    - Second: Message bridge (deposit-count=N+1)\n\nUse `aggsandbox show bridges --network-id X` to see all bridges and their deposit counts.\n\nFor BridgeExtension message claims, use --data to provide custom metadata.\n\nExamples:\n  aggsandbox bridge claim --network 1 --tx-hash 0xabc123... --source-network 0\n  aggsandbox bridge claim -n 1 -t 0xdef456... -s 0 --deposit-count 5   # Claim bridge #5 globally\n  aggsandbox bridge claim -n 1 -t 0xdef456... -s 0 --deposit-count 6 --data 0x123...  # Claim bridge #6 with data"
     )]
     Claim {
         /// Network to claim assets on
@@ -110,11 +110,11 @@ pub enum BridgeCommands {
         /// Source network of the original bridge
         #[arg(short = 's', long, help = "Source network ID of original bridge")]
         source_network: u64,
-        /// Deposit count for the specific bridge (0=asset, 1=message, auto-detected if not provided)
+        /// Global deposit counter for the specific bridge (0=first bridge ever, 1=second bridge ever, etc.)
         #[arg(
             short = 'c',
             long,
-            help = "Deposit count for the specific bridge (0=asset, 1=message, auto-detected if not provided)"
+            help = "Global deposit counter for the specific bridge (0=first bridge ever, 1=second bridge ever, etc.)"
         )]
         deposit_count: Option<u64>,
         /// Token contract address that was bridged (auto-detected if not provided)

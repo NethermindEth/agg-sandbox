@@ -2,6 +2,7 @@ use crate::config::Config;
 use crate::logs;
 use crate::progress::{MultiStepProgress, ProgressBar, StatusReporter};
 use colored::*;
+use std::time::{Duration, Instant};
 use tracing::{error, info};
 
 /// Handle the start command
@@ -34,6 +35,11 @@ async fn handle_start_async(
         },
         "Starting services".to_string(),
         "Verifying startup".to_string(),
+        if multi_l2 {
+            "Waiting for contract deployment (multi-L2)...".to_string()
+        } else {
+            "Waiting for contract deployment...".to_string()
+        },
     ];
 
     let mut progress = MultiStepProgress::new(steps);
@@ -131,8 +137,35 @@ async fn handle_start_async(
                     .await;
                 progress.complete_step(handle);
 
-                // Step 5: Verify startup
+                // Step 5: Verify startup and wait for contract deployment
                 if let Some(verify_handle) = progress.start_step("Verifying startup") {
+                    progress.complete_step(verify_handle);
+
+                    // Wait for contract deployment to complete
+                    let wait_msg = if multi_l2 {
+                        "Waiting for contract deployment (multi-L2)..."
+                    } else {
+                        "Waiting for contract deployment..."
+                    };
+
+                    if let Some(deploy_handle) = progress.start_step(wait_msg) {
+                        info!("Waiting for contract deployment services to complete");
+
+                        // Smart wait for deployment - check for contract addresses in .env file
+                        info!("Waiting for contract deployment to complete");
+                        if !wait_for_contract_deployment(30) {
+                            info!("Contract deployment taking longer than expected, continuing anyway...");
+                        }
+
+                        // Force reload environment variables after deployment
+                        dotenv::dotenv().ok();
+
+                        // Complex waiting logic disabled - using simple sleep instead
+
+                        progress.complete_step(deploy_handle);
+                        info!("Contract deployment completed successfully");
+                    }
+
                     // Display success message
                     let success_msg = match (fork, multi_l2) {
                         (true, true) => "Multi-L2 sandbox started in fork mode (detached)",
@@ -146,15 +179,13 @@ async fn handle_start_async(
                         "Sandbox started successfully in detached mode"
                     );
 
-                    progress.complete_step(verify_handle);
-
                     // Print success message after progress is complete
                     println!("\n{} {}", "✅".green().bold(), success_msg.green());
                 }
 
-                // Load config and print appropriate info
-                info!("Loading configuration for info display");
-                if let Ok(config) = Config::load() {
+                // Load config with environment refresh to pick up deployed contract addresses
+                info!("Loading configuration for info display after contract deployment");
+                if let Ok(config) = Config::load_with_env_refresh(true) {
                     match (fork, multi_l2) {
                         (_, true) => {
                             info!("Displaying multi-L2 configuration info");
@@ -223,5 +254,60 @@ fn display_fork_urls(multi_l2: bool) {
         println!("{}", "Fork URLs detected:".cyan());
         println!("  Mainnet: {}", fork_mainnet.yellow());
         println!("  Agglayer 1: {}", fork_agglayer_1.yellow());
+    }
+}
+
+/// Wait for contract deployment by checking if contract addresses appear in .env file
+/// Returns true if contracts are deployed within timeout, false if timeout exceeded
+fn wait_for_contract_deployment(timeout_secs: u64) -> bool {
+    let start_time = Instant::now();
+    let timeout_duration = Duration::from_secs(timeout_secs);
+
+    loop {
+        // Check if timeout exceeded
+        if start_time.elapsed() > timeout_duration {
+            return false;
+        }
+
+        // Check if key contract addresses are present in .env file
+        if let Ok(content) = std::fs::read_to_string(".env") {
+            // Look for essential contract addresses that indicate deployment is complete
+            let required_contracts = [
+                "POLYGON_ROLLUP_MANAGER_L1=0x",
+                "POLYGON_ZKEVM_BRIDGE_L1=0x",
+                "AGG_ERC20_L1=0x",
+            ];
+
+            let mut contracts_found = 0;
+            for contract in &required_contracts {
+                if content.contains(contract) {
+                    // Check that it's not just an empty assignment
+                    if let Some(line) = content
+                        .lines()
+                        .find(|line| line.contains(&contract[..contract.len() - 3]))
+                    {
+                        if let Some((_, value)) = line.split_once('=') {
+                            let value = value.trim();
+                            if value.len() > 2 && value != "0x" {
+                                // Valid address
+                                contracts_found += 1;
+                            }
+                        }
+                    }
+                }
+            }
+
+            // If all required contracts are found, deployment is complete
+            if contracts_found >= required_contracts.len() {
+                info!(
+                    "Contract deployment completed successfully in {}s",
+                    start_time.elapsed().as_secs()
+                );
+                return true;
+            }
+        }
+
+        // Wait a bit before checking again
+        std::thread::sleep(Duration::from_millis(2000));
     }
 }

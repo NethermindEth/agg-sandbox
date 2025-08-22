@@ -65,7 +65,7 @@ abigen!(
 pub enum BridgeCommands {
     /// 🔄 Bridge assets between networks
     #[command(
-        long_about = "Transfer assets between L1 and L2 networks.\n\nBridge ETH or ERC20 tokens from source network to destination network.\nThe command handles token approvals automatically when needed.\n\nIMPORTANT: Wait at least 5 seconds after bridging before claiming to allow\nAggKit to update the Global Exit Root (GER).\n\nNetwork IDs:\n  • 0 = Ethereum L1 (Chain ID 1)\n  • 1 = L2 AggLayer 1 (Chain ID 1101)\n  • 2 = L2 AggLayer 2 (Chain ID 137, if multi-L2 enabled)\n\nExamples:\n  aggsandbox bridge asset --network-id 0 --destination-network-id 1 --amount 0.1 --token-address 0x0000000000000000000000000000000000000000\n  aggsandbox bridge asset -n 0 -d 1 -a 1.5 -t 0xA0b86a33E6776e39e6b37ddEC4F25B04Dd9Fc4DC --to-address 0x123..."
+        long_about = "Transfer assets between L1 and L2 networks.\n\nBridge ETH or ERC20 tokens from source network to destination network.\nThe command handles token approvals automatically when needed.\n\nIMPORTANT: Wait at least 5 seconds after bridging before claiming to allow\nAggKit to update the Global Exit Root (GER).\n\nNetwork IDs:\n  • 0 = Ethereum L1 (Chain ID 1)\n  • 1 = L2 AggLayer 1 (Chain ID 1101)\n  • 2 = L2 AggLayer 2 (Chain ID 137, if multi-L2 enabled)\n\nExamples:\n  aggsandbox bridge asset --network-id 0 --destination-network-id 1 --amount 100000000000000000 --token-address 0x0000000000000000000000000000000000000000\n  aggsandbox bridge asset -n 0 -d 1 -a 1500000000000000000 -t 0xA0b86a33E6776e39e6b37ddEC4F25B04Dd9Fc4DC --to-address 0x123..."
     )]
     Asset {
         /// Source network ID (0=L1, 1=L2, etc.)
@@ -148,7 +148,7 @@ pub enum BridgeCommands {
     },
     /// 📬 Bridge message to destination network
     #[command(
-        long_about = "Send a message to the destination network that can be claimed and executed.\n\nThis creates a pure message bridge using the bridgeMessage function,\nwhich must be manually claimed on the destination network.\n\nIMPORTANT: Wait at least 5 seconds after bridging before claiming to allow\nAggKit to update the Global Exit Root (GER).\n\nThe call data should be hex-encoded data that will be passed to the target address.\nThis is useful for sending data or triggering specific actions on the destination chain.\n\nExamples:\n  aggsandbox bridge message --network-id 0 --destination-network-id 1 --target 0x123... --data 0xabc...\n  aggsandbox bridge message -n 0 -d 1 -t 0x456... --data 0xdef... --amount 0.1"
+        long_about = "Send a message to the destination network that can be claimed and executed.\n\nThis creates a pure message bridge using the bridgeMessage function,\nwhich must be manually claimed on the destination network.\n\nIMPORTANT: Wait at least 5 seconds after bridging before claiming to allow\nAggKit to update the Global Exit Root (GER).\n\nThe call data should be hex-encoded data that will be passed to the target address.\nThis is useful for sending data or triggering specific actions on the destination chain.\n\nExamples:\n  aggsandbox bridge message --network-id 0 --destination-network-id 1 --target 0x123... --data 0xabc...\n  aggsandbox bridge message -n 0 -d 1 -t 0x456... --data 0xdef... --amount 100000000000000000"
     )]
     Message {
         /// Source network ID

@@ -46,7 +46,7 @@ POLYGON_ZKEVM_BRIDGE_L2=0x2279B7A0a67DB372996a5FaB50D91eAA73d2eBe6
 #### 1. Bridge ETH from L1 to L2
 
 ```bash
-# Bridge 0.1 ETH from L1 to L2
+# Bridge 0.1 ETH from L1 to L2 (0.1 ETH = 100000000000000000 wei)
 aggsandbox bridge asset \
     --network-id 0 \
     --destination-network-id 1 \
@@ -173,7 +173,7 @@ The CLI automatically:
 #### 1. Bridge Back to L1
 
 ```bash
-# Bridge wrapped tokens back to L1
+# Bridge 50 wrapped tokens back to L1 (50 * 10^18 wei for 18 decimal token)
 aggsandbox bridge asset \
   --network-id 1 \
   --destination-network-id 0 \
@@ -258,7 +258,7 @@ Bridge-and-Call combines asset bridging with contract execution in a single atom
 
 ```bash
 # Encode the processTransferAndCall function call with amount parameter
-# The amount parameter should match the bridged ETH amount in wei
+# The amount parameter should match the bridged ETH amount in wei (0.01 ETH = 10000000000000000 wei)
 TRANSFER_DATA=$(cast calldata "processTransferAndCall(uint256)" 10000000000000000)
 ```
 
@@ -303,7 +303,7 @@ INCREMENT_DATA=$(cast calldata "increment()")
 Use CLI to bridge ETH and call the Counter's increment function:
 
 ```bash
-# Bridge 0.01 ETH and call increment() function using CLI
+# Bridge 0.01 ETH and call increment() function using CLI (0.01 ETH = 10000000000000000 wei)
 aggsandbox bridge bridge-and-call \
   --network-id 0 \
   --destination-network-id 1 \
@@ -390,7 +390,7 @@ aggsandbox start --multi-l2 --detach
 ### Cross-L2 Bridging
 
 ```bash
-# Bridge from L2-1 to L2-2
+# Bridge 1 ETH from L2-1 to L2-2 (1 ETH = 1000000000000000000 wei)
 aggsandbox bridge asset \
   --network-id 1 \
   --destination-network-id 2 \
@@ -490,7 +490,7 @@ aggsandbox bridge claim \
 # 1. Start sandbox
 aggsandbox start --detach && source .env
 
-# 2. Bridge assets
+# 2. Bridge assets (0.5 ETH = 500000000000000000 wei)
 aggsandbox bridge asset --network-id 0 --destination-network-id 1 --amount 500000000000000000 --token-address 0x0000000000000000000000000000000000000000
 
 # 3. Wait for confirmation
@@ -506,10 +506,10 @@ aggsandbox show claims --network-id 1
 ### Bridge-and-Call Workflow
 
 ```bash
-# 1. Prepare call data for AssetAndCallReceiver contract
+# 1. Prepare call data for AssetAndCallReceiver contract (1 ETH = 1000000000000000000 wei)
 TRANSFER_DATA=$(cast calldata "processTransferAndCall(uint256)" 1000000000000000000)
 
-# 2. Execute bridge-and-call with ETH (1 ETH)
+# 2. Execute bridge-and-call with ETH (1 ETH = 1000000000000000000 wei)
 aggsandbox bridge bridge-and-call \
   --network-id 0 \
   --destination-network-id 1 \
@@ -518,7 +518,7 @@ aggsandbox bridge bridge-and-call \
   --target $ASSET_AND_CALL_RECEIVER_L2 \
   --data $TRANSFER_DATA \
   --fallback $ACCOUNT_ADDRESS_1 \
-  --msg-value 1000000000000000000000000000000000000
+  --msg-value 1000000000000000000
 
 # 3. Claim asset bridge (must be first)
 aggsandbox bridge claim \
@@ -527,7 +527,7 @@ aggsandbox bridge claim \
   --source-network-id 0 \
   --deposit-count 0
 
-# 4. Claim message bridge with ETH value (triggers contract execution)
+# 4. Claim message bridge with ETH value (triggers contract execution, 1 ETH = 1000000000000000000 wei)
 aggsandbox bridge claim \
   --network-id 1 \
   --tx-hash <hash> \

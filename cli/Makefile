@@ -10,7 +10,7 @@ format:
 
 # Run clippy (matches cargo clippy behavior)
 clippy:
-	cargo clippy --all-targets --all-features -- -D warnings -A clippy::unwrap_used -A clippy::disallowed_methods -A clippy::disallowed_types
+	cargo clippy --all-targets --all-features -- -D warnings -A clippy::disallowed_methods -A clippy::disallowed_types
 
 # Run cargo check
 check:

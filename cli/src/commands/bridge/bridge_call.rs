@@ -652,8 +652,8 @@ pub async fn bridge_and_call_with_approval(args: BridgeAndCallArgs<'_>) -> Resul
     println!("   2. Find entries with tx_hash: {:#x}", tx.tx_hash());
     println!("   3. Note the deposit_count for asset bridge (leaf_type: 0)");
     println!("   4. Note the deposit_count for message bridge (leaf_type: 1, has calldata)");
-    println!("   5. Claim asset: aggsandbox bridge claim --network {} --tx-hash {:#x} --source-network {} --deposit-count <asset_deposit_count>", args.destination_network, tx.tx_hash(), args.source_network);
-    println!("   6. Claim message: aggsandbox bridge claim --network {} --tx-hash {:#x} --source-network {} --deposit-count <message_deposit_count>", args.destination_network, tx.tx_hash(), args.source_network);
+    println!("   5. Claim asset: aggsandbox bridge claim --network-id {} --tx-hash {:#x} --source-network-id {} --deposit-count <asset_deposit_count>", args.destination_network, tx.tx_hash(), args.source_network);
+    println!("   6. Claim message: aggsandbox bridge claim --network-id {} --tx-hash {:#x} --source-network-id {} --deposit-count <message_deposit_count>", args.destination_network, tx.tx_hash(), args.source_network);
 
     Ok(())
 }

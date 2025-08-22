@@ -65,15 +65,15 @@ abigen!(
 pub enum BridgeCommands {
     /// 🔄 Bridge assets between networks
     #[command(
-        long_about = "Transfer assets between L1 and L2 networks.\n\nBridge ETH or ERC20 tokens from source network to destination network.\nThe command handles token approvals automatically when needed.\n\nNetwork IDs:\n  • 0 = Ethereum L1 (Chain ID 1)\n  • 1 = L2 AggLayer 1 (Chain ID 1101)\n  • 2 = L2 AggLayer 2 (Chain ID 137, if multi-L2 enabled)\n\nExamples:\n  aggsandbox bridge asset --network 0 --destination-network 1 --amount 0.1 --token-address 0x0000000000000000000000000000000000000000\n  aggsandbox bridge asset -n 0 -d 1 -a 1.5 -t 0xA0b86a33E6776e39e6b37ddEC4F25B04Dd9Fc4DC --to-address 0x123..."
+        long_about = "Transfer assets between L1 and L2 networks.\n\nBridge ETH or ERC20 tokens from source network to destination network.\nThe command handles token approvals automatically when needed.\n\nNetwork IDs:\n  • 0 = Ethereum L1 (Chain ID 1)\n  • 1 = L2 AggLayer 1 (Chain ID 1101)\n  • 2 = L2 AggLayer 2 (Chain ID 137, if multi-L2 enabled)\n\nExamples:\n  aggsandbox bridge asset --network-id 0 --destination-network-id 1 --amount 0.1 --token-address 0x0000000000000000000000000000000000000000\n  aggsandbox bridge asset -n 0 -d 1 -a 1.5 -t 0xA0b86a33E6776e39e6b37ddEC4F25B04Dd9Fc4DC --to-address 0x123..."
     )]
     Asset {
         /// Source network ID (0=L1, 1=L2, etc.)
-        #[arg(short, long, help = "Source network ID")]
-        network: u64,
+        #[arg(short = 'n', long, help = "Source network ID")]
+        network_id: u64,
         /// Destination network ID
         #[arg(short = 'd', long, help = "Destination network ID")]
-        destination_network: u64,
+        destination_network_id: u64,
         /// Amount to bridge (in wei)
         #[arg(short, long, help = "Amount to bridge (in wei)")]
         amount: String,
@@ -95,12 +95,12 @@ pub enum BridgeCommands {
     },
     /// 📥 Claim bridged assets on destination network
     #[command(
-        long_about = "Claim assets that were bridged from another network.\n\nUse the transaction hash from the original bridge operation to claim\nthe corresponding assets on the destination network.\n\nThe --deposit-count parameter identifies which specific bridge to claim using a\nglobal sequential counter that increments for EVERY bridge operation system-wide:\n  • deposit-count=0: First bridge ever created\n  • deposit-count=1: Second bridge ever created  \n  • deposit-count=N: The Nth bridge created\n\nBridge operations and their deposit counts:\n  • Single bridge (asset/message): Creates one bridge with current counter\n  • bridgeAndCall: Creates TWO consecutive bridges:\n    - First: Asset bridge (deposit-count=N)\n    - Second: Message bridge (deposit-count=N+1)\n\nUse `aggsandbox show bridges --network-id X` to see all bridges and their deposit counts.\n\nFor BridgeExtension message claims, use --data to provide custom metadata.\n\nExamples:\n  aggsandbox bridge claim --network 1 --tx-hash 0xabc123... --source-network 0\n  aggsandbox bridge claim -n 1 -t 0xdef456... -s 0 --deposit-count 5   # Claim bridge #5 globally\n  aggsandbox bridge claim -n 1 -t 0xdef456... -s 0 --deposit-count 6 --data 0x123...  # Claim bridge #6 with data"
+        long_about = "Claim assets that were bridged from another network.\n\nUse the transaction hash from the original bridge operation to claim\nthe corresponding assets on the destination network.\n\nThe --deposit-count parameter identifies which specific bridge to claim using a\nglobal sequential counter that increments for EVERY bridge operation system-wide:\n  • deposit-count=0: First bridge ever created\n  • deposit-count=1: Second bridge ever created  \n  • deposit-count=N: The Nth bridge created\n\nBridge operations and their deposit counts:\n  • Single bridge (asset/message): Creates one bridge with current counter\n  • bridgeAndCall: Creates TWO consecutive bridges:\n    - First: Asset bridge (deposit-count=N)\n    - Second: Message bridge (deposit-count=N+1)\n\nUse `aggsandbox show bridges --network-id X` to see all bridges and their deposit counts.\n\nFor BridgeExtension message claims, use --data to provide custom metadata.\n\nExamples:\n  aggsandbox bridge claim --network-id 1 --tx-hash 0xabc123... --source-network-id 0\n  aggsandbox bridge claim -n 1 -t 0xdef456... -s 0 --deposit-count 5   # Claim bridge #5 globally\n  aggsandbox bridge claim -n 1 -t 0xdef456... -s 0 --deposit-count 6 --data 0x123...  # Claim bridge #6 with data"
     )]
     Claim {
         /// Network to claim assets on
-        #[arg(short, long, help = "Network ID to claim assets on")]
-        network: u64,
+        #[arg(short = 'n', long, help = "Network ID to claim assets on")]
+        network_id: u64,
         /// Original bridge transaction hash
         #[arg(
             short,
@@ -110,7 +110,7 @@ pub enum BridgeCommands {
         tx_hash: String,
         /// Source network of the original bridge
         #[arg(short = 's', long, help = "Source network ID of original bridge")]
-        source_network: u64,
+        source_network_id: u64,
         /// Global deposit counter for the specific bridge (0=first bridge ever, 1=second bridge ever, etc.)
         #[arg(
             short = 'c',
@@ -148,15 +148,15 @@ pub enum BridgeCommands {
     },
     /// 📬 Bridge message to destination network
     #[command(
-        long_about = "Send a message to the destination network that can be claimed and executed.\n\nThis creates a pure message bridge using the bridgeMessage function,\nwhich must be manually claimed on the destination network.\n\nThe call data should be hex-encoded data that will be passed to the target address.\nThis is useful for sending data or triggering specific actions on the destination chain.\n\nExamples:\n  aggsandbox bridge message --network 0 --destination-network 1 --target 0x123... --data 0xabc...\n  aggsandbox bridge message -n 0 -d 1 -t 0x456... --data 0xdef... --amount 0.1"
+        long_about = "Send a message to the destination network that can be claimed and executed.\n\nThis creates a pure message bridge using the bridgeMessage function,\nwhich must be manually claimed on the destination network.\n\nThe call data should be hex-encoded data that will be passed to the target address.\nThis is useful for sending data or triggering specific actions on the destination chain.\n\nExamples:\n  aggsandbox bridge message --network-id 0 --destination-network-id 1 --target 0x123... --data 0xabc...\n  aggsandbox bridge message -n 0 -d 1 -t 0x456... --data 0xdef... --amount 0.1"
     )]
     Message {
         /// Source network ID
-        #[arg(short, long, help = "Source network ID")]
-        network: u64,
+        #[arg(short = 'n', long, help = "Source network ID")]
+        network_id: u64,
         /// Destination network ID
         #[arg(short = 'd', long, help = "Destination network ID")]
-        destination_network: u64,
+        destination_network_id: u64,
         /// Target contract address on destination network
         #[arg(short, long, help = "Target contract address")]
         target: String,
@@ -181,15 +181,15 @@ pub enum BridgeCommands {
     },
     /// 🔗 Bridge tokens and execute contract call (bridgeAndCall with token approval)
     #[command(
-        long_about = "Bridge ERC20 tokens and execute a contract call on the destination network.\\n\\nThis command handles the complete bridgeAndCall workflow:\\n1. Approves the bridge extension contract to spend tokens\\n2. Executes bridgeAndCall to bridge tokens and create a call message\\n3. Provides instructions for claiming the asset and message bridges\\n\\nNote: This creates TWO bridge transactions:\\n- Asset bridge (deposit_count = 0) - must be claimed first\\n- Message bridge (deposit_count = 1) - contains call instructions\\n\\nExamples:\\n  aggsandbox bridge bridge-and-call --network 0 --destination-network 1 --token 0x123... --amount 10 --target 0x456... --data 0xabc... --fallback 0x789...\\n  aggsandbox bridge bridge-and-call -n 0 -d 1 -t 0x123... -a 10 --target 0x456... --data 0xdef... --fallback 0x789..."
+        long_about = "Bridge ERC20 tokens and execute a contract call on the destination network.\\n\\nThis command handles the complete bridgeAndCall workflow:\\n1. Approves the bridge extension contract to spend tokens\\n2. Executes bridgeAndCall to bridge tokens and create a call message\\n3. Provides instructions for claiming the asset and message bridges\\n\\nNote: This creates TWO bridge transactions:\\n- Asset bridge (deposit_count = 0) - must be claimed first\\n- Message bridge (deposit_count = 1) - contains call instructions\\n\\nExamples:\\n  aggsandbox bridge bridge-and-call --network-id 0 --destination-network-id 1 --token 0x123... --amount 10 --target 0x456... --data 0xabc... --fallback 0x789...\\n  aggsandbox bridge bridge-and-call -n 0 -d 1 -t 0x123... -a 10 --target 0x456... --data 0xdef... --fallback 0x789..."
     )]
     BridgeAndCall {
         /// Source network ID (0=L1, 1=L2, etc.)
-        #[arg(short, long, help = "Source network ID")]
-        network: u64,
+        #[arg(short = 'n', long, help = "Source network ID")]
+        network_id: u64,
         /// Destination network ID
         #[arg(short = 'd', long, help = "Destination network ID")]
-        destination_network: u64,
+        destination_network_id: u64,
         /// Token contract address to bridge
         #[arg(short = 't', long, help = "Token contract address")]
         token: String,
@@ -230,8 +230,8 @@ pub async fn handle_bridge(subcommand: BridgeCommands) -> Result<()> {
 
     match subcommand {
         BridgeCommands::Asset {
-            network,
-            destination_network,
+            network_id,
+            destination_network_id,
             amount,
             token_address,
             to_address,
@@ -240,8 +240,8 @@ pub async fn handle_bridge(subcommand: BridgeCommands) -> Result<()> {
             private_key,
         } => {
             info!(
-                network = network,
-                destination_network = destination_network,
+                network = network_id,
+                destination_network = destination_network_id,
                 amount = %amount,
                 token_address = %token_address,
                 "Executing bridge asset command"
@@ -250,8 +250,8 @@ pub async fn handle_bridge(subcommand: BridgeCommands) -> Result<()> {
             let gas_options = GasOptions::new(gas_limit, gas_price.as_deref());
             let mut builder = BridgeAssetArgs::builder()
                 .config(&config)
-                .source_network(network)
-                .destination_network(destination_network)
+                .source_network(network_id)
+                .destination_network(destination_network_id)
                 .amount(&amount)
                 .token_address(&token_address)
                 .gas_options(gas_options);
@@ -267,9 +267,9 @@ pub async fn handle_bridge(subcommand: BridgeCommands) -> Result<()> {
             bridge_asset(args).await
         }
         BridgeCommands::Claim {
-            network,
+            network_id,
             tx_hash,
-            source_network,
+            source_network_id,
             deposit_count,
             token_address,
             gas_limit,
@@ -279,18 +279,18 @@ pub async fn handle_bridge(subcommand: BridgeCommands) -> Result<()> {
             msg_value,
         } => {
             info!(
-                network = network,
+                network = network_id,
                 tx_hash = %tx_hash,
-                source_network = source_network,
+                source_network = source_network_id,
                 "Executing bridge claim command"
             );
 
             let gas_options = GasOptions::new(gas_limit, gas_price.as_deref());
             let mut builder = ClaimAssetArgs::builder()
                 .config(&config)
-                .network(network)
+                .network(network_id)
                 .tx_hash(&tx_hash)
-                .source_network(source_network)
+                .source_network(source_network_id)
                 .gas_options(gas_options);
 
             if let Some(count) = deposit_count {
@@ -313,8 +313,8 @@ pub async fn handle_bridge(subcommand: BridgeCommands) -> Result<()> {
             claim_asset(args).await
         }
         BridgeCommands::Message {
-            network,
-            destination_network,
+            network_id,
+            destination_network_id,
             target,
             data,
             amount,
@@ -324,8 +324,8 @@ pub async fn handle_bridge(subcommand: BridgeCommands) -> Result<()> {
             private_key,
         } => {
             info!(
-                network = network,
-                destination_network = destination_network,
+                network = network_id,
+                destination_network = destination_network_id,
                 target = %target,
                 "Executing bridge message command"
             );
@@ -343,8 +343,8 @@ pub async fn handle_bridge(subcommand: BridgeCommands) -> Result<()> {
             let message_params = builder.build_with_crate_error()?;
             bridge_message(
                 &config,
-                network,
-                destination_network,
+                network_id,
+                destination_network_id,
                 message_params,
                 gas_options,
                 private_key.as_deref(),
@@ -352,8 +352,8 @@ pub async fn handle_bridge(subcommand: BridgeCommands) -> Result<()> {
             .await
         }
         BridgeCommands::BridgeAndCall {
-            network,
-            destination_network,
+            network_id,
+            destination_network_id,
             token,
             amount,
             target,
@@ -365,8 +365,8 @@ pub async fn handle_bridge(subcommand: BridgeCommands) -> Result<()> {
             msg_value,
         } => {
             info!(
-                network = network,
-                destination_network = destination_network,
+                network = network_id,
+                destination_network = destination_network_id,
                 token = %token,
                 amount = %amount,
                 target = %target,
@@ -376,8 +376,8 @@ pub async fn handle_bridge(subcommand: BridgeCommands) -> Result<()> {
             let gas_options = GasOptions::new(gas_limit, gas_price.as_deref());
             let mut builder = BridgeAndCallArgs::builder()
                 .config(&config)
-                .source_network(network)
-                .destination_network(destination_network)
+                .source_network(network_id)
+                .destination_network(destination_network_id)
                 .token_address(&token)
                 .amount(&amount)
                 .target(&target)

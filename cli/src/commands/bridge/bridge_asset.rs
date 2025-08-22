@@ -404,7 +404,7 @@ pub async fn bridge_asset(args: BridgeAssetArgs<'_>) -> Result<()> {
         args.source_network // ETH bridging, use actual source network
     };
 
-    println!("💡 Use 'aggsandbox bridge claim --network {} --tx-hash <tx_hash> --source-network {claim_source_network}' to claim assets", args.destination_network);
+    println!("💡 Use 'aggsandbox bridge claim --network-id {} --tx-hash <tx_hash> --source-network-id {claim_source_network}' to claim assets", args.destination_network);
 
     Ok(())
 }

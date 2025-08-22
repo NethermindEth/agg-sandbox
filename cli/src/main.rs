@@ -136,7 +136,7 @@ enum Commands {
     },
     /// 🌉 Execute bridge operations (asset transfers, claims, messages)
     #[command(
-        long_about = "Execute bridge operations using direct smart contract interactions.\n\nPerform cross-chain asset transfers, claim bridged assets, and send messages\nbetween L1 and L2 networks with user-friendly commands.\n\nExamples:\n  aggsandbox bridge asset --network 0 --destination-network 1 --amount 0.1 --token-address 0x0000...\n  aggsandbox bridge claim --network 1 --tx-hash 0xabc... --source-network 0\n  aggsandbox bridge message --network 0 --destination-network 1 --target 0x123... --data 0xabc..."
+        long_about = "Execute bridge operations using direct smart contract interactions.\n\nPerform cross-chain asset transfers, claim bridged assets, and send messages\nbetween L1 and L2 networks with user-friendly commands.\n\nExamples:\n  aggsandbox bridge asset --network-id 0 --destination-network-id 1 --amount 0.1 --token-address 0x0000...\n  aggsandbox bridge claim --network-id 1 --tx-hash 0xabc... --source-network-id 0\n  aggsandbox bridge message --network-id 0 --destination-network-id 1 --target 0x123... --data 0xabc..."
     )]
     Bridge {
         #[command(subcommand)]

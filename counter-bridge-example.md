@@ -59,8 +59,9 @@ aggsandbox bridge bridge-and-call \
   --fallback $ACCOUNT_ADDRESS_1 \
   --data $INCREMENT_DATA \
   --msg-value 10000000000000000
+```
 
-# Note the transaction hash from the output
+Note the transaction hash from the output
 ```bash
 aggsandbox bridge claim   --network 1   --tx-hash <tx_hash>  --source-network 0 --deposit-count 0
 ```

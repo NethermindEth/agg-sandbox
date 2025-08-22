@@ -44,6 +44,7 @@ L1 (Anvil:8545) ←→ AggKit (API:5577, RPC:8555) ←→ L2 (Anvil:8546)
 - **[Quick Start](docs/quickstart.md)** - Installation and first steps
 - **[CLI Reference](docs/cli-reference.md)** - Complete command guide
 - **[Bridge Operations](docs/bridge-operations.md)** - LXLY bridge guide
+- **[Deployed Contracts](docs/deployed-contracts.md)** - Smart contract reference
 - **[Advanced Workflows](docs/advanced-workflows.md)** - Complex scenarios
 - **[Configuration](docs/configuration.md)** - Environment setup
 - **[Troubleshooting](docs/troubleshooting.md)** - Common issues

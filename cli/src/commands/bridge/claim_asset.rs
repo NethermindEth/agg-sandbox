@@ -631,6 +631,7 @@ pub async fn claim_asset(args: ClaimAssetArgs<'_>) -> Result<()> {
     } else {
         println!("🎉 Message bridge claimed! Contract call should execute automatically.");
     }
+    println!("💡 For future claims, ensure you wait at least 5 seconds after bridging to allow AggKit to update the Global Exit Root (GER)");
 
     Ok(())
 }

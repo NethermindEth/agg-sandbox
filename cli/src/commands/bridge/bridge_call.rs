@@ -443,6 +443,7 @@ pub async fn bridge_message(
         tx.tx_hash()
     );
     println!("💡 This creates a pure message bridge that must be manually claimed on the destination network.");
+    println!("⏰ Wait at least 5 seconds after bridging before claiming to allow AggKit to update the Global Exit Root (GER)");
 
     Ok(())
 }
@@ -654,6 +655,7 @@ pub async fn bridge_and_call_with_approval(args: BridgeAndCallArgs<'_>) -> Resul
     println!("   4. Note the deposit_count for message bridge (leaf_type: 1, has calldata)");
     println!("   5. Claim asset: aggsandbox bridge claim --network-id {} --tx-hash {:#x} --source-network-id {} --deposit-count <asset_deposit_count>", args.destination_network, tx.tx_hash(), args.source_network);
     println!("   6. Claim message: aggsandbox bridge claim --network-id {} --tx-hash {:#x} --source-network-id {} --deposit-count <message_deposit_count>", args.destination_network, tx.tx_hash(), args.source_network);
+    println!("⏰ Wait at least 5 seconds after bridging before claiming to allow AggKit to update the Global Exit Root (GER)");
 
     Ok(())
 }

@@ -405,6 +405,7 @@ pub async fn bridge_asset(args: BridgeAssetArgs<'_>) -> Result<()> {
     };
 
     println!("💡 Use 'aggsandbox bridge claim --network-id {} --tx-hash <tx_hash> --source-network-id {claim_source_network}' to claim assets", args.destination_network);
+    println!("⏰ Wait at least 5 seconds after bridging before claiming to allow AggKit to update the Global Exit Root (GER)");
 
     Ok(())
 }

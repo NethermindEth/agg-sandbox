@@ -15,8 +15,8 @@ LIQUIDITY_DATA=$(cast calldata "addLiquidity(address,address,uint256,uint256,uin
 
 # 2. Bridge tokens with liquidity provision
 aggsandbox bridge bridge-and-call \
-  --network 0 \
-  --destination-network 1 \
+  --network-id 0 \
+  --destination-network-id 1 \
   --token $AGG_ERC20_L1 \
   --amount 10 \
   --target $DEX_ROUTER_L2 \
@@ -24,8 +24,8 @@ aggsandbox bridge bridge-and-call \
   --fallback $ACCOUNT_ADDRESS_1
 
 # 3. Execute two-phase claiming
-aggsandbox bridge claim --network 1 --tx-hash <hash> --source-network 0 --deposit-count 0
-aggsandbox bridge claim --network 1 --tx-hash <hash> --source-network 0 --deposit-count 1
+aggsandbox bridge claim --network-id 1 --tx-hash <hash> --source-network-id 0 --deposit-count 0
+aggsandbox bridge claim --network-id 1 --tx-hash <hash> --source-network-id 0 --deposit-count 1
 ```
 
 ### Cross-Chain Yield Farming
@@ -38,15 +38,15 @@ STAKE_DATA=$(cast calldata "stake(uint256)" 5000000000000000000)
 
 # 2. Pre-calculate L2 token address
 L2_TOKEN=$(aggsandbox bridge utils precalculate \
-  --network 1 \
+  --network-id 1 \
   --origin-network 0 \
   --origin-token $YIELD_TOKEN_L1 \
   --json | jq -r '.precalculated_address')
 
 # 3. Bridge and stake in one operation
 aggsandbox bridge bridge-and-call \
-  --network 0 \
-  --destination-network 1 \
+  --network-id 0 \
+  --destination-network-id 1 \
   --token $YIELD_TOKEN_L1 \
   --amount 5 \
   --target $STAKING_CONTRACT_L2 \
@@ -66,20 +66,20 @@ aggsandbox start --multi-l2 --detach
 
 # 2. Bridge from L1 to L2-1
 aggsandbox bridge asset \
-  --network 0 \
-  --destination-network 1 \
+  --network-id 0 \
+  --destination-network-id 1 \
   --amount 2.0 \
   --token-address 0x0000000000000000000000000000000000000000
 
 # 3. Claim on L2-1
 aggsandbox bridge claim \
-  --network 1 \
+  --network-id 1 \
   --tx-hash <l1_to_l2_hash> \
-  --source-network 0
+  --source-network-id 0
 
 # 4. Bridge from L2-1 to L2-2
 aggsandbox bridge asset \
-  --network 1 \
+  --network-id 1 \
   --destination-network 2 \
   --amount 1.0 \
   --token-address 0x0000000000000000000000000000000000000000
@@ -120,8 +120,8 @@ for i in "${!TOKENS[@]}"; do
   echo "Bridging ${AMOUNTS[$i]} of ${TOKENS[$i]}"
 
   aggsandbox bridge asset \
-    --network 0 \
-    --destination-network 1 \
+    --network-id 0 \
+    --destination-network-id 1 \
     --amount "${AMOUNTS[$i]}" \
     --token-address "${TOKENS[$i]}" \
     --to-address $ACCOUNT_ADDRESS_2
@@ -145,9 +145,9 @@ for tx_hash in $TX_HASHES; do
   echo "Claiming bridge: $tx_hash"
 
   aggsandbox bridge claim \
-    --network 1 \
+    --network-id 1 \
     --tx-hash $tx_hash \
-    --source-network 0
+    --source-network-id 0
 
   sleep 3
 done
@@ -169,8 +169,8 @@ aggsandbox start --fork --detach
 
 # 3. Bridge real tokens with real state
 aggsandbox bridge asset \
-  --network 0 \
-  --destination-network 1 \
+  --network-id 0 \
+  --destination-network-id 1 \
   --amount 1000 \
   --token-address 0xA0b86a33E6776e39e6b37ddEC4F25B04Dd9Fc4DC  # Real USDC
 ```
@@ -200,8 +200,8 @@ MULTI_STEP_DATA=$(cast calldata "executeMultiStep(address[],bytes[])" \
 
 # 2. Execute bridge-and-call with multi-step
 aggsandbox bridge bridge-and-call \
-  --network 0 \
-  --destination-network 1 \
+  --network-id 0 \
+  --destination-network-id 1 \
   --token $AGG_ERC20_L1 \
   --amount 20 \
   --target $MULTI_STEP_EXECUTOR_L2 \
@@ -219,8 +219,8 @@ CONDITIONAL_DATA=$(cast calldata "executeIfCondition(uint256,bytes)" \
 
 # 2. Bridge with conditional execution
 aggsandbox bridge bridge-and-call \
-  --network 0 \
-  --destination-network 1 \
+  --network-id 0 \
+  --destination-network-id 1 \
   --token $AGG_ERC20_L1 \
   --amount 15 \
   --target $CONDITIONAL_EXECUTOR_L2 \
@@ -252,8 +252,8 @@ if [ "$L1_PRICE" -lt "$L2_PRICE" ]; then
     1000000000000000000 0 "[$WRAPPED_TOKEN,$WETH]" $ACCOUNT_ADDRESS_1 $(date +%s))
 
   aggsandbox bridge bridge-and-call \
-    --network 0 \
-    --destination-network 1 \
+    --network-id 0 \
+    --destination-network-id 1 \
     --token $TOKEN \
     --amount 1 \
     --target $DEX_L2 \
@@ -281,8 +281,8 @@ if [ "$L1_LIQUIDITY" -gt $((L2_LIQUIDITY + THRESHOLD)) ]; then
     $TOKEN_A $TOKEN_B $((THRESHOLD/2)) 0 0 $ACCOUNT_ADDRESS_1 $(date +%s))
 
   aggsandbox bridge message \
-    --network 0 \
-    --destination-network 1 \
+    --network-id 0 \
+    --destination-network-id 1 \
     --target $DEX_ROUTER_L1 \
     --data $REMOVE_LIQUIDITY_DATA
 fi
@@ -301,8 +301,8 @@ BRIDGE_AMOUNT="0.01"
 
 for i in $(seq 1 $CONCURRENT_BRIDGES); do
   aggsandbox bridge asset \
-    --network 0 \
-    --destination-network 1 \
+    --network-id 0 \
+    --destination-network-id 1 \
     --amount $BRIDGE_AMOUNT \
     --token-address 0x0000000000000000000000000000000000000000 &
 done
@@ -324,24 +324,24 @@ echo "Starting integration test suite..."
 # 1. Test basic asset bridge
 echo "Testing basic asset bridge..."
 TX_HASH=$(aggsandbox bridge asset --network 0 --destination-network 1 --amount 0.1 --token-address 0x0000000000000000000000000000000000000000 --json | jq -r '.tx_hash')
-aggsandbox bridge claim --network 1 --tx-hash $TX_HASH --source-network 0
+aggsandbox bridge claim --network-id 1 --tx-hash $TX_HASH --source-network-id 0
 
 # 2. Test ERC20 bridge
 echo "Testing ERC20 bridge..."
 TX_HASH=$(aggsandbox bridge asset --network 0 --destination-network 1 --amount 100 --token-address $AGG_ERC20_L1 --json | jq -r '.tx_hash')
-aggsandbox bridge claim --network 1 --tx-hash $TX_HASH --source-network 0
+aggsandbox bridge claim --network-id 1 --tx-hash $TX_HASH --source-network-id 0
 
 # 3. Test message bridge
 echo "Testing message bridge..."
 MESSAGE_DATA=$(cast calldata "transfer(address,uint256)" $ACCOUNT_ADDRESS_1 1000000000000000000)
 TX_HASH=$(aggsandbox bridge message --network 0 --destination-network 1 --target $TARGET_CONTRACT --data $MESSAGE_DATA --json | jq -r '.tx_hash')
-aggsandbox bridge claim --network 1 --tx-hash $TX_HASH --source-network 0
+aggsandbox bridge claim --network-id 1 --tx-hash $TX_HASH --source-network-id 0
 
 # 4. Test bridge-and-call
 echo "Testing bridge-and-call..."
 TX_HASH=$(aggsandbox bridge bridge-and-call --network 0 --destination-network 1 --token $AGG_ERC20_L1 --amount 10 --target $L2_TOKEN --data $TRANSFER_DATA --fallback $ACCOUNT_ADDRESS_1 --json | jq -r '.tx_hash')
-aggsandbox bridge claim --network 1 --tx-hash $TX_HASH --source-network 0 --deposit-count 0
-aggsandbox bridge claim --network 1 --tx-hash $TX_HASH --source-network 0 --deposit-count 1
+aggsandbox bridge claim --network-id 1 --tx-hash $TX_HASH --source-network-id 0 --deposit-count 0
+aggsandbox bridge claim --network-id 1 --tx-hash $TX_HASH --source-network-id 0 --deposit-count 1
 
 echo "All integration tests passed!"
 ```
@@ -359,8 +359,8 @@ declare -a BRIDGE_PIDS=()
 # Start multiple bridge operations
 for i in {1..5}; do
   aggsandbox bridge asset \
-    --network 0 \
-    --destination-network 1 \
+    --network-id 0 \
+    --destination-network-id 1 \
     --amount 0.1 \
     --token-address 0x0000000000000000000000000000000000000000 &
   BRIDGE_PIDS+=($!)
@@ -415,8 +415,8 @@ CUSTOM_CONTRACT_L2=$(cast send --private-key $PRIVATE_KEY_1 \
 # 3. Test cross-chain interaction
 INTERACTION_DATA=$(cast calldata "crossChainFunction(uint256)" 12345)
 aggsandbox bridge message \
-  --network 0 \
-  --destination-network 1 \
+  --network-id 0 \
+  --destination-network-id 1 \
   --target $CUSTOM_CONTRACT_L2 \
   --data $INTERACTION_DATA
 ```

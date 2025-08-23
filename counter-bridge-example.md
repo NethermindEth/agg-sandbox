@@ -51,8 +51,8 @@ Use CLI to bridge ETH and call the Counter's increment function:
 ```bash
 # Bridge 0.01 ETH and call increment() function using CLI
 aggsandbox bridge bridge-and-call \
-  --network 0 \
-  --destination-network 1 \
+  --network-id 0 \
+  --destination-network-id 1 \
   --token 0x0000000000000000000000000000000000000000 \
   --amount 10000000000000000 \
   --target $COUNTER_L2 \
@@ -63,10 +63,10 @@ aggsandbox bridge bridge-and-call \
 
 Note the transaction hash from the output
 ```bash
-aggsandbox bridge claim   --network 1   --tx-hash <tx_hash>  --source-network 0 --deposit-count 0
+aggsandbox bridge claim   --network-id 1   --tx-hash <tx_hash>  --source-network-id 0 --deposit-count 0
 ```
 ```bash
-aggsandbox bridge claim   --network 1   --tx-hash <tx_hash>  --source-network 0 --deposit-count 1
+aggsandbox bridge claim   --network-id 1   --tx-hash <tx_hash>  --source-network-id 0 --deposit-count 1
 ```
 ## Step 5: Verify Incremented Counter Value
 

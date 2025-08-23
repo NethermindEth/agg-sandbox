@@ -58,8 +58,8 @@ aggsandbox status               # Check status
 aggsandbox stop                # Stop sandbox
 
 # Bridge operations
-aggsandbox bridge asset --network 0 --destination-network 1 --amount 0.1 --token-address 0x0000000000000000000000000000000000000000
-aggsandbox bridge claim --network 1 --tx-hash <hash> --source-network 0
+aggsandbox bridge asset --network-id 0 --destination-network-id 1 --amount 0.1 --token-address 0x0000000000000000000000000000000000000000
+aggsandbox bridge claim --network-id 1 --tx-hash <hash> --source-network-id 0
 
 # Information
 aggsandbox show bridges --network-id 0

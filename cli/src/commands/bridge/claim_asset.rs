@@ -286,7 +286,7 @@ pub async fn claim_asset(args: ClaimAssetArgs<'_>) -> Result<()> {
             if let Some(bridges) = l2_response["bridges"].as_array() {
                 if bridges
                     .iter()
-                    .any(|bridge| bridge["tx_hash"].as_str() == Some(args.tx_hash))
+                    .any(|bridge| bridge["bridge_tx_hash"].as_str() == Some(args.tx_hash))
                 {
                     println!("🔍 Detected bridge-back scenario: transaction found on L2, using L2 for proof data");
                     (1u64, 1u64) // Bridge tx is on L2, proof data from L2
@@ -323,7 +323,7 @@ pub async fn claim_asset(args: ClaimAssetArgs<'_>) -> Result<()> {
         bridges
             .iter()
             .find(|bridge| {
-                bridge["tx_hash"].as_str() == Some(args.tx_hash)
+                bridge["bridge_tx_hash"].as_str() == Some(args.tx_hash)
                     && bridge["deposit_count"].as_u64() == Some(specific_deposit_count)
             })
             .ok_or_else(|| {
@@ -343,7 +343,7 @@ pub async fn claim_asset(args: ClaimAssetArgs<'_>) -> Result<()> {
         // Get all bridges with this transaction hash
         let matching_bridges: Vec<_> = bridges
             .iter()
-            .filter(|bridge| bridge["tx_hash"].as_str() == Some(args.tx_hash))
+            .filter(|bridge| bridge["bridge_tx_hash"].as_str() == Some(args.tx_hash))
             .collect();
 
         println!(
@@ -631,6 +631,7 @@ pub async fn claim_asset(args: ClaimAssetArgs<'_>) -> Result<()> {
     } else {
         println!("🎉 Message bridge claimed! Contract call should execute automatically.");
     }
+    println!("💡 For future claims, ensure you wait at least 5 seconds after bridging to allow AggKit to update the Global Exit Root (GER)");
 
     Ok(())
 }

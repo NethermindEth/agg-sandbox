@@ -136,8 +136,8 @@ aggsandbox bridge asset [OPTIONS]
 
 **Required Options:**
 
-- `--network, -n <ID>` - Source network ID (0=L1, 1=L2, 2=L3)
-- `--destination-network, -d <ID>` - Destination network ID
+- `--network-id, -n <ID>` - Source network ID (0=L1, 1=L2, 2=L3)
+- `--destination-network-id, -d <ID>` - Destination network ID
 - `--amount, -a <AMOUNT>` - Amount to bridge (in token units)
 - `--token-address, -t <ADDRESS>` - Token contract address (use `0x0000000000000000000000000000000000000000` for ETH)
 
@@ -153,15 +153,15 @@ aggsandbox bridge asset [OPTIONS]
 ```bash
 # Bridge ETH from L1 to L2
 aggsandbox bridge asset \
-  --network 0 \
-  --destination-network 1 \
+  --network-id 0 \
+  --destination-network-id 1 \
   --amount 0.1 \
   --token-address 0x0000000000000000000000000000000000000000
 
 # Bridge ERC20 tokens from L2 to L1
 aggsandbox bridge asset \
-  --network 1 \
-  --destination-network 0 \
+  --network-id 1 \
+  --destination-network-id 0 \
   --amount 100 \
   --token-address 0xA0b86a33E6776e39e6b37ddEC4F25B04Dd9Fc4DC \
   --to-address 0x70997970C51812dc3A010C7d01b50e0d17dc79C8
@@ -177,9 +177,9 @@ aggsandbox bridge claim [OPTIONS]
 
 **Required Options:**
 
-- `--network, -n <ID>` - Network to claim assets on
+- `--network-id, -n <ID>` - Network to claim assets on
 - `--tx-hash, -t <HASH>` - Original bridge transaction hash
-- `--source-network, -s <ID>` - Source network of the original bridge
+- `--source-network-id, -s <ID>` - Source network of the original bridge
 
 **Optional Options:**
 
@@ -194,15 +194,15 @@ aggsandbox bridge claim [OPTIONS]
 ```bash
 # Claim assets on L2
 aggsandbox bridge claim \
-  --network 1 \
+  --network-id 1 \
   --tx-hash 0xb7118cfb20825861028ede1e9586814fc7ccf81745a325db5df355d382d96b4e \
-  --source-network 0
+  --source-network-id 0
 
 # Claim specific bridge with deposit count
 aggsandbox bridge claim \
-  --network 1 \
+  --network-id 1 \
   --tx-hash 0xb7118cfb20825861028ede1e9586814fc7ccf81745a325db5df355d382d96b4e \
-  --source-network 0 \
+  --source-network-id 0 \
   --deposit-count 0
 ```
 
@@ -216,8 +216,8 @@ aggsandbox bridge message [OPTIONS]
 
 **Required Options:**
 
-- `--network, -n <ID>` - Source network ID
-- `--destination-network, -d <ID>` - Destination network ID
+- `--network-id, -n <ID>` - Source network ID
+- `--destination-network-id, -d <ID>` - Destination network ID
 - `--target, -t <ADDRESS>` - Target contract address on destination network
 - `--data <HEX>` - Contract call data (hex encoded)
 
@@ -234,8 +234,8 @@ aggsandbox bridge message [OPTIONS]
 ```bash
 # Bridge ETH with contract call
 aggsandbox bridge message \
-  --network 0 \
-  --destination-network 1 \
+  --network-id 0 \
+  --destination-network-id 1 \
   --target 0x742d35Cc6965C592342c6c16fb8eaeb90a23b5C0 \
   --data 0xa9059cbb000000000000000000000000742d35cc6965c592342c6c16fb8eaeb90a23b5c00000000000000000000000000000000000000000000000000de0b6b3a7640000 \
   --amount 0.01
@@ -251,8 +251,8 @@ aggsandbox bridge bridge-and-call [OPTIONS]
 
 **Required Options:**
 
-- `--network, -n <ID>` - Source network ID
-- `--destination-network, -d <ID>` - Destination network ID
+- `--network-id, -n <ID>` - Source network ID
+- `--destination-network-id, -d <ID>` - Destination network ID
 - `--token, -t <ADDRESS>` - Token contract address to bridge
 - `--amount, -a <AMOUNT>` - Amount to bridge (in token units)
 - `--target <ADDRESS>` - Target contract address on destination network
@@ -270,8 +270,8 @@ aggsandbox bridge bridge-and-call [OPTIONS]
 ```bash
 # Bridge ERC20 tokens with contract call
 aggsandbox bridge bridge-and-call \
-  --network 0 \
-  --destination-network 1 \
+  --network-id 0 \
+  --destination-network-id 1 \
   --token 0xA0b86a33E6776e39e6b37ddEC4F25B04Dd9Fc4DC \
   --amount 10 \
   --target 0x742d35Cc6965C592342c6c16fb8eaeb90a23b5C0 \
@@ -449,7 +449,7 @@ aggsandbox bridge utils build-payload [OPTIONS]
 **Required Options:**
 
 - `--tx-hash, -t <HASH>` - Bridge transaction hash
-- `--source-network, -s <ID>` - Source network ID
+- `--source-network-id, -s <ID>` - Source network ID
 
 **Optional Options:**
 
@@ -467,7 +467,7 @@ aggsandbox bridge utils compute-index [OPTIONS]
 **Required Options:**
 
 - `--local-index <INDEX>` - Local bridge index
-- `--source-network <ID>` - Source network ID
+- `--source-network-id <ID>` - Source network ID
 
 **Optional Options:**
 
@@ -483,7 +483,7 @@ aggsandbox bridge utils get-mapped [OPTIONS]
 
 **Required Options:**
 
-- `--network, -n <ID>` - Target network ID
+- `--network-id, -n <ID>` - Target network ID
 - `--origin-network <ID>` - Origin network ID
 - `--origin-token <ADDRESS>` - Origin token contract address
 
@@ -502,7 +502,7 @@ aggsandbox bridge utils precalculate [OPTIONS]
 
 **Required Options:**
 
-- `--network, -n <ID>` - Target network ID
+- `--network-id, -n <ID>` - Target network ID
 - `--origin-network <ID>` - Origin network ID
 - `--origin-token <ADDRESS>` - Origin token contract address
 
@@ -520,7 +520,7 @@ aggsandbox bridge utils get-origin [OPTIONS]
 
 **Required Options:**
 
-- `--network, -n <ID>` - Network ID
+- `--network-id, -n <ID>` - Network ID
 - `--wrapped-token <ADDRESS>` - Wrapped token contract address
 
 **Optional Options:**
@@ -537,9 +537,9 @@ aggsandbox bridge utils is-claimed [OPTIONS]
 
 **Required Options:**
 
-- `--network, -n <ID>` - Network ID to check
+- `--network-id, -n <ID>` - Network ID to check
 - `--index <INDEX>` - Bridge index to check
-- `--source-network <ID>` - Source bridge network ID
+- `--source-network-id <ID>` - Source bridge network ID
 
 **Optional Options:**
 

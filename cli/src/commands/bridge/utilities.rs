@@ -162,7 +162,7 @@ pub async fn build_payload_for_claim(args: BuildPayloadArgs<'_>) -> Result<Claim
         bridges
             .iter()
             .find(|bridge| {
-                bridge["tx_hash"].as_str() == Some(args.tx_hash)
+                bridge["bridge_tx_hash"].as_str() == Some(args.tx_hash)
                     && bridge["deposit_count"].as_u64() == Some(specific_deposit_count)
             })
             .ok_or_else(|| {
@@ -174,7 +174,7 @@ pub async fn build_payload_for_claim(args: BuildPayloadArgs<'_>) -> Result<Claim
     } else {
         bridges
             .iter()
-            .find(|bridge| bridge["tx_hash"].as_str() == Some(args.tx_hash))
+            .find(|bridge| bridge["bridge_tx_hash"].as_str() == Some(args.tx_hash))
             .ok_or_else(|| {
                 validation_error(&format!("Bridge transaction {} not found", args.tx_hash))
             })?
@@ -447,8 +447,8 @@ pub enum UtilityCommands {
     BuildPayload {
         #[arg(short, long, help = "Bridge transaction hash")]
         tx_hash: String,
-        #[arg(short, long, help = "Source network ID")]
-        source_network: u64,
+        #[arg(short = 's', long, help = "Source network ID")]
+        source_network_id: u64,
         #[arg(long, help = "Bridge index for multi-bridge transactions")]
         bridge_index: Option<u64>,
         #[arg(long, help = "Output as JSON")]
@@ -461,13 +461,13 @@ pub enum UtilityCommands {
     /// Uses lxly.js-compatible algorithm: L1 = localIndex + 2^31, L2+ = localIndex + (networkId-1) * 2^32
     ///
     /// Examples:
-    ///   aggsandbox bridge utils compute-index --local-index 42 --source-network 0
-    ///   aggsandbox bridge utils compute-index --local-index 100 --source-network 1 --json
+    ///   aggsandbox bridge utils compute-index --local-index 42 --source-network-id 0
+    ///   aggsandbox bridge utils compute-index --local-index 100 --source-network-id 1 --json
     ComputeIndex {
         #[arg(long, help = "Local deposit index")]
         local_index: u64,
-        #[arg(long, help = "Source network ID")]
-        source_network: u64,
+        #[arg(short = 's', long, help = "Source network ID")]
+        source_network_id: u64,
         #[arg(long, help = "Output as JSON")]
         json: bool,
     },
@@ -481,8 +481,8 @@ pub enum UtilityCommands {
     ///   aggsandbox bridge utils get-mapped -n 1 --origin-network 0 --origin-token 0xA0b86a33E6776e39e6b37ddEC4F25B04Dd9Fc4DC
     ///   aggsandbox bridge utils get-mapped -n 1 --origin-network 0 --origin-token 0xA0b86a33E6776e39e6b37ddEC4F25B04Dd9Fc4DC --json
     GetMapped {
-        #[arg(short, long, help = "Target network ID")]
-        network: u64,
+        #[arg(short = 'n', long, help = "Target network ID")]
+        network_id: u64,
         #[arg(long, help = "Origin network ID")]
         origin_network: u32,
         #[arg(long, help = "Origin token address")]
@@ -502,8 +502,8 @@ pub enum UtilityCommands {
     ///   aggsandbox bridge utils precalculate -n 1 --origin-network 0 --origin-token 0xA0b86a33E6776e39e6b37ddEC4F25B04Dd9Fc4DC
     ///   aggsandbox bridge utils precalculate -n 1 --origin-network 0 --origin-token 0xA0b86a33E6776e39e6b37ddEC4F25B04Dd9Fc4DC --json
     Precalculate {
-        #[arg(short, long, help = "Target network ID")]
-        network: u64,
+        #[arg(short = 'n', long, help = "Target network ID")]
+        network_id: u64,
         #[arg(long, help = "Origin network ID")]
         origin_network: u32,
         #[arg(long, help = "Origin token address")]
@@ -523,8 +523,8 @@ pub enum UtilityCommands {
     ///   aggsandbox bridge utils get-origin -n 1 --wrapped-token 0x742d35Cc6965C592342c6c16fb8eaeb90a23b5C0
     ///   aggsandbox bridge utils get-origin -n 1 --wrapped-token 0x742d35Cc6965C592342c6c16fb8eaeb90a23b5C0 --json
     GetOrigin {
-        #[arg(short, long, help = "Network ID")]
-        network: u64,
+        #[arg(short = 'n', long, help = "Network ID")]
+        network_id: u64,
         #[arg(long, help = "Wrapped token address")]
         wrapped_token: String,
         #[arg(long, help = "Private key (optional)")]
@@ -542,12 +542,12 @@ pub enum UtilityCommands {
     ///   aggsandbox bridge utils is-claimed -n 1 --index 0 --source-network 0
     ///   aggsandbox bridge utils is-claimed -n 1 --index 0 --source-network 0 --json
     IsClaimed {
-        #[arg(short, long, help = "Network ID")]
-        network: u64,
+        #[arg(short = 'n', long, help = "Network ID")]
+        network_id: u64,
         #[arg(long, help = "Bridge deposit index (deposit_count from bridge data)")]
         index: u32,
         #[arg(long, help = "Source bridge network ID")]
-        source_network: u64,
+        source_network_id: u64,
         #[arg(long, help = "Output as JSON")]
         json: bool,
     },
@@ -561,8 +561,8 @@ pub enum UtilityCommands {
     ///   aggsandbox bridge utils network-id -n 1
     ///   aggsandbox bridge utils network-id -n 0 --json
     NetworkId {
-        #[arg(short, long, help = "Network ID")]
-        network: u64,
+        #[arg(short = 'n', long, help = "Network ID")]
+        network_id: u64,
         #[arg(long, help = "Private key (optional)")]
         private_key: Option<String>,
         #[arg(long, help = "Output as JSON")]
@@ -575,13 +575,13 @@ pub async fn handle_utility_command(config: &Config, command: UtilityCommands) -
     match command {
         UtilityCommands::BuildPayload {
             tx_hash,
-            source_network,
+            source_network_id,
             bridge_index,
             json,
         } => {
             info!(
                 tx_hash = %tx_hash,
-                source_network = source_network,
+                source_network = source_network_id,
                 bridge_index = ?bridge_index,
                 "Building claim payload"
             );
@@ -589,7 +589,7 @@ pub async fn handle_utility_command(config: &Config, command: UtilityCommands) -
             let args = BuildPayloadArgs {
                 config,
                 tx_hash: &tx_hash,
-                source_network,
+                source_network: source_network_id,
                 bridge_index,
             };
 
@@ -633,20 +633,20 @@ pub async fn handle_utility_command(config: &Config, command: UtilityCommands) -
         }
         UtilityCommands::ComputeIndex {
             local_index,
-            source_network,
+            source_network_id,
             json,
         } => {
-            validate_network_id(source_network, "Source network")?;
+            validate_network_id(source_network_id, "Source network")?;
 
             info!(
                 local_index = local_index,
-                source_network = source_network,
+                source_network = source_network_id,
                 "Computing global index"
             );
 
             let args = ComputeGlobalIndexArgs {
                 index_local: local_index,
-                source_network_id: source_network,
+                source_network_id,
             };
 
             let global_index = compute_global_index(args);
@@ -654,15 +654,17 @@ pub async fn handle_utility_command(config: &Config, command: UtilityCommands) -
             if json {
                 let output = ComputeIndexOutput {
                     local_index,
-                    source_network,
+                    source_network: source_network_id,
                     global_index: global_index.to_string(),
                 };
                 let json_str = serialize_json(&output)?;
                 println!("{json_str}");
             } else {
                 let local_index_str = local_index.to_string();
-                let source_network_str =
-                    format!("{source_network} ({})", get_network_name(source_network));
+                let source_network_str = format!(
+                    "{source_network_id} ({})",
+                    get_network_name(source_network_id)
+                );
                 let global_index_str = global_index.to_string();
                 let rows = vec![
                     ("Local Index", local_index_str.as_str()),
@@ -675,14 +677,14 @@ pub async fn handle_utility_command(config: &Config, command: UtilityCommands) -
             Ok(())
         }
         UtilityCommands::GetMapped {
-            network,
+            network_id,
             origin_network,
             origin_token,
             private_key,
             json,
         } => {
             info!(
-                network = network,
+                network = network_id,
                 origin_network = origin_network,
                 origin_token = %origin_token,
                 "Getting mapped token address"
@@ -690,7 +692,7 @@ pub async fn handle_utility_command(config: &Config, command: UtilityCommands) -
 
             let args = MappedTokenArgs {
                 config,
-                network,
+                network: network_id,
                 origin_network,
                 origin_token_address: &origin_token,
                 private_key: private_key.as_deref(),
@@ -702,7 +704,7 @@ pub async fn handle_utility_command(config: &Config, command: UtilityCommands) -
                 let output = MappedTokenOutput {
                     origin_network,
                     origin_token_address: origin_token.clone(),
-                    target_network: network,
+                    target_network: network_id,
                     wrapped_token_address: format!("{mapped_address:?}"),
                 };
                 let json_str = serialize_json(&output)?;
@@ -712,7 +714,7 @@ pub async fn handle_utility_command(config: &Config, command: UtilityCommands) -
                     "{origin_network} ({})",
                     get_network_name(origin_network as u64)
                 );
-                let target_network_str = format!("{network} ({})", get_network_name(network));
+                let target_network_str = format!("{network_id} ({})", get_network_name(network_id));
                 let wrapped_address_str = format!("{mapped_address:?}");
                 let rows = vec![
                     ("Origin Network", origin_network_str.as_str()),
@@ -726,14 +728,14 @@ pub async fn handle_utility_command(config: &Config, command: UtilityCommands) -
             Ok(())
         }
         UtilityCommands::Precalculate {
-            network,
+            network_id,
             origin_network,
             origin_token,
             private_key,
             json,
         } => {
             info!(
-                network = network,
+                network = network_id,
                 origin_network = origin_network,
                 origin_token = %origin_token,
                 "Precalculating token address"
@@ -741,7 +743,7 @@ pub async fn handle_utility_command(config: &Config, command: UtilityCommands) -
 
             let args = PrecalculatedTokenArgs {
                 config,
-                network,
+                network: network_id,
                 origin_network,
                 origin_token_address: &origin_token,
                 private_key: private_key.as_deref(),
@@ -753,7 +755,7 @@ pub async fn handle_utility_command(config: &Config, command: UtilityCommands) -
                 let output = PrecalculatedTokenOutput {
                     origin_network,
                     origin_token_address: origin_token.clone(),
-                    target_network: network,
+                    target_network: network_id,
                     precalculated_address: format!("{precalculated_address:?}"),
                 };
                 let json_str = serialize_json(&output)?;
@@ -763,7 +765,7 @@ pub async fn handle_utility_command(config: &Config, command: UtilityCommands) -
                     "{origin_network} ({})",
                     get_network_name(origin_network as u64)
                 );
-                let target_network_str = format!("{network} ({})", get_network_name(network));
+                let target_network_str = format!("{network_id} ({})", get_network_name(network_id));
                 let precalculated_address_str = format!("{precalculated_address:?}");
                 let rows = vec![
                     ("Origin Network", origin_network_str.as_str()),
@@ -777,20 +779,20 @@ pub async fn handle_utility_command(config: &Config, command: UtilityCommands) -
             Ok(())
         }
         UtilityCommands::GetOrigin {
-            network,
+            network_id,
             wrapped_token,
             private_key,
             json,
         } => {
             info!(
-                network = network,
+                network = network_id,
                 wrapped_token = %wrapped_token,
                 "Getting origin token info"
             );
 
             let args = OriginTokenArgs {
                 config,
-                network,
+                network: network_id,
                 wrapped_token_address: &wrapped_token,
                 private_key: private_key.as_deref(),
             };
@@ -801,7 +803,7 @@ pub async fn handle_utility_command(config: &Config, command: UtilityCommands) -
                 let json_str = serialize_json(&origin_info)?;
                 println!("{json_str}");
             } else {
-                let network_str = format!("{network} ({})", get_network_name(network));
+                let network_str = format!("{network_id} ({})", get_network_name(network_id));
                 let origin_network_str = format!(
                     "{} ({})",
                     origin_info.origin_network,
@@ -820,41 +822,43 @@ pub async fn handle_utility_command(config: &Config, command: UtilityCommands) -
             Ok(())
         }
         UtilityCommands::IsClaimed {
-            network,
+            network_id,
             index,
-            source_network,
+            source_network_id,
             json,
         } => {
             info!(
-                network = network,
+                network = network_id,
                 index = index,
-                source_network = source_network,
+                source_network = source_network_id,
                 "Checking claim status"
             );
 
             let args = IsClaimedArgs {
                 config,
-                network,
+                network: network_id,
                 index,
-                source_bridge_network: source_network,
+                source_bridge_network: source_network_id,
             };
 
             let claimed = is_claimed(args).await?;
 
             if json {
                 let output = ClaimStatusOutput {
-                    network,
+                    network: network_id,
                     bridge_index: index,
-                    source_network,
+                    source_network: source_network_id,
                     is_claimed: claimed,
                 };
                 let json_str = serialize_json(&output)?;
                 println!("{json_str}");
             } else {
-                let network_str = format!("{network} ({})", get_network_name(network));
+                let network_str = format!("{network_id} ({})", get_network_name(network_id));
                 let index_str = index.to_string();
-                let source_network_str =
-                    format!("{source_network} ({})", get_network_name(source_network));
+                let source_network_str = format!(
+                    "{source_network_id} ({})",
+                    get_network_name(source_network_id)
+                );
                 let claimed_status = if claimed {
                     "✅ CLAIMED"
                 } else {
@@ -872,15 +876,15 @@ pub async fn handle_utility_command(config: &Config, command: UtilityCommands) -
             Ok(())
         }
         UtilityCommands::NetworkId {
-            network,
+            network_id,
             private_key,
             json,
         } => {
-            info!(network = network, "Getting bridge contract network ID");
+            info!(network = network_id, "Getting bridge contract network ID");
 
             let args = NetworkIdArgs {
                 config,
-                network,
+                network: network_id,
                 private_key: private_key.as_deref(),
             };
 
@@ -888,13 +892,13 @@ pub async fn handle_utility_command(config: &Config, command: UtilityCommands) -
 
             if json {
                 let output = NetworkIdOutput {
-                    network,
+                    network: network_id,
                     contract_network_id,
                 };
                 let json_str = serialize_json(&output)?;
                 println!("{json_str}");
             } else {
-                let network_str = format!("{network} ({})", get_network_name(network));
+                let network_str = format!("{network_id} ({})", get_network_name(network_id));
                 let contract_network_id_str = contract_network_id.to_string();
                 let rows = vec![
                     ("Network", network_str.as_str()),

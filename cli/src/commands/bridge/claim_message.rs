@@ -266,5 +266,7 @@ pub async fn execute_claim_message(args: ClaimMessageArgs<'_>) -> Result<H256> {
             &format!("Failed to send claim message transaction: {e}"),
         ))
     })?;
+
+    println!("💡 For future claims, ensure you wait at least 5 seconds after bridging to allow AggKit to update the Global Exit Root (GER)");
     Ok(tx.tx_hash())
 }

@@ -361,7 +361,7 @@ fn print_error(error: &error::AggSandboxError) {
                 error::DockerError::ComposeFileNotFound(_) => {
                     eprintln!("{}", "💡 Quick Fix:".blue().bold());
                     eprintln!("   1. Navigate to the project root directory:");
-                    eprintln!("      {}", "cd /path/to/agg-sandbox".cyan());
+                    eprintln!("      {}", "cd /path/to/aggsandbox".cyan());
                     eprintln!("   2. Verify docker-compose.yml exists:");
                     eprintln!("      {}", "ls docker-compose.yml".cyan());
                     eprintln!("\n{}", "🎯 Current directory should contain:".dimmed());

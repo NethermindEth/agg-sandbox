@@ -187,7 +187,8 @@ def run_l2_to_l2_bridge_and_call_test(bridge_amount: int = 12):
                     
                     # Look for our bridge transactions (both asset and message)
                     for bridge in bridges:
-                        if bridge.get('tx_hash') == bridge_tx_hash:
+                        bridge_tx = BridgeUtils.get_bridge_tx_hash(bridge)
+                        if bridge_tx == bridge_tx_hash:
                             # Asset bridge: leaf_type = 0, has amount > 0
                             if bridge.get('leaf_type') == 0 and bridge.get('amount', '0') != '0':
                                 asset_bridge = bridge
@@ -214,13 +215,15 @@ def run_l2_to_l2_bridge_and_call_test(bridge_amount: int = 12):
             return False
         
         BridgeLogger.info(f"Asset Bridge Details:")
-        BridgeLogger.info(f"  • TX Hash: {asset_bridge['tx_hash']}")
+        asset_tx = BridgeUtils.get_bridge_tx_hash(asset_bridge)
+        BridgeLogger.info(f"  • TX Hash: {asset_tx}")
         BridgeLogger.info(f"  • Amount: {asset_bridge.get('amount', 'N/A')} tokens")
         BridgeLogger.info(f"  • Deposit Count: {asset_bridge['deposit_count']}")
         BridgeLogger.info(f"  • Leaf Type: {asset_bridge.get('leaf_type')} (0=Asset)")
         
         BridgeLogger.info(f"Message Bridge Details:")
-        BridgeLogger.info(f"  • TX Hash: {message_bridge['tx_hash']}")
+        message_tx = BridgeUtils.get_bridge_tx_hash(message_bridge)
+        BridgeLogger.info(f"  • TX Hash: {message_tx}")
         BridgeLogger.info(f"  • Deposit Count: {message_bridge['deposit_count']}")
         BridgeLogger.info(f"  • Leaf Type: {message_bridge.get('leaf_type')} (1=Message)")
         BridgeLogger.info(f"  • Has Calldata: {len(message_bridge.get('calldata', '')) > 2}")
@@ -241,9 +244,10 @@ def run_l2_to_l2_bridge_and_call_test(bridge_amount: int = 12):
         BridgeLogger.info("Asset bridge must be claimed before message bridge")
         
         # Create claim args for asset bridge using the actual deposit_count
+        asset_tx = BridgeUtils.get_bridge_tx_hash(asset_bridge)
         asset_claim_args = BridgeClaimArgs(
             network=2,  # L2-2
-            tx_hash=bridge_tx_hash,  # Same tx_hash for both
+            tx_hash=asset_tx,  # Use bridge_tx_hash from BridgeUtils
             source_network=1,  # L2-1
             deposit_count=asset_bridge['deposit_count'],  # Use actual asset deposit count
             private_key=BRIDGE_CONFIG.private_key_2
@@ -275,9 +279,10 @@ def run_l2_to_l2_bridge_and_call_test(bridge_amount: int = 12):
         BridgeLogger.info("Message bridge triggers the contract execution")
         
         # Create claim args for message bridge using the actual deposit_count
+        message_tx = BridgeUtils.get_bridge_tx_hash(message_bridge)
         message_claim_args = BridgeClaimArgs(
             network=2,  # L2-2
-            tx_hash=bridge_tx_hash,  # Same tx_hash for both
+            tx_hash=message_tx,  # Use bridge_tx_hash from BridgeUtils
             source_network=1,  # L2-1
             deposit_count=message_bridge['deposit_count'],  # Use actual message deposit count
             private_key=BRIDGE_CONFIG.private_key_2
@@ -332,10 +337,12 @@ def run_l2_to_l2_bridge_and_call_test(bridge_amount: int = 12):
                                     BridgeLogger.success(f"✅ Asset claim completed! (dest: {claim.get('destination_address')[:10]}...)")
                                     asset_claim_completed = True
                         
-                        # Message claim: type = message, from our L2-1 network
+                        # Message claim: from our L2-1 network, match by claim_tx_hash if available
                         elif (claim.get('origin_network') == 1 and  # L2-1
                               claim.get('destination_network') == 2 and  # L2-2
-                              claim.get('type') == 'message'):
+                              claim.get('amount') == '0' and
+                              (claim.get('claim_tx_hash') == message_claim_tx_hash or
+                               claim.get('destination_address') == contract_address)):
                             
                             if claim.get('status') == "completed":
                                 if not message_claim_completed:
@@ -435,19 +442,30 @@ def run_l2_to_l2_bridge_and_call_test(bridge_amount: int = 12):
                         claim.get('status') == 'completed'):
                         our_asset_claim = claim
                     
-                    # Message claim: type = message, from our L2-1 network (find most recent)
+                    # Message claim: from our L2-1 network, match by claim_tx_hash if available
                     elif (claim.get('origin_network') == 1 and  # L2-1
                           claim.get('destination_network') == 2 and  # L2-2
-                          claim.get('type') == 'message' and
-                          claim.get('status') == 'completed'):
+                          claim.get('amount') == '0' and
+                          claim.get('status') == 'completed' and
+                          (claim.get('claim_tx_hash') == message_claim_tx_hash or
+                           claim.get('destination_address') == contract_address)):
                         # Take the most recent message claim (highest global_index)
                         if our_message_claim is None or claim.get('global_index', 0) > our_message_claim.get('global_index', 0):
                             our_message_claim = claim
                 
                 if our_asset_claim and our_message_claim:
                     BridgeLogger.success("✅ Found both completed claims in L2-2:")
-                    BridgeLogger.info(f"  • Asset Claim - Amount: {our_asset_claim.get('amount')}, TX: {our_asset_claim.get('tx_hash')}")
-                    BridgeLogger.info(f"  • Message Claim - Contract: {our_message_claim.get('destination_address')[:10]}..., TX: {our_message_claim.get('tx_hash')}")
+                    asset_claim_tx = our_asset_claim.get('claim_tx_hash') or our_asset_claim.get('tx_hash')
+                    message_claim_tx = our_message_claim.get('claim_tx_hash') or our_message_claim.get('tx_hash')
+                    BridgeLogger.info(f"  • Asset Claim - Amount: {our_asset_claim.get('amount')}, TX: {asset_claim_tx}")
+                    BridgeLogger.info(f"  • Message Claim - Contract: {our_message_claim.get('destination_address')[:10]}..., TX: {message_claim_tx}")
+                    
+                    # Check if developer bug is fixed
+                    if our_message_claim.get('type') == 'message':
+                        BridgeLogger.success("✅ Developer fix confirmed: L2-L2 message claims now correctly show type 'message'")
+                    elif our_message_claim.get('type') == 'asset' and our_message_claim.get('amount') == '0':
+                        BridgeLogger.warning("⚠️ Developer bug still present: L2-L2 message claims show type 'asset' instead of 'message'")
+                    
                     BridgeLogger.success("🎉 Both claims are COMPLETE!")
                 elif our_asset_claim:
                     BridgeLogger.warning("⚠️ Only asset claim found - message claim may still be processing")

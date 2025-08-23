@@ -5,7 +5,7 @@ This comprehensive guide covers all aspects of developing the Agglayer Sandbox C
 ## Project Structure
 
 ```bash
-agg-sandbox/
+aggsandbox/
 ├── cli/                    # Rust CLI application (this directory)
 │   ├── src/               # Source code
 │   │   ├── main.rs                 # Entry point and CLI setup
@@ -55,8 +55,8 @@ agg-sandbox/
 
 ```bash
 # Clone the repository
-git clone https://github.com/NethermindEth/agg-sandbox.git
-cd agg-sandbox/cli
+git clone https://github.com/agglayer/aggsandbox
+cd aggsandbox/cli
 
 # Install dependencies and build
 cargo build

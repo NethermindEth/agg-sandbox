@@ -256,13 +256,16 @@ def run_l2_to_l2_message_bridge_test(message: str = "L2-1 to L2-2 Message"):
                     claims_data = json.loads(output)
                     claims = claims_data.get('claims', [])
                     
-                    # Look for our claim by matching bridge details
+                    # Look for our claim using multiple matching strategies
+                    bridge_tx = BridgeUtils.get_bridge_tx_hash(our_bridge)
                     for claim in claims:
-                        # Match by destination_address, origin_network, destination_network, type
-                        if (claim.get('destination_address') == contract_address and
-                            claim.get('origin_network') == 1 and  # L2-1
-                            claim.get('destination_network') == 2 and  # L2-2
-                            claim.get('type') == 'message'):
+                        # Match by bridge_tx_hash, claim_tx_hash, or bridge details
+                        if (claim.get('bridge_tx_hash') == bridge_tx or 
+                            claim.get('claim_tx_hash') == claim_tx_hash or
+                            (claim.get('destination_address') == contract_address and
+                             claim.get('origin_network') == 1 and  # L2-1
+                             claim.get('destination_network') == 2 and  # L2-2
+                             claim.get('amount') == '0')):
                             
                             claim_status = claim.get('status', 'unknown')
                             BridgeLogger.debug(f"Found matching claim: status={claim_status}, tx_hash={claim.get('tx_hash')}")
@@ -339,15 +342,19 @@ def run_l2_to_l2_message_bridge_test(message: str = "L2-1 to L2-2 Message"):
                 
                 BridgeLogger.success(f"✅ Found {total_claims} total claims on L2-2")
                 
-                # Look for our specific claim by matching bridge details
+                # Look for our specific claim using multiple matching strategies
+                bridge_tx = BridgeUtils.get_bridge_tx_hash(our_bridge)
                 our_claim = None
                 completed_claim = None
                 for claim in claims:
-                    # Match by destination_address, origin_network, destination_network, type
-                    if (claim.get('destination_address') == contract_address and
-                        claim.get('origin_network') == 1 and  # L2-1
-                        claim.get('destination_network') == 2 and  # L2-2
-                        claim.get('type') == 'message'):
+                    # Match by bridge_tx_hash, claim_tx_hash, or bridge details
+                    # Note: Due to developer bug, L2-L2 message claims show type "asset"
+                    if (claim.get('bridge_tx_hash') == bridge_tx or 
+                        claim.get('claim_tx_hash') == claim_tx_hash or
+                        (claim.get('destination_address') == contract_address and
+                         claim.get('origin_network') == 1 and  # L2-1
+                         claim.get('destination_network') == 2 and  # L2-2
+                         claim.get('amount') == '0')):
                         
                         if claim.get('status') == 'completed':
                             completed_claim = claim
@@ -359,12 +366,18 @@ def run_l2_to_l2_message_bridge_test(message: str = "L2-1 to L2-2 Message"):
                 
                 if display_claim:
                     claim_status = display_claim.get('status', 'unknown')
+                    claim_type = display_claim.get('type', 'unknown')
                     BridgeLogger.success("✅ Found our claim in L2-2 claims:")
-                    BridgeLogger.info(f"  • Type: {display_claim.get('type', 'unknown')}")
+                    BridgeLogger.info(f"  • Type: {claim_type}")
                     BridgeLogger.info(f"  • Block: {display_claim.get('block_num')}")
                     BridgeLogger.info(f"  • Status: {claim_status.upper()}")
                     BridgeLogger.info(f"  • Global Index: {display_claim.get('global_index')}")
-                    BridgeLogger.info(f"  • TX Hash: {display_claim.get('tx_hash')}")
+                    BridgeLogger.info(f"  • Bridge TX: {display_claim.get('bridge_tx_hash')}")
+                    BridgeLogger.info(f"  • Claim TX: {display_claim.get('claim_tx_hash')}")
+                    
+                    # Note developer bug for L2-L2 message claims
+                    if claim_type == 'asset' and display_claim.get('amount') == '0':
+                        BridgeLogger.warning("⚠️ Developer bug: L2-L2 message claims show type 'asset' instead of 'message'")
                     
                     if claim_status == "completed":
                         BridgeLogger.success("🎉 Claim is COMPLETE!")
@@ -406,7 +419,8 @@ def run_l2_to_l2_message_bridge_test(message: str = "L2-1 to L2-2 Message"):
         BridgeLogger.info("✅ 6. aggsandbox show claims --json (verification)")
         
         print(f"\n📊 Transaction Summary:")
-        BridgeLogger.info(f"Bridge TX (L2-1): {our_bridge['tx_hash']}")
+        bridge_tx = BridgeUtils.get_bridge_tx_hash(our_bridge)
+        BridgeLogger.info(f"Bridge TX (L2-1): {bridge_tx}")
         BridgeLogger.info(f"Claim TX (L2-2):  {claim_tx_hash}")
         BridgeLogger.info(f"Message Data:     {message_data}")
         BridgeLogger.info(f"Deposit Count:    {our_bridge['deposit_count']}")

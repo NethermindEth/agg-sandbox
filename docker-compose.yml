@@ -79,9 +79,9 @@ services:
       - ./.env:/app/output/deployed-contracts.env:ro
 
   aggkit:
-    # image: ametelnethermind/aggkit:latest
-    # pull_policy: always
-    image: aggkit:local
+    image: ametelnethermind/aggkit:latest
+    pull_policy: always
+    # image: aggkit:local
     depends_on:
       contract-deployer:
         condition: service_completed_successfully

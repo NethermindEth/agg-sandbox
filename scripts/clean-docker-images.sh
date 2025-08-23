@@ -1,11 +1,11 @@
 #!/bin/bash
 
-# Script to clean Docker images used by agg-sandbox compose files
+# Script to clean Docker images used by aggsandbox compose files
 # This helps ensure fresh images are pulled when Docker caches become stale
 
 set -e
 
-echo "🧹 Cleaning Docker images for agg-sandbox..."
+echo "🧹 Cleaning Docker images for aggsandbox..."
 
 # Extract unique image names from both compose files
 IMAGES=(

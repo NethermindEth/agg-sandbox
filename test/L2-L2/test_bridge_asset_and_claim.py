@@ -167,18 +167,8 @@ def run_l2_to_l2_asset_bridge_test(bridge_amount: int = 50):
             BridgeLogger.error(f"Bridge operation failed: {output}")
             return False
         
-        # Extract bridge transaction hash from output
-        bridge_tx_hash = None
-        lines = output.split('\n')
-        for line in lines:
-            if 'bridge transaction submitted' in line.lower() and '0x' in line:
-                words = line.split()
-                for word in words:
-                    if word.startswith('0x') and len(word) == 66:
-                        bridge_tx_hash = word
-                        break
-                if bridge_tx_hash:
-                    break
+        # Extract bridge transaction hash from output using BridgeUtils
+        bridge_tx_hash = BridgeUtils.extract_tx_hash(output)
         
         if not bridge_tx_hash:
             BridgeLogger.error("Could not extract bridge transaction hash from output")
@@ -274,7 +264,8 @@ def run_l2_to_l2_asset_bridge_test(bridge_amount: int = 50):
             BridgeLogger.warning("⚠️ Partial success - bridge completed, claiming blocked by API issue")
             
             print(f"\n📊 Transaction Summary:")
-            BridgeLogger.info(f"Bridge TX (L2-1): {our_bridge['tx_hash']}")
+            bridge_tx = BridgeUtils.get_bridge_tx_hash(our_bridge)
+            BridgeLogger.info(f"Bridge TX (L2-1): {bridge_tx}")
             BridgeLogger.info(f"Claim TX (L2-2):  Failed due to API issue")
             BridgeLogger.info(f"Amount:           {our_bridge['amount']} tokens")
             BridgeLogger.info(f"Deposit Count:    {our_bridge['deposit_count']}")
@@ -289,18 +280,8 @@ def run_l2_to_l2_asset_bridge_test(bridge_amount: int = 50):
             
             return True  # Return success since bridge portion worked
         
-        # Extract claim transaction hash
-        claim_tx_hash = None
-        lines = output.split('\n')
-        for line in lines:
-            if '✅ claim transaction submitted:' in line.lower() and '0x' in line:
-                words = line.split()
-                for word in words:
-                    if word.startswith('0x') and len(word) == 66:
-                        claim_tx_hash = word
-                        break
-                if claim_tx_hash:
-                    break
+        # Extract claim transaction hash using BridgeUtils
+        claim_tx_hash = BridgeUtils.extract_tx_hash(output)
         
         if claim_tx_hash:
             BridgeLogger.success(f"✅ Claim transaction submitted: {claim_tx_hash}")
@@ -328,14 +309,16 @@ def run_l2_to_l2_asset_bridge_test(bridge_amount: int = 50):
                     claims_data = json.loads(output)
                     claims = claims_data.get('claims', [])
                     
-                    # Look for our claim by matching bridge details (not tx_hash since it changes)
+                    # Look for our claim using bridge_tx_hash
+                    bridge_tx = BridgeUtils.get_bridge_tx_hash(our_bridge)
                     for claim in claims:
-                        # Match by origin_address (L2-1 token), destination_address, amount, and networks
-                        if (claim.get('origin_address') == BRIDGE_CONFIG.agg_erc20_l2 and
-                            claim.get('destination_address') == BRIDGE_CONFIG.account_address_2 and
-                            claim.get('amount') == str(our_bridge['amount']) and
-                            claim.get('origin_network') == 1 and  # L2-1
-                            claim.get('destination_network') == 2):  # L2-2
+                        # Match by bridge_tx_hash first, then fall back to bridge details
+                        if (claim.get('bridge_tx_hash') == bridge_tx or 
+                            (claim.get('origin_address') == BRIDGE_CONFIG.agg_erc20_l2 and
+                             claim.get('destination_address') == BRIDGE_CONFIG.account_address_2 and
+                             claim.get('amount') == str(our_bridge['amount']) and
+                             claim.get('origin_network') == 1 and  # L2-1
+                             claim.get('destination_network') == 2)):  # L2-2
                             
                             claim_status = claim.get('status', 'unknown')
                             BridgeLogger.debug(f"Found matching claim: status={claim_status}, tx_hash={claim.get('tx_hash')}")
@@ -420,16 +403,18 @@ def run_l2_to_l2_asset_bridge_test(bridge_amount: int = 50):
                 
                 BridgeLogger.success(f"✅ Found {total_claims} total claims on L2-2")
                 
-                # Look for our specific claim by matching bridge details
+                # Look for our specific claim using bridge_tx_hash
+                bridge_tx = BridgeUtils.get_bridge_tx_hash(our_bridge)
                 our_claim = None
                 completed_claim = None
                 for claim in claims:
-                    # Match by origin_address (L2-1 token), destination_address, amount, and networks
-                    if (claim.get('origin_address') == BRIDGE_CONFIG.agg_erc20_l2 and
-                        claim.get('destination_address') == BRIDGE_CONFIG.account_address_2 and
-                        claim.get('amount') == str(our_bridge['amount']) and
-                        claim.get('origin_network') == 1 and  # L2-1
-                        claim.get('destination_network') == 2):  # L2-2
+                    # Match by bridge_tx_hash first, then fall back to bridge details
+                    if (claim.get('bridge_tx_hash') == bridge_tx or 
+                        (claim.get('origin_address') == BRIDGE_CONFIG.agg_erc20_l2 and
+                         claim.get('destination_address') == BRIDGE_CONFIG.account_address_2 and
+                         claim.get('amount') == str(our_bridge['amount']) and
+                         claim.get('origin_network') == 1 and  # L2-1
+                         claim.get('destination_network') == 2)):  # L2-2
                         
                         if claim.get('status') == 'completed':
                             completed_claim = claim

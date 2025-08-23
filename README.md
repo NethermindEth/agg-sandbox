@@ -6,8 +6,8 @@ A development sandbox environment for testing cross-chain bridging operations us
 
 ```bash
 # Clone and install
-git clone https://github.com/NethermindEth/agg-sandbox.git
-cd agg-sandbox
+git clone https://github.com/agglayer/aggsandbox
+cd aggsandbox
 make install
 
 # Start sandbox
@@ -71,7 +71,7 @@ aggsandbox events --network-id 0
 
 - **CLI Help**: `aggsandbox --help`
 - **Command Help**: `aggsandbox <command> --help`
-- **Issues**: [GitHub Issues](https://github.com/NethermindEth/agg-sandbox/issues)
+- **Issues**: [GitHub Issues](https://github.com/agglayer/aggsandbox/issues)
 
 ## License
 

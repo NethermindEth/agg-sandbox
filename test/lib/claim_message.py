@@ -24,7 +24,7 @@ class ClaimMessage:
         
         cmd = [
             "aggsandbox", "bridge", "claim",
-            "--network", str(dest_network),
+            "--network-id", str(dest_network),
             "--tx-hash", tx_hash,
             "--source-network", str(source_network),
             "--private-key", private_key

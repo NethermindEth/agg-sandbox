@@ -244,8 +244,8 @@ class AggsandboxAPI:
         """Bridge ERC20 tokens or ETH between networks"""
         cmd = [
             "aggsandbox", "bridge", "asset",
-            "--network", str(args.network),
-            "--destination-network", str(args.destination_network),
+            "--network-id", str(args.network),
+            "--destination-network-id", str(args.destination_network),
             "--amount", str(args.amount),
             "--token-address", args.token_address
         ]
@@ -266,9 +266,9 @@ class AggsandboxAPI:
         """Claim previously bridged assets"""
         cmd = [
             "aggsandbox", "bridge", "claim",
-            "--network", str(args.network),
+            "--network-id", str(args.network),
             "--tx-hash", args.tx_hash,
-            "--source-network", str(args.source_network)
+            "--source-network-id", str(args.source_network)
         ]
         
         if args.deposit_count is not None:
@@ -297,8 +297,8 @@ class AggsandboxAPI:
         """Bridge with contract calls"""
         cmd = [
             "aggsandbox", "bridge", "message",
-            "--network", str(network),
-            "--destination-network", str(destination_network),
+            "--network-id", str(network),
+            "--destination-network-id", str(destination_network),
             "--target", target,
             "--data", data
         ]
@@ -352,8 +352,8 @@ class AggsandboxAPI:
         """
         cmd = [
             "aggsandbox", "bridge", "bridge-and-call",
-            "--network", str(network),
-            "--destination-network", str(destination_network),
+            "--network-id", str(network),
+            "--destination-network-id", str(destination_network),
             "--token", token,
             "--amount", amount,
             "--target", target,
@@ -506,7 +506,7 @@ class AggsandboxAPI:
         """Get wrapped token address for an origin token"""
         cmd = [
             "aggsandbox", "bridge", "utils", "get-mapped",
-            "--network", str(network),
+            "--network-id", str(network),
             "--origin-network", str(origin_network),
             "--origin-token", origin_token
         ]
@@ -524,7 +524,7 @@ class AggsandboxAPI:
         """Pre-calculate wrapped token address before deployment"""
         cmd = [
             "aggsandbox", "bridge", "utils", "precalculate",
-            "--network", str(network),
+            "--network-id", str(network),
             "--origin-network", str(origin_network),
             "--origin-token", origin_token
         ]
@@ -540,7 +540,7 @@ class AggsandboxAPI:
         """Get origin token information from wrapped token"""
         cmd = [
             "aggsandbox", "bridge", "utils", "get-origin",
-            "--network", str(network),
+            "--network-id", str(network),
             "--wrapped-token", wrapped_token
         ]
         
@@ -555,7 +555,7 @@ class AggsandboxAPI:
         """Check if a bridge has been claimed"""
         cmd = [
             "aggsandbox", "bridge", "utils", "is-claimed",
-            "--network", str(network),
+            "--network-id", str(network),
             "--index", str(index),
             "--source-network", str(source_network)
         ]
@@ -619,7 +619,7 @@ class AggsandboxAPI:
         """
         cmd = [
             "aggsandbox", "bridge", "utils", "network-id",
-            "--network", str(network)
+            "--network-id", str(network)
         ]
         
         if private_key:

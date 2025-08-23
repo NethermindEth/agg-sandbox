@@ -280,7 +280,16 @@ class BridgeUtils:
                     if word.startswith('0x') and len(word) == 66:
                         return word
         
-        # Look for bridge and call transaction (for message bridges)
+        # Look for bridge message transaction (for message bridges)
+        for line in lines:
+            line_clean = line.lower().strip()
+            if 'bridge message transaction submitted' in line_clean and '0x' in line:
+                words = line.split()
+                for word in words:
+                    if word.startswith('0x') and len(word) == 66:
+                        return word
+        
+        # Look for bridge and call transaction (for bridge-and-call operations)
         for line in lines:
             if 'bridge and call transaction submitted' in line.lower() and '0x' in line:
                 words = line.split()
@@ -330,6 +339,20 @@ class BridgeUtils:
         BridgeLogger.debug(f"Balance check needed for {account_address} on network {network_id}")
         BridgeLogger.debug("Note: aggsandbox CLI doesn't have balance command yet")
         return 0  # Placeholder return
+    
+    @staticmethod
+    def get_bridge_tx_hash(bridge: dict) -> str:
+        """Get transaction hash from bridge object, handling both old and new field names"""
+        return bridge.get('bridge_tx_hash') or bridge.get('tx_hash')
+    
+    @staticmethod
+    def find_bridge_by_tx_hash(bridges: list, tx_hash: str) -> dict:
+        """Find bridge in list by transaction hash, handling both old and new field names"""
+        for bridge in bridges:
+            if (bridge.get('tx_hash') == tx_hash or 
+                bridge.get('bridge_tx_hash') == tx_hash):
+                return bridge
+        return None
 
 # Initialize global configuration
 try:

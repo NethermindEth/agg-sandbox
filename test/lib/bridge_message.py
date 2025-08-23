@@ -15,29 +15,11 @@ class BridgeMessage:
     
     @staticmethod
     def bridge_message(source_network: int, dest_network: int, to_address: str,
-                      message_data: str, private_key: str, 
-                      force_update_ger: bool = True) -> Optional[str]:
+                      message_data: str, private_key: str) -> Optional[str]:
         """Bridge a message using aggsandbox CLI"""
         BridgeLogger.step(f"Bridging message from network {source_network} to network {dest_network}")
-        BridgeLogger.info(f"To address: {to_address}")
+        BridgeLogger.info(f"Target address: {to_address}")
         BridgeLogger.info(f"Message data: {message_data[:66]}...")
-        
-        cmd = [
-            "aggsandbox", "bridge", "message",
-            "--network", str(source_network),
-            "--destination-network", str(dest_network),
-            "--to-address", to_address,
-            "--message-data", message_data,
-            "--private-key", private_key
-        ]
-        
-        if force_update_ger:
-            cmd.append("--force-update-global-exit-root")
-        
-        if os.environ.get('DEBUG') == '1':
-            cmd.append("--verbose")
-        
-        BridgeLogger.debug(f"Executing: {' '.join(cmd)}")
         
         success, output = AggsandboxAPI.bridge_message(
             network=source_network, 
@@ -55,7 +37,7 @@ class BridgeMessage:
             BridgeLogger.success(f"Bridge message transaction initiated: {tx_hash}")
             return tx_hash
         else:
-            BridgeLogger.warning("Could not extract transaction hash")
+            BridgeLogger.error("Could not extract bridge transaction hash from output")
             return None
     
     @staticmethod

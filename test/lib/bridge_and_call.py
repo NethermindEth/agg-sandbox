@@ -27,7 +27,7 @@ class BridgeAndCall:
         
         cmd = [
             "aggsandbox", "bridge", "call",
-            "--network", str(source_network),
+            "--network-id", str(source_network),
             "--destination-network", str(dest_network),
             "--amount", str(amount),
             "--token-address", token_address,

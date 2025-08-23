@@ -15,7 +15,7 @@ import json
 # Add the lib directory to Python path
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'lib'))
 
-from bridge_lib import BRIDGE_CONFIG, BridgeLogger, BridgeEnvironment
+from bridge_lib import BRIDGE_CONFIG, BridgeLogger, BridgeEnvironment, BridgeUtils
 from aggsandbox_api import AggsandboxAPI, BridgeAssetArgs, BridgeClaimArgs
 
 def run_l2_to_l2_asset_bridge_test(bridge_amount: int = 50):
@@ -120,7 +120,7 @@ def run_l2_to_l2_asset_bridge_test(bridge_amount: int = 50):
             BridgeLogger.warning(f"Could not check L2-1 balance before bridge: {e}")
             l2_balance_before = None
         
-        # Check L2-2 wrapped token balance before claim
+        # Check L2-2 wrapped token balance before claim (after bridge)
         BridgeLogger.step("Checking L2-2 wrapped token balance before claim")
         try:
             result = subprocess.run([
@@ -130,7 +130,13 @@ def run_l2_to_l2_asset_bridge_test(bridge_amount: int = 50):
                 "--rpc-url", "http://localhost:8547"  # L2-2 RPC
             ], capture_output=True, text=True, check=True)
             
-            l3_balance_before = int(result.stdout.strip())
+            balance_output = result.stdout.strip()
+            # Handle cast output format like "1000000000000000000000000 [1e24]"
+            if '[' in balance_output:
+                balance_str = balance_output.split('[')[0].strip()
+            else:
+                balance_str = balance_output
+            l3_balance_before = int(balance_str)
             BridgeLogger.info(f"L2-2 wrapped token balance before claim: {l3_balance_before} tokens")
             
         except Exception as e:
@@ -202,13 +208,9 @@ def run_l2_to_l2_asset_bridge_test(bridge_amount: int = 50):
                     bridges = bridge_data.get('bridges', [])
                     
                     # Look for our specific bridge transaction
-                    for bridge in bridges:
-                        if bridge.get('tx_hash') == bridge_tx_hash:
-                            our_bridge = bridge
-                            BridgeLogger.success(f"✅ Found our bridge (attempt {attempt + 1})")
-                            break
-                    
+                    our_bridge = BridgeUtils.find_bridge_by_tx_hash(bridges, bridge_tx_hash)
                     if our_bridge:
+                        BridgeLogger.success(f"✅ Found our bridge (attempt {attempt + 1})")
                         break
                         
                 except json.JSONDecodeError as e:
@@ -222,7 +224,8 @@ def run_l2_to_l2_asset_bridge_test(bridge_amount: int = 50):
             return False
         
         BridgeLogger.info(f"Bridge Details:")
-        BridgeLogger.info(f"  • TX Hash: {our_bridge['tx_hash']}")
+        bridge_tx = BridgeUtils.get_bridge_tx_hash(our_bridge)
+        BridgeLogger.info(f"  • TX Hash: {bridge_tx}")
         BridgeLogger.info(f"  • Amount: {our_bridge['amount']} tokens")
         BridgeLogger.info(f"  • Deposit Count: {our_bridge['deposit_count']}")
         BridgeLogger.info(f"  • Block: {our_bridge.get('block_num', 'N/A')}")
@@ -232,9 +235,9 @@ def run_l2_to_l2_asset_bridge_test(bridge_amount: int = 50):
         # Wait for AggKit to sync bridge data from L2-1 to L2-2 (longer wait for L2→L2)
         BridgeLogger.step("Waiting for AggKit to sync bridge data from L2-1 to L2-2")
         BridgeLogger.info("L2→L2 bridging requires longer sync time than L1↔L2")
-        BridgeLogger.info("AggKit needs ~60 seconds to sync bridge transactions between L2 networks")
+        BridgeLogger.info("AggKit needs ~45 seconds to sync bridge transactions between L2 networks")
         BridgeLogger.info("This is normal behavior - L2→L2 sync takes twice as long as L1↔L2")
-        time.sleep(60)  # Double the normal wait time for L2→L2
+        time.sleep(45)  # Double the normal wait time for L2→L2
         print()
         
         # Step 4: Claim the bridged assets on L2-2
@@ -243,9 +246,10 @@ def run_l2_to_l2_asset_bridge_test(bridge_amount: int = 50):
         BridgeLogger.info("This will create wrapped tokens on L2-2")
         
         # Create claim args
+        bridge_tx = BridgeUtils.get_bridge_tx_hash(our_bridge)
         claim_args = BridgeClaimArgs(
             network=2,  # Claim on L2-2
-            tx_hash=our_bridge['tx_hash'],
+            tx_hash=bridge_tx,
             source_network=1,  # Source: L2-1
             private_key=BRIDGE_CONFIG.private_key_2  # L2-2 account 2 (recipient)
         )
@@ -367,7 +371,13 @@ def run_l2_to_l2_asset_bridge_test(bridge_amount: int = 50):
                 "--rpc-url", "http://localhost:8547"  # L2-2 RPC
             ], capture_output=True, text=True, check=True)
             
-            l3_balance_after = int(result.stdout.strip())
+            balance_output = result.stdout.strip()
+            # Handle cast output format like "1000000000000000000000000 [1e24]"
+            if '[' in balance_output:
+                balance_str = balance_output.split('[')[0].strip()
+            else:
+                balance_str = balance_output
+            l3_balance_after = int(balance_str)
             BridgeLogger.info(f"L2-2 wrapped token balance after claim: {l3_balance_after} tokens")
             
             # Calculate balance difference
@@ -475,7 +485,8 @@ def run_l2_to_l2_asset_bridge_test(bridge_amount: int = 50):
         BridgeLogger.info("✅ 6. aggsandbox show claims --json (verification)")
         
         print(f"\n📊 Transaction Summary:")
-        BridgeLogger.info(f"Bridge TX (L2-1): {our_bridge['tx_hash']}")
+        bridge_tx = BridgeUtils.get_bridge_tx_hash(our_bridge)
+        BridgeLogger.info(f"Bridge TX (L2-1): {bridge_tx}")
         BridgeLogger.info(f"Claim TX (L2-2):  {claim_tx_hash}")
         BridgeLogger.info(f"Amount:           {our_bridge['amount']} tokens")
         BridgeLogger.info(f"Deposit Count:    {our_bridge['deposit_count']}")
@@ -483,12 +494,18 @@ def run_l2_to_l2_asset_bridge_test(bridge_amount: int = 50):
         BridgeLogger.info(f"L2-2 Wrapped Token: {l3_wrapped_token_addr}")
         
         print(f"\n💰 Balance Changes:")
+        # L2-1 Balance Changes (Source)
         if l2_balance_before is not None:
             l2_balance_after = l2_balance_before - bridge_amount  # Should decrease on L2-1
             BridgeLogger.info(f"L2-1 Before Bridge: {l2_balance_before} tokens")
             BridgeLogger.info(f"L2-1 After Bridge:  {l2_balance_after} tokens (estimated)")
             BridgeLogger.info(f"L2-1 Difference:    -{bridge_amount} tokens")
+        else:
+            BridgeLogger.info("L2-1 balance verification was not available")
         
+        print()  # Separator between L2-1 and L2-2 balances
+        
+        # L2-2 Balance Changes (Destination)
         if l3_balance_before is not None and l3_balance_after is not None:
             BridgeLogger.info(f"L2-2 Before Claim:  {l3_balance_before} tokens")
             BridgeLogger.info(f"L2-2 After Claim:   {l3_balance_after} tokens")

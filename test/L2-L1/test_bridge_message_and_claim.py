@@ -14,7 +14,7 @@ import subprocess
 # Add the lib directory to Python path
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'lib'))
 
-from bridge_lib import BRIDGE_CONFIG, BridgeLogger, BridgeEnvironment
+from bridge_lib import BRIDGE_CONFIG, BridgeLogger, BridgeEnvironment, BridgeUtils
 from aggsandbox_api import AggsandboxAPI, BridgeClaimArgs
 
 def deploy_message_receiver_contract() -> str:
@@ -139,19 +139,8 @@ def run_l2_to_l1_message_bridge_test(message: str = "L2 to L1 Message"):
             BridgeLogger.error(f"Bridge message operation failed: {output}")
             return False
         
-        # Extract bridge transaction hash from output
-        bridge_tx_hash = None
-        lines = output.split('\n')
-        for line in lines:
-            if ('bridge and call transaction submitted' in line.lower() or 
-                'bridge transaction submitted' in line.lower()) and '0x' in line:
-                words = line.split()
-                for word in words:
-                    if word.startswith('0x') and len(word) == 66:
-                        bridge_tx_hash = word
-                        break
-                if bridge_tx_hash:
-                    break
+        # Extract bridge transaction hash from output using BridgeUtils
+        bridge_tx_hash = BridgeUtils.extract_tx_hash(output)
         
         if not bridge_tx_hash:
             BridgeLogger.error("Could not extract bridge transaction hash from output")
@@ -180,14 +169,10 @@ def run_l2_to_l1_message_bridge_test(message: str = "L2 to L1 Message"):
                     bridge_data = json.loads(output)
                     bridges = bridge_data.get('bridges', [])
                     
-                    # Look for our specific bridge transaction
-                    for bridge in bridges:
-                        if bridge.get('tx_hash') == bridge_tx_hash:
-                            our_bridge = bridge
-                            BridgeLogger.success(f"✅ Found our bridge (attempt {attempt + 1})")
-                            break
-                    
+                    # Look for our specific bridge transaction using BridgeUtils
+                    our_bridge = BridgeUtils.find_bridge_by_tx_hash(bridges, bridge_tx_hash)
                     if our_bridge:
+                        BridgeLogger.success(f"✅ Found our bridge (attempt {attempt + 1})")
                         break
                         
                 except json.JSONDecodeError as e:
@@ -201,7 +186,8 @@ def run_l2_to_l1_message_bridge_test(message: str = "L2 to L1 Message"):
             return False
         
         BridgeLogger.info(f"Bridge Details:")
-        BridgeLogger.info(f"  • TX Hash: {our_bridge['tx_hash']}")
+        bridge_tx = BridgeUtils.get_bridge_tx_hash(our_bridge)
+        BridgeLogger.info(f"  • TX Hash: {bridge_tx}")
         BridgeLogger.info(f"  • Deposit Count: {our_bridge['deposit_count']}")
         BridgeLogger.info(f"  • Block: {our_bridge.get('block_num', 'N/A')}")
         BridgeLogger.info(f"  • Destination Network: {our_bridge['destination_network']}")
@@ -219,10 +205,11 @@ def run_l2_to_l1_message_bridge_test(message: str = "L2 to L1 Message"):
         BridgeLogger.step("[3/6] Claiming bridged message on L1")
         BridgeLogger.info("Using: aggsandbox bridge claim")
         
-        # Create claim args
+        # Create claim args using BridgeUtils to get the correct tx hash
+        bridge_tx = BridgeUtils.get_bridge_tx_hash(our_bridge)
         claim_args = BridgeClaimArgs(
             network=BRIDGE_CONFIG.network_id_mainnet,
-            tx_hash=our_bridge['tx_hash'],
+            tx_hash=bridge_tx,
             source_network=BRIDGE_CONFIG.network_id_agglayer_1,
             private_key=BRIDGE_CONFIG.private_key_2
         )
@@ -232,18 +219,8 @@ def run_l2_to_l1_message_bridge_test(message: str = "L2 to L1 Message"):
             BridgeLogger.error(f"❌ Claim operation failed: {output}")
             return False
         
-        # Extract claim transaction hash
-        claim_tx_hash = None
-        lines = output.split('\n')
-        for line in lines:
-            if '✅ claim transaction submitted:' in line.lower() and '0x' in line:
-                words = line.split()
-                for word in words:
-                    if word.startswith('0x') and len(word) == 66:
-                        claim_tx_hash = word
-                        break
-                if claim_tx_hash:
-                    break
+        # Extract claim transaction hash using BridgeUtils
+        claim_tx_hash = BridgeUtils.extract_tx_hash(output)
         
         if claim_tx_hash:
             BridgeLogger.success(f"✅ Claim transaction submitted: {claim_tx_hash}")
@@ -308,15 +285,17 @@ def run_l2_to_l1_message_bridge_test(message: str = "L2 to L1 Message"):
                 
                 BridgeLogger.success(f"✅ Found {total_claims} total claims on L1")
                 
-                # Look for our specific claim by matching bridge details
+                # Look for our specific claim using bridge_tx_hash
+                bridge_tx = BridgeUtils.get_bridge_tx_hash(our_bridge)
                 our_claim = None
                 completed_claim = None
                 for claim in claims:
-                    # Match by destination_address, origin_network, destination_network, type
-                    if (claim.get('destination_address') == contract_address and
-                        claim.get('origin_network') == BRIDGE_CONFIG.network_id_agglayer_1 and
-                        claim.get('destination_network') == BRIDGE_CONFIG.network_id_mainnet and
-                        claim.get('type') == 'message'):
+                    # Match by bridge_tx_hash first, then fall back to bridge details
+                    if (claim.get('bridge_tx_hash') == bridge_tx or 
+                        (claim.get('destination_address') == contract_address and
+                         claim.get('origin_network') == BRIDGE_CONFIG.network_id_agglayer_1 and
+                         claim.get('destination_network') == BRIDGE_CONFIG.network_id_mainnet and
+                         claim.get('type') == 'message')):
                         
                         if claim.get('status') == 'completed':
                             completed_claim = claim
@@ -373,7 +352,8 @@ def run_l2_to_l1_message_bridge_test(message: str = "L2 to L1 Message"):
         BridgeLogger.info("✅ 6. aggsandbox show claims --json (verification)")
         
         print(f"\n📊 Transaction Summary:")
-        BridgeLogger.info(f"Bridge TX (L2): {our_bridge['tx_hash']}")
+        bridge_tx = BridgeUtils.get_bridge_tx_hash(our_bridge)
+        BridgeLogger.info(f"Bridge TX (L2): {bridge_tx}")
         BridgeLogger.info(f"Claim TX (L1):  {claim_tx_hash}")
         BridgeLogger.info(f"Message Data:   {message_data}")
         BridgeLogger.info(f"Deposit Count:  {our_bridge['deposit_count']}")

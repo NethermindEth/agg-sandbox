@@ -13,7 +13,7 @@ import json
 # Add the lib directory to Python path
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'lib'))
 
-from bridge_lib import BRIDGE_CONFIG, BridgeLogger, BridgeEnvironment
+from bridge_lib import BRIDGE_CONFIG, BridgeLogger, BridgeEnvironment, BridgeUtils
 from aggsandbox_api import AggsandboxAPI, BridgeAssetArgs, BridgeClaimArgs
 
 def run_l2_to_l1_asset_bridge_test(bridge_amount: int = 50):
@@ -192,14 +192,10 @@ def run_l2_to_l1_asset_bridge_test(bridge_amount: int = 50):
                     bridge_data = json.loads(output)
                     bridges = bridge_data.get('bridges', [])
                     
-                    # Look for our specific bridge transaction
-                    for bridge in bridges:
-                        if bridge.get('tx_hash') == bridge_tx_hash:
-                            our_bridge = bridge
-                            BridgeLogger.success(f"✅ Found our bridge (attempt {attempt + 1})")
-                            break
-                    
+                    # Look for our specific bridge transaction using BridgeUtils
+                    our_bridge = BridgeUtils.find_bridge_by_tx_hash(bridges, bridge_tx_hash)
                     if our_bridge:
+                        BridgeLogger.success(f"✅ Found our bridge (attempt {attempt + 1})")
                         break
                         
                 except json.JSONDecodeError as e:
@@ -213,7 +209,8 @@ def run_l2_to_l1_asset_bridge_test(bridge_amount: int = 50):
             return False
         
         BridgeLogger.info(f"Bridge Details:")
-        BridgeLogger.info(f"  • TX Hash: {our_bridge['tx_hash']}")
+        bridge_tx = BridgeUtils.get_bridge_tx_hash(our_bridge)
+        BridgeLogger.info(f"  • TX Hash: {bridge_tx}")
         BridgeLogger.info(f"  • Amount: {our_bridge['amount']} tokens")
         BridgeLogger.info(f"  • Deposit Count: {our_bridge['deposit_count']}")
         BridgeLogger.info(f"  • Block: {our_bridge.get('block_num', 'N/A')}")
@@ -232,10 +229,11 @@ def run_l2_to_l1_asset_bridge_test(bridge_amount: int = 50):
         BridgeLogger.info("Using: aggsandbox bridge claim")
         BridgeLogger.info("This will restore the original tokens on L1")
         
-        # Create claim args
+        # Create claim args using BridgeUtils to get the correct tx hash
+        bridge_tx = BridgeUtils.get_bridge_tx_hash(our_bridge)
         claim_args = BridgeClaimArgs(
             network=BRIDGE_CONFIG.network_id_mainnet,  # Claim on L1
-            tx_hash=our_bridge['tx_hash'],
+            tx_hash=bridge_tx,
             source_network=BRIDGE_CONFIG.network_id_agglayer_1,  # Source: L2
             private_key=BRIDGE_CONFIG.private_key_2  # L1 account 2 (recipient)
         )
@@ -284,14 +282,16 @@ def run_l2_to_l1_asset_bridge_test(bridge_amount: int = 50):
                     claims_data = json.loads(output)
                     claims = claims_data.get('claims', [])
                     
-                    # Look for our claim by matching bridge details (not tx_hash since it changes)
+                    # Look for our claim using bridge_tx_hash
+                    bridge_tx = BridgeUtils.get_bridge_tx_hash(our_bridge)
                     for claim in claims:
-                        # Match by origin_address (L2 token), destination_address, amount, and networks
-                        if (claim.get('origin_address') == BRIDGE_CONFIG.agg_erc20_l2 and
-                            claim.get('destination_address') == BRIDGE_CONFIG.account_address_2 and
-                            claim.get('amount') == str(our_bridge['amount']) and
-                            claim.get('origin_network') == BRIDGE_CONFIG.network_id_agglayer_1 and
-                            claim.get('destination_network') == BRIDGE_CONFIG.network_id_mainnet):
+                        # Match by bridge_tx_hash first, then fall back to bridge details
+                        if (claim.get('bridge_tx_hash') == bridge_tx or 
+                            (claim.get('origin_address') == BRIDGE_CONFIG.agg_erc20_l2 and
+                             claim.get('destination_address') == BRIDGE_CONFIG.account_address_2 and
+                             claim.get('amount') == str(our_bridge['amount']) and
+                             claim.get('origin_network') == BRIDGE_CONFIG.network_id_agglayer_1 and
+                             claim.get('destination_network') == BRIDGE_CONFIG.network_id_mainnet)):
                             
                             claim_status = claim.get('status', 'unknown')
                             BridgeLogger.debug(f"Found matching claim: status={claim_status}, tx_hash={claim.get('tx_hash')}")
@@ -370,16 +370,18 @@ def run_l2_to_l1_asset_bridge_test(bridge_amount: int = 50):
                 
                 BridgeLogger.success(f"✅ Found {total_claims} total claims on L1")
                 
-                # Look for our specific claim by matching bridge details
+                # Look for our specific claim using bridge_tx_hash
+                bridge_tx = BridgeUtils.get_bridge_tx_hash(our_bridge)
                 our_claim = None
                 completed_claim = None
                 for claim in claims:
-                    # Match by origin_address (L2 token), destination_address, amount, and networks
-                    if (claim.get('origin_address') == BRIDGE_CONFIG.agg_erc20_l2 and
-                        claim.get('destination_address') == BRIDGE_CONFIG.account_address_2 and
-                        claim.get('amount') == str(our_bridge['amount']) and
-                        claim.get('origin_network') == BRIDGE_CONFIG.network_id_agglayer_1 and
-                        claim.get('destination_network') == BRIDGE_CONFIG.network_id_mainnet):
+                    # Match by bridge_tx_hash first, then fall back to bridge details
+                    if (claim.get('bridge_tx_hash') == bridge_tx or 
+                        (claim.get('origin_address') == BRIDGE_CONFIG.agg_erc20_l2 and
+                         claim.get('destination_address') == BRIDGE_CONFIG.account_address_2 and
+                         claim.get('amount') == str(our_bridge['amount']) and
+                         claim.get('origin_network') == BRIDGE_CONFIG.network_id_agglayer_1 and
+                         claim.get('destination_network') == BRIDGE_CONFIG.network_id_mainnet)):
                         
                         if claim.get('status') == 'completed':
                             completed_claim = claim
@@ -438,7 +440,8 @@ def run_l2_to_l1_asset_bridge_test(bridge_amount: int = 50):
         BridgeLogger.info("✅ 6. aggsandbox show claims --json (verification)")
         
         print(f"\n📊 Transaction Summary:")
-        BridgeLogger.info(f"Bridge TX (L2): {our_bridge['tx_hash']}")
+        bridge_tx = BridgeUtils.get_bridge_tx_hash(our_bridge)
+        BridgeLogger.info(f"Bridge TX (L2): {bridge_tx}")
         BridgeLogger.info(f"Claim TX (L1):  {claim_tx_hash}")
         BridgeLogger.info(f"Amount:         {our_bridge['amount']} tokens")
         BridgeLogger.info(f"Deposit Count:  {our_bridge['deposit_count']}")

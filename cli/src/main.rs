@@ -13,7 +13,6 @@ mod logging;
 mod logs;
 mod progress;
 mod types;
-mod utils;
 mod validation;
 
 use commands::{BridgeCommands, ShowCommands};
@@ -136,7 +135,7 @@ enum Commands {
     },
     /// 🌉 Execute bridge operations (asset transfers, claims, messages)
     #[command(
-        long_about = "Execute bridge operations using direct smart contract interactions.\n\nPerform cross-chain asset transfers, claim bridged assets, and send messages\nbetween L1 and L2 networks with user-friendly commands.\n\nExamples:\n  aggsandbox bridge asset --network 0 --destination-network 1 --amount 0.1 --token-address 0x0000...\n  aggsandbox bridge claim --network 1 --tx-hash 0xabc... --source-network 0\n  aggsandbox bridge message --network 0 --destination-network 1 --target 0x123... --data 0xabc..."
+        long_about = "Execute bridge operations using direct smart contract interactions.\n\nPerform cross-chain asset transfers, claim bridged assets, and send messages\nbetween L1 and L2 networks with user-friendly commands.\n\nExamples:\n  aggsandbox bridge asset --network-id 0 --destination-network-id 1 --amount 100000000000000000 --token-address 0x0000...\n  aggsandbox bridge claim --network-id 1 --tx-hash 0xabc... --source-network-id 0\n  aggsandbox bridge message --network-id 0 --destination-network-id 1 --target 0x123... --data 0xabc..."
     )]
     Bridge {
         #[command(subcommand)]
@@ -164,36 +163,6 @@ enum Commands {
         /// Filter events by contract address
         #[arg(short = 'a', long, help = "Contract address to filter events (0x...)")]
         address: Option<String>,
-    },
-    /// 💸  Sponsor a bridge claim
-    #[command(long_about = "Submit a bridge claim to the Claim-Sponsor bot.\n\
-        \n\
-        This command performs all steps automatically:\n\
-        1. Computes the global index.\n\
-        2. Calls the AggKit REST API to fetch Merkle proofs.\n\
-        3. Assembles the JSON body required by `/bridge/v1/sponsor-claim`.\n\
-        4. Posts the claim.\n")]
-    SponsorClaim {
-        /// Deposit counter on the *origin* chain (starts at 0)
-        #[arg(short = 'd', long)]
-        deposit: u32,
-
-        /// Network ID the deposit originated on (omit or 0 for L1)
-        #[arg(long, default_value_t = 0)]
-        origin_network: u64,
-
-        /// ID of the destination network (omit or 1 for L2)
-        #[arg(long, default_value_t = 1)]
-        destination_network: u64,
-    },
-    /// 🔎 Query the status of a sponsored claim by global index
-    ClaimStatus {
-        /// Global index of the claim you want to check
-        #[arg(short = 'g', long = "global-index")]
-        global_index: u64,
-        /// Network ID to check claims from
-        #[arg(long = "network-id")]
-        network_id: u64,
     },
 }
 
@@ -308,23 +277,6 @@ async fn run(cli: Cli) -> Result<()> {
         } => {
             info!(network_id = ?network_id, chain = ?chain, blocks = blocks, address = ?address, "Executing events command");
             commands::handle_events(network_id, chain, blocks, address).await
-        }
-        Commands::SponsorClaim {
-            deposit,
-            origin_network,
-            destination_network,
-        } => {
-            info!(deposit, origin_network, "Executing sponsor-claim command");
-            commands::handle_sponsor_claim(deposit, origin_network, destination_network).await?;
-            Ok(())
-        }
-        Commands::ClaimStatus {
-            global_index,
-            network_id,
-        } => {
-            info!(global_index, "Executing claim-status command");
-            commands::handle_claim_status(global_index, network_id).await?;
-            Ok(())
         }
     };
 

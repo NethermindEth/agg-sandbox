@@ -7,5 +7,4 @@ pub mod events;
 pub mod logs;
 pub mod progress;
 pub mod types;
-pub mod utils;
 pub mod validation;

@@ -44,6 +44,7 @@ L1 (Anvil:8545) ←→ AggKit (API:5577, RPC:8555) ←→ L2 (Anvil:8546)
 - **[Quick Start](docs/quickstart.md)** - Installation and first steps
 - **[CLI Reference](docs/cli-reference.md)** - Complete command guide
 - **[Bridge Operations](docs/bridge-operations.md)** - LXLY bridge guide
+- **[Deployed Contracts](docs/deployed-contracts.md)** - Smart contract reference
 - **[Advanced Workflows](docs/advanced-workflows.md)** - Complex scenarios
 - **[Configuration](docs/configuration.md)** - Environment setup
 - **[Troubleshooting](docs/troubleshooting.md)** - Common issues
@@ -57,8 +58,8 @@ aggsandbox status               # Check status
 aggsandbox stop                # Stop sandbox
 
 # Bridge operations
-aggsandbox bridge asset --network 0 --destination-network 1 --amount 0.1 --token-address 0x0000000000000000000000000000000000000000
-aggsandbox bridge claim --network 1 --tx-hash <hash> --source-network 0
+aggsandbox bridge asset --network-id 0 --destination-network-id 1 --amount 0.1 --token-address 0x0000000000000000000000000000000000000000
+aggsandbox bridge claim --network-id 1 --tx-hash <hash> --source-network-id 0
 
 # Information
 aggsandbox show bridges --network-id 0

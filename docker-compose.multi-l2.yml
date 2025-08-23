@@ -133,7 +133,7 @@ services:
       - AGGKIT_LOG_LEVEL=info
       - AGGKIT_COMPONENTS=bridge,aggoracle,claim-sponsor
       - AGGKIT_CLAIMSPONSOR_ENABLED=true
-      - AGGKIT_CLAIMSPONSOR_CLAIM_ALL=false
+      - AGGKIT_CLAIMSPONSOR_CLAIM_ALL=${AGGKIT_CLAIMSPONSOR_CLAIM_ALL:-false}
 
       # Network configuration
       - AGGKIT_L1_URL=http://anvil-l1:8545
@@ -178,7 +178,7 @@ services:
       - AGGKIT_LOG_LEVEL=info
       - AGGKIT_COMPONENTS=bridge,aggoracle,claim-sponsor
       - AGGKIT_CLAIMSPONSOR_ENABLED=true
-      - AGGKIT_CLAIMSPONSOR_CLAIM_ALL=false
+      - AGGKIT_CLAIMSPONSOR_CLAIM_ALL=${AGGKIT_CLAIMSPONSOR_CLAIM_ALL:-false}
 
       # Network configuration
       - AGGKIT_L1_URL=http://anvil-l1:8545

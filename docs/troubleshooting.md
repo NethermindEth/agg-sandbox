@@ -326,7 +326,7 @@ cast send --value 1ether $ACCOUNT_ADDRESS_1 --private-key $PRIVATE_KEY_1 --rpc-u
 cast send $AGG_ERC20_L1 "approve(address,uint256)" $POLYGON_ZKEVM_BRIDGE_L1 1000000000000000000000 --private-key $PRIVATE_KEY_1 --rpc-url $RPC_1
 
 # Use higher gas limit
-aggsandbox bridge asset --network 0 --destination-network 1 --amount 0.1 --token-address 0x0000000000000000000000000000000000000000 --gas-limit 3000000
+aggsandbox bridge asset --network-id 0 --destination-network-id 1 --amount 0.1 --token-address 0x0000000000000000000000000000000000000000 --gas-limit 3000000
 ```
 
 #### Claim Operation Failures
@@ -358,8 +358,8 @@ sleep 30
 aggsandbox show bridges --network-id 0
 
 # Use correct deposit count for bridge-and-call
-aggsandbox bridge claim --network 1 --tx-hash $TX_HASH --source-network 0 --deposit-count 0  # Asset bridge first
-aggsandbox bridge claim --network 1 --tx-hash $TX_HASH --source-network 0 --deposit-count 1  # Message bridge second
+aggsandbox bridge claim --network-id 1 --tx-hash $TX_HASH --source-network-id 0 --deposit-count 0  # Asset bridge first
+aggsandbox bridge claim --network-id 1 --tx-hash $TX_HASH --source-network-id 0 --deposit-count 1  # Message bridge second
 
 # Regenerate proof if needed
 LEAF_INDEX=$(aggsandbox show l1-info-tree-index --network-id 0 --deposit-count 0 --json | jq -r '.')
@@ -391,11 +391,11 @@ cast code $TARGET_CONTRACT --rpc-url $RPC_2
 
 ```bash
 # Always claim asset bridge before message bridge
-aggsandbox bridge claim --network 1 --tx-hash $TX_HASH --source-network 0 --deposit-count 0
+aggsandbox bridge claim --network-id 1 --tx-hash $TX_HASH --source-network-id 0 --deposit-count 0
 
 # Wait for confirmation before claiming message
 sleep 10
-aggsandbox bridge claim --network 1 --tx-hash $TX_HASH --source-network 0 --deposit-count 1
+aggsandbox bridge claim --network-id 1 --tx-hash $TX_HASH --source-network-id 0 --deposit-count 1
 
 # Verify target contract and call data
 cast call $TARGET_CONTRACT "your_function()" --rpc-url $RPC_2

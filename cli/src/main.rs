@@ -24,7 +24,7 @@ use tracing::{error, info, warn};
 #[command(name = "aggsandbox")]
 #[command(about = "🚀 CLI for managing Agglayer sandbox environment")]
 #[command(
-    long_about = "AggSandbox CLI provides comprehensive tools for managing your Agglayer sandbox environment.\n\nThis tool helps you start, stop, monitor, and interact with your sandbox infrastructure\nincluding L1/L2 chains, bridge services, and blockchain events.\n\nExamples:\n  aggsandbox start --detach             # Start sandbox in background\n  aggsandbox start --fork --multi-l2    # Start with real data and multiple L2s\n  aggsandbox logs -f aggkit             # Follow aggkit logs\n  aggsandbox show bridges --network-id 0 # Show L1 bridge information\n  aggsandbox events --chain anvil-l1    # Show recent blockchain events"
+    long_about = "AggSandbox CLI provides comprehensive tools for managing your Agglayer sandbox environment.\n\nThis tool helps you start, stop, monitor, and interact with your sandbox infrastructure\nincluding L1/L2 chains, bridge services, and blockchain events.\n\nExamples:\n  `aggsandbox start --detach`             # Start sandbox in background\n  `aggsandbox start --fork --multi-l2`    # Start with real data and multiple L2s\n  `aggsandbox logs -f aggkit`             # Follow aggkit logs\n  `aggsandbox show bridges --network-id 0` # Show L1 bridge information\n  `aggsandbox events --chain anvil-l1`    # Show recent blockchain events"
 )]
 #[command(version = "0.1.0")]
 #[command(author = "Agglayer Team")]
@@ -54,7 +54,7 @@ struct Cli {
 enum Commands {
     /// 🚀 Start the sandbox environment
     #[command(
-        long_about = "Start the Agglayer sandbox environment with Docker Compose.\n\nThis command initializes and starts all required services including:\n- L1 Ethereum node (Anvil)\n- L2 Polygon zkEVM node (Anvil)\n- Bridge service\n- Agglayer service\n\nExamples:\n  aggsandbox start                     # Start with default settings\n  aggsandbox start --detach            # Start in background\n  aggsandbox start --build             # Rebuild images before starting\n  aggsandbox start --fork              # Use real blockchain data\n  aggsandbox start --fork --multi-l2   # Fork mode with multiple L2 chains"
+        long_about = "Start the Agglayer sandbox environment with Docker Compose.\n\nThis command initializes and starts all required services including:\n- L1 Ethereum node (Anvil)\n- L2 Polygon zkEVM node (Anvil)\n- Bridge service\n- Agglayer service\n\nExamples:\n  `aggsandbox start`                     # Start with default settings\n  `aggsandbox start --detach`            # Start in background\n  `aggsandbox start --build`             # Rebuild images before starting\n  `aggsandbox start --fork`              # Use real blockchain data\n  `aggsandbox start --fork --multi-l2`   # Fork mode with multiple L2 chains"
     )]
     Start {
         /// Run services in detached mode (background)
@@ -87,7 +87,7 @@ enum Commands {
     },
     /// 🛑 Stop the sandbox environment
     #[command(
-        long_about = "Stop all sandbox services using docker-compose down.\n\nThis command gracefully shuts down all running services and containers.\nOptionally, you can also remove associated Docker volumes.\n\nExamples:\n  aggsandbox stop          # Stop services, keep data\n  aggsandbox stop -v       # Stop services and remove volumes"
+        long_about = "Stop all sandbox services using docker-compose down.\n\nThis command gracefully shuts down all running services and containers.\nOptionally, you can also remove associated Docker volumes.\n\nExamples:\n  `aggsandbox stop`          # Stop services, keep data\n  `aggsandbox stop -v`       # Stop services and remove volumes"
     )]
     Stop {
         /// Remove Docker volumes when stopping (⚠️  deletes all data)
@@ -100,12 +100,12 @@ enum Commands {
     },
     /// 📊 Show status of all services
     #[command(
-        long_about = "Display the current status of all sandbox services.\n\nShows which containers are running, stopped, or have errors.\nIncludes health checks and port information for active services.\n\nExample:\n  aggsandbox status"
+        long_about = "Display the current status of all sandbox services.\n\nShows which containers are running, stopped, or have errors.\nIncludes health checks and port information for active services.\n\nExample:\n  `aggsandbox status`"
     )]
     Status,
     /// 📋 Show logs from services
     #[command(
-        long_about = "Display logs from sandbox services.\n\nView logs from all services or filter by specific service name.\nUse --follow to stream logs in real-time.\n\nExamples:\n  aggsandbox logs                    # Show all logs\n  aggsandbox logs aggkit             # Show aggkit logs (bridge, oracle, etc.)\n  aggsandbox logs -f                 # Follow all logs\n  aggsandbox logs -f anvil-l1        # Follow L1 node logs\n  aggsandbox logs -f aggkit          # Follow aggkit logs in real-time"
+        long_about = "Display logs from sandbox services.\n\nView logs from all services or filter by specific service name.\nUse --follow to stream logs in real-time.\n\nExamples:\n  `aggsandbox logs`                    # Show all logs\n  `aggsandbox logs aggkit`             # Show aggkit logs (bridge, oracle, etc.)\n  `aggsandbox logs -f`                 # Follow all logs\n  `aggsandbox logs -f anvil-l1`        # Follow L1 node logs\n  `aggsandbox logs -f aggkit`          # Follow aggkit logs in real-time"
     )]
     Logs {
         /// Follow log output in real-time
@@ -117,17 +117,17 @@ enum Commands {
     },
     /// 🔄 Restart the sandbox environment
     #[command(
-        long_about = "Restart all sandbox services.\n\nThis performs a stop followed by start operation,\npreserving volumes and configuration.\n\nExample:\n  aggsandbox restart"
+        long_about = "Restart all sandbox services.\n\nThis performs a stop followed by start operation,\npreserving volumes and configuration.\n\nExample:\n  `aggsandbox restart`"
     )]
     Restart,
     /// ℹ️  Show sandbox configuration and accounts
     #[command(
-        long_about = "Display comprehensive sandbox configuration information.\n\nShows:\n- Network configuration (L1/L2 RPC URLs, Chain IDs)\n- Account addresses and balances\n- Contract deployment addresses\n- Bridge service endpoints\n\nExample:\n  aggsandbox info"
+        long_about = "Display comprehensive sandbox configuration information.\n\nShows:\n- Network configuration (L1/L2 RPC URLs, Chain IDs)\n- Account addresses and balances\n- Contract deployment addresses\n- Bridge service endpoints\n\nExample:\n  `aggsandbox info`"
     )]
     Info,
     /// 🌉 Show bridge and blockchain information
     #[command(
-        long_about = "Access bridge data and blockchain information.\n\nQuery bridges, claims, proofs, and other bridge-related data\nfrom the Agglayer bridge service API.\n\nExamples:\n  aggsandbox show bridges --network-id 0     # List bridges for L1\n  aggsandbox show claims --network-id 1      # Show claims for first L2\n  aggsandbox show proof --network-id 0 --leaf-index 0 --deposit-count 1"
+        long_about = "Access bridge data and blockchain information.\n\nQuery bridges, claims, proofs, and other bridge-related data\nfrom the Agglayer bridge service API.\n\nExamples:\n  `aggsandbox show bridges --network-id 0`     # List bridges for L1\n  `aggsandbox show claims --network-id 1`      # Show claims for first L2\n  `aggsandbox show proof --network-id 0 --leaf-index 0 --deposit-count 1`"
     )]
     Show {
         #[command(subcommand)]
@@ -135,7 +135,7 @@ enum Commands {
     },
     /// 🌉 Execute bridge operations (asset transfers, claims, messages)
     #[command(
-        long_about = "Execute bridge operations using direct smart contract interactions.\n\nPerform cross-chain asset transfers, claim bridged assets, and send messages\nbetween L1 and L2 networks with user-friendly commands.\n\nExamples:\n  aggsandbox bridge asset --network-id 0 --destination-network-id 1 --amount 100000000000000000 --token-address 0x0000...\n  aggsandbox bridge claim --network-id 1 --tx-hash 0xabc... --source-network-id 0\n  aggsandbox bridge message --network-id 0 --destination-network-id 1 --target 0x123... --data 0xabc..."
+        long_about = "Execute bridge operations using direct smart contract interactions.\n\nPerform cross-chain asset transfers, claim bridged assets, and send messages\nbetween L1 and L2 networks with user-friendly commands.\n\nExamples:\n  `aggsandbox bridge asset --network-id 0 --destination-network-id 1 --amount 100000000000000000 --token-address 0x0000...`\n  `aggsandbox bridge claim --network-id 1 --tx-hash 0xabc... --source-network-id 0`\n  `aggsandbox bridge message --network-id 0 --destination-network-id 1 --target 0x123... --data 0xabc...`"
     )]
     Bridge {
         #[command(subcommand)]
@@ -143,7 +143,7 @@ enum Commands {
     },
     /// 📡 Fetch and display blockchain events
     #[command(
-        long_about = "Monitor blockchain events from L1 and L2 chains.\n\nFetch and display recent events from specified blockchain,\nwith options to filter by contract address and block range.\n\nExamples:\n  aggsandbox events --network-id 0                # Recent L1 events\n  aggsandbox events --network-id 1 --blocks 20    # Last 20 blocks from first L2\n  aggsandbox events --network-id 0 --address 0x123 # Events from specific contract\n\nLegacy (deprecated) examples:\n  aggsandbox events --chain anvil-l1              # Use --network-id 0 instead"
+        long_about = "Monitor blockchain events from L1 and L2 chains.\n\nFetch and display recent events from specified blockchain,\nwith options to filter by contract address and block range.\n\nExamples:\n  `aggsandbox events --network-id 0`                # Recent L1 events\n  `aggsandbox events --network-id 1 --blocks 20`    # Last 20 blocks from first L2\n  `aggsandbox events --network-id 0 --address 0x123` # Events from specific contract\n\nLegacy (deprecated) examples:\n  `aggsandbox events --chain anvil-l1`              # Use --network-id 0 instead"
     )]
     Events {
         /// Network ID to fetch events from (preferred over --chain)
@@ -342,7 +342,7 @@ fn print_error(error: &error::AggSandboxError) {
                     eprintln!("{}", "💡 Quick Fix:".blue().bold());
                     eprintln!("   1. Check the value for '{}'", key.cyan());
                     eprintln!("   2. Refer to configuration documentation");
-                    eprintln!("   3. Use 'aggsandbox info' to see current config");
+                    eprintln!("   3. Use `aggsandbox info` to see current config");
                 }
                 error::ConfigError::MissingRequired(item) => {
                     eprintln!("{}", "💡 Quick Fix:".blue().bold());

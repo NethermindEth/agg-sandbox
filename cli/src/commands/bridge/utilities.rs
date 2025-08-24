@@ -379,30 +379,46 @@ pub async fn is_claimed(args: IsClaimedArgs<'_>) -> Result<bool> {
         .as_array()
         .ok_or_else(|| validation_error("Invalid claims response"))?;
 
-    // Calculate the expected global index for this deposit
-    // Based on BridgeL2SovereignChain.sol: globalIndex = leafIndex + sourceBridgeNetwork * _MAX_LEAFS_PER_NETWORK
-    // where _MAX_LEAFS_PER_NETWORK = 2^32
+    // Calculate the expected global index using the exact same logic as aggkit's GenerateGlobalIndex
+    // This creates a byte array and converts to big integer, matching the Go implementation exactly
     let expected_global_index = if args.source_bridge_network == 0 {
-        // For source network 0: globalIndex = leafIndex + 0 * 2^32 = leafIndex
-        args.index as u64
+        // Mainnet: mainnetFlag=true, rollupIndex=0, localExitRootIndex=args.index
+        // Creates: [1][0,0,0,0][0,0,0,index] as bytes, then converts to big int
+        let mut bytes = Vec::new();
+        bytes.push(1u8); // mainnet flag = 1
+        bytes.extend_from_slice(&[0u8; 4]); // rollupIndex = 0 (4 bytes)
+        bytes.extend_from_slice(&args.index.to_be_bytes()); // localExitRootIndex (4 bytes, big-endian)
+
+        // Convert byte array to big integer (as string)
+        let mut result = ethers::types::U256::zero();
+        for &byte in &bytes {
+            result = result << 8 | ethers::types::U256::from(byte);
+        }
+        result.to_string()
     } else {
-        // For other networks: globalIndex = leafIndex + sourceBridgeNetwork * 2^32
-        args.index as u64 + args.source_bridge_network * (1u64 << 32)
+        // L2+ networks: mainnetFlag=false, rollupIndex=source_network, localExitRootIndex=args.index
+        let mut bytes = Vec::new();
+        bytes.extend_from_slice(&(args.source_bridge_network as u32).to_be_bytes()); // rollupIndex (4 bytes)
+        bytes.extend_from_slice(&args.index.to_be_bytes()); // localExitRootIndex (4 bytes, big-endian)
+
+        // Convert byte array to big integer (as string)
+        let mut result = ethers::types::U256::zero();
+        for &byte in &bytes {
+            result = result << 8 | ethers::types::U256::from(byte);
+        }
+        result.to_string()
     };
 
     // Look for a claim that matches our criteria:
-    // - global_index matches expected value
+    // - global_index matches expected value (as string)
     // - origin_network matches args.source_bridge_network
     // - status is "completed"
     let is_claimed = claims.iter().any(|claim| {
-        let global_index = claim
-            .get("global_index")
-            .and_then(|v| v.as_str())
-            .and_then(|s| s.parse::<u64>().ok());
+        let global_index = claim.get("global_index").and_then(|v| v.as_str());
         let origin_network = claim.get("origin_network").and_then(|v| v.as_u64());
         let status = claim.get("status").and_then(|v| v.as_str());
 
-        global_index == Some(expected_global_index)
+        global_index == Some(expected_global_index.as_str())
             && origin_network == Some(args.source_bridge_network)
             && status == Some("completed")
     });

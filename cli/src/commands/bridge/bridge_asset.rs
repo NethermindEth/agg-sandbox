@@ -3,7 +3,7 @@ use crate::error::Result;
 use ethers::prelude::*;
 use std::str::FromStr;
 use std::sync::Arc;
-use tracing::info;
+use tracing::{debug, info};
 
 use super::{
     common::validation_error, get_bridge_contract_address, get_wallet_with_provider,
@@ -282,12 +282,12 @@ pub async fn bridge_asset(args: BridgeAssetArgs<'_>) -> Result<()> {
     })?;
 
     // Handle ETH vs ERC20 token bridging
-    if is_eth_address(args.token_address) {
+    let tx_hash_for_claim = if is_eth_address(args.token_address) {
         info!(
             "Bridging ETH from network {} to network {}",
             args.source_network, args.destination_network
         );
-        println!("🔧 Bridging ETH - amount: {amount_wei} wei, destination_network_id: {destination_network_id}, recipient: {recipient:?}");
+        debug!("Bridging ETH - amount: {amount_wei} wei, destination_network_id: {destination_network_id}, recipient: {recipient:?}");
 
         let call = bridge
             .bridge_asset(
@@ -308,26 +308,28 @@ pub async fn bridge_asset(args: BridgeAssetArgs<'_>) -> Result<()> {
             ))
         })?;
 
-        println!("✅ Bridge transaction submitted: {:#x}", tx.tx_hash());
+        let tx_hash = tx.tx_hash();
+        println!("✅ Bridge transaction submitted: {tx_hash:#x}");
+        tx_hash
     } else {
         info!(
             "Bridging ERC20 token {} from network {} to network {}",
             args.token_address, args.source_network, args.destination_network
         );
-        println!("🔧 ERC20 Bridge Debug:");
-        println!("  - Token address: {}", args.token_address);
-        println!("  - Token address (parsed): {token_addr:?}");
-        println!("  - From address: {:?}", client.address());
-        println!("  - Bridge address: {bridge_address:?}");
-        println!("  - Amount: {} (Wei: {amount_wei})", args.amount);
-        println!("  - Destination network ID: {destination_network_id}");
-        println!("  - Recipient: {recipient:?}");
+        debug!("ERC20 Bridge Debug:");
+        debug!("  - Token address: {}", args.token_address);
+        debug!("  - Token address (parsed): {token_addr:?}");
+        debug!("  - From address: {:?}", client.address());
+        debug!("  - Bridge address: {bridge_address:?}");
+        debug!("  - Amount: {} (Wei: {amount_wei})", args.amount);
+        debug!("  - Destination network ID: {destination_network_id}");
+        debug!("  - Recipient: {recipient:?}");
 
         // First check and approve if needed
         let token = ERC20Contract::new(token_addr, Arc::new(client.clone()));
 
-        println!(
-            "🔧 Checking allowance: token.allowance({:?}, {bridge_address:?})",
+        debug!(
+            "Checking allowance: token.allowance({:?}, {bridge_address:?})",
             client.address()
         );
         let allowance = token
@@ -340,11 +342,11 @@ pub async fn bridge_asset(args: BridgeAssetArgs<'_>) -> Result<()> {
                 ))
             })?;
 
-        println!("🔧 Current allowance: {allowance}, Required: {amount_wei}");
+        debug!("Current allowance: {allowance}, Required: {amount_wei}");
 
         if allowance < amount_wei {
             info!("Approving bridge contract to spend {} tokens", args.amount);
-            println!("🔧 Calling approve: token.approve({bridge_address:?}, {amount_wei})");
+            debug!("Calling approve: token.approve({bridge_address:?}, {amount_wei})");
             let approve_call = token.approve(bridge_address, amount_wei);
             let approve_tx = approve_call.send().await.map_err(|e| {
                 crate::error::AggSandboxError::Config(crate::error::ConfigError::validation_failed(
@@ -362,12 +364,12 @@ pub async fn bridge_asset(args: BridgeAssetArgs<'_>) -> Result<()> {
         }
 
         // Now bridge the tokens
-        println!("🔧 Calling bridgeAsset:");
-        println!("  - destination_network_id: {destination_network_id}");
-        println!("  - recipient: {recipient:?}");
-        println!("  - amount_wei: {amount_wei}");
-        println!("  - token_addr: {token_addr:?}");
-        println!("  - forceUpdateGlobalExitRoot: true");
+        debug!("Calling bridgeAsset:");
+        debug!("  - destination_network_id: {destination_network_id}");
+        debug!("  - recipient: {recipient:?}");
+        debug!("  - amount_wei: {amount_wei}");
+        debug!("  - token_addr: {token_addr:?}");
+        debug!("  - forceUpdateGlobalExitRoot: true");
 
         let call = bridge.bridge_asset(
             destination_network_id,
@@ -386,8 +388,10 @@ pub async fn bridge_asset(args: BridgeAssetArgs<'_>) -> Result<()> {
             ))
         })?;
 
-        println!("✅ Bridge transaction submitted: {:#x}", tx.tx_hash());
-    }
+        let tx_hash = tx.tx_hash();
+        println!("✅ Bridge transaction submitted: {tx_hash:#x}");
+        tx_hash
+    };
 
     // Determine the correct source network for claiming
     // For bridge-back scenarios (wrapped tokens), we need to use the original token's network
@@ -404,7 +408,7 @@ pub async fn bridge_asset(args: BridgeAssetArgs<'_>) -> Result<()> {
         args.source_network // ETH bridging, use actual source network
     };
 
-    println!("💡 Use 'aggsandbox bridge claim --network-id {} --tx-hash <tx_hash> --source-network-id {claim_source_network}' to claim assets", args.destination_network);
+    println!("💡 Use `aggsandbox bridge claim --network-id {} --tx-hash {tx_hash_for_claim:#x} --source-network-id {claim_source_network}` to claim assets", args.destination_network);
     println!("⏰ Wait at least 5 seconds after bridging before claiming to allow AggKit to update the Global Exit Root (GER)");
 
     Ok(())

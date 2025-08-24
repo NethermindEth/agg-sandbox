@@ -3,7 +3,7 @@ use crate::error::Result;
 use ethers::prelude::*;
 use std::str::FromStr;
 use std::sync::Arc;
-use tracing::info;
+use tracing::{debug, info};
 
 use super::{
     get_bridge_extension_address, get_wallet_with_provider, BridgeExtensionContract, ERC20Contract,
@@ -442,7 +442,7 @@ pub async fn bridge_message(
         "✅ Bridge message transaction submitted: {:#x}",
         tx.tx_hash()
     );
-    println!("💡 This creates a pure message bridge that must be manually claimed on the destination network.");
+    println!("💡 Use `aggsandbox bridge claim --network-id {destination_network} --tx-hash {:#x} --source-network-id {source_network}` to claim message", tx.tx_hash());
     println!("⏰ Wait at least 5 seconds after bridging before claiming to allow AggKit to update the Global Exit Root (GER)");
 
     Ok(())
@@ -536,32 +536,30 @@ pub async fn bridge_and_call_with_approval(args: BridgeAndCallArgs<'_>) -> Resul
         ))
     })?;
 
-    println!("🔧 Bridge and Call Debug:");
-    println!("  - Token address: {}", args.token_address);
-    println!("  - Amount: {} (Wei: {amount_wei})", args.amount);
-    println!("  - Target: {}", args.target);
-    println!("  - Fallback: {}", args.fallback);
-    println!("  - Destination network ID: {destination_network_id}");
-    println!("  - Bridge Extension: {bridge_ext_address:?}");
+    debug!("Bridge and Call Debug:");
+    debug!("  - Token address: {}", args.token_address);
+    debug!("  - Amount: {} (Wei: {amount_wei})", args.amount);
+    debug!("  - Target: {}", args.target);
+    debug!("  - Fallback: {}", args.fallback);
+    debug!("  - Destination network ID: {destination_network_id}");
+    debug!("  - Bridge Extension: {bridge_ext_address:?}");
     let msg_value_wei = if let Some(msg_val) = args.msg_value {
         let msg_val_wei = U256::from_dec_str(msg_val).map_err(|e| {
             crate::error::AggSandboxError::Config(crate::error::ConfigError::validation_failed(
                 &format!("Invalid msg_value: {e}"),
             ))
         })?;
-        println!("  - Msg Value: {msg_val} wei");
+        debug!("  - Msg Value: {msg_val} wei");
 
         // For ETH bridges, warn if msg_value != amount
         if super::is_eth_address(args.token_address) && msg_val_wei != amount_wei {
-            println!(
-                "⚠️  Warning: msg_value ({msg_val_wei}) differs from bridged amount ({amount_wei})"
-            );
-            println!("    The target contract may fail if it expects msg.value == bridged amount");
+            debug!("Warning: msg_value ({msg_val_wei}) differs from bridged amount ({amount_wei})");
+            debug!("    The target contract may fail if it expects msg.value == bridged amount");
         }
 
         msg_val_wei
     } else {
-        println!("  - Msg Value: Using bridged amount ({amount_wei} wei)");
+        debug!("  - Msg Value: Using bridged amount ({amount_wei} wei)");
         amount_wei
     };
 
@@ -569,7 +567,7 @@ pub async fn bridge_and_call_with_approval(args: BridgeAndCallArgs<'_>) -> Resul
     if !super::is_eth_address(args.token_address) {
         let token = ERC20Contract::new(token_addr, Arc::new(client.clone()));
 
-        println!("🔧 Checking allowance for bridge extension...");
+        debug!("Checking allowance for bridge extension...");
         let allowance = token
             .allowance(client.address(), bridge_ext_address)
             .call()
@@ -580,14 +578,14 @@ pub async fn bridge_and_call_with_approval(args: BridgeAndCallArgs<'_>) -> Resul
                 ))
             })?;
 
-        println!("🔧 Current allowance: {allowance}, Required: {amount_wei}");
+        debug!("Current allowance: {allowance}, Required: {amount_wei}");
 
         if allowance < amount_wei {
             info!(
                 "Approving bridge extension contract to spend {} tokens",
                 args.amount
             );
-            println!("🔧 Calling approve: token.approve({bridge_ext_address:?}, {amount_wei})");
+            debug!("Calling approve: token.approve({bridge_ext_address:?}, {amount_wei})");
             let approve_call = token.approve(bridge_ext_address, amount_wei);
             let approve_tx = approve_call.send().await.map_err(|e| {
                 crate::error::AggSandboxError::Config(crate::error::ConfigError::validation_failed(
@@ -604,11 +602,11 @@ pub async fn bridge_and_call_with_approval(args: BridgeAndCallArgs<'_>) -> Resul
             })?;
         }
     } else {
-        println!("🔧 Skipping allowance check for ETH (native token)");
+        debug!("Skipping allowance check for ETH (native token)");
     }
 
     // Step 2: Execute bridgeAndCall
-    println!("🔧 Executing bridgeAndCall...");
+    debug!("Executing bridgeAndCall...");
 
     let mut call = bridge_ext.bridge_and_call(
         token_addr,
@@ -647,14 +645,14 @@ pub async fn bridge_and_call_with_approval(args: BridgeAndCallArgs<'_>) -> Resul
     println!();
     println!("💡 To complete the process, you need to claim both bridges:");
     println!(
-        "   1. First check bridges: aggsandbox show bridges --network-id {}",
+        "   1. First check bridges: `aggsandbox show bridges --network-id {}`",
         args.source_network
     );
     println!("   2. Find entries with tx_hash: {:#x}", tx.tx_hash());
     println!("   3. Note the deposit_count for asset bridge (leaf_type: 0)");
     println!("   4. Note the deposit_count for message bridge (leaf_type: 1, has calldata)");
-    println!("   5. Claim asset: aggsandbox bridge claim --network-id {} --tx-hash {:#x} --source-network-id {} --deposit-count <asset_deposit_count>", args.destination_network, tx.tx_hash(), args.source_network);
-    println!("   6. Claim message: aggsandbox bridge claim --network-id {} --tx-hash {:#x} --source-network-id {} --deposit-count <message_deposit_count>", args.destination_network, tx.tx_hash(), args.source_network);
+    println!("   5. Claim asset: `aggsandbox bridge claim --network-id {} --tx-hash {:#x} --source-network-id {} --deposit-count <asset_deposit_count>`", args.destination_network, tx.tx_hash(), args.source_network);
+    println!("   6. Claim message: `aggsandbox bridge claim --network-id {} --tx-hash {:#x} --source-network-id {} --deposit-count <message_deposit_count>`", args.destination_network, tx.tx_hash(), args.source_network);
     println!("⏰ Wait at least 5 seconds after bridging before claiming to allow AggKit to update the Global Exit Root (GER)");
 
     Ok(())

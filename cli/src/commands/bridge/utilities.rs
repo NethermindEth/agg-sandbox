@@ -411,7 +411,7 @@ pub async fn is_claimed(args: IsClaimedArgs<'_>) -> Result<bool> {
 
     // Look for a claim that matches our criteria:
     // - global_index matches expected value (as string)
-    // - origin_network matches args.source_bridge_network  
+    // - origin_network matches args.source_bridge_network
     // - status is "completed"
     let is_claimed = claims.iter().any(|claim| {
         let global_index = claim.get("global_index").and_then(|v| v.as_str());

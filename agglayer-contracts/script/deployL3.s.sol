@@ -52,6 +52,10 @@ contract DeployContractsL2 is Script {
         // Initialize the global exit root manager
         globalExitRootManagerL2SovereignChain.initialize(deployer, address(0));
 
+        // Fund the L3 bridge with 50 ETH so it can pay out claims
+        (bool success,) = payable(address(polygonZkEVMBridgeV2)).call{value: 50 ether}("");
+        require(success, "Failed to fund L3 bridge");
+
         // stop broadcasting so logs don't count as on-chain txs
         vm.stopBroadcast();
 

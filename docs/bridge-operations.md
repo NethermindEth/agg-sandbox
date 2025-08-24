@@ -372,20 +372,106 @@ aggsandbox start --multi-l2 --detach
 
 ### Cross-L2 Bridging
 
+Cross-L2 bridging (L2-1 ↔ L2-2) is implemented as a two-step process through L1 as an intermediary. This approach ensures security through L1 finality and uses the existing proven infrastructure.
+
+#### L2-1 to L2-2 Bridge Flow
+
+**Step 1: Bridge from L2-1 to L1**
+
 ```bash
-# Bridge 1 ETH from L2-1 to L2-2 (1 ETH = 1000000000000000000 wei)
+# Bridge 1 ETH from L2-1 to L1 (1 ETH = 1000000000000000000 wei)
 aggsandbox bridge asset \
   --network-id 1 \
+  --destination-network-id 0 \
+  --amount 1000000000000000000 \
+  --token-address 0x0000000000000000000000000000000000000000
+
+# Wait for confirmation and note the transaction hash
+aggsandbox show bridges --network-id 1
+
+# Claim on L1
+aggsandbox bridge claim \
+  --network-id 0 \
+  --tx-hash <l2_to_l1_tx_hash> \
+  --source-network-id 1
+```
+
+**Step 2: Bridge from L1 to L2-2**
+
+```bash
+# Bridge 1 ETH from L1 to L2-2 (1 ETH = 1000000000000000000 wei)
+aggsandbox bridge asset \
+  --network-id 0 \
   --destination-network-id 2 \
   --amount 1000000000000000000 \
   --token-address 0x0000000000000000000000000000000000000000
 
+# Wait for confirmation and note the transaction hash
+aggsandbox show bridges --network-id 0
+
 # Claim on L2-2
-# TODO: Add msg value
 aggsandbox bridge claim \
   --network-id 2 \
-  --tx-hash <bridge_tx_hash> \
-  --source-network-id 1
+  --tx-hash <l1_to_l2_tx_hash> \
+  --source-network-id 0
+```
+
+#### L2-2 to L2-1 Bridge Flow
+
+**Step 1: Bridge from L2-2 to L1**
+
+```bash
+# Bridge 1 ETH from L2-2 to L1 (1 ETH = 1000000000000000000 wei)
+aggsandbox bridge asset \
+  --network-id 2 \
+  --destination-network-id 0 \
+  --amount 1000000000000000000 \
+  --token-address 0x0000000000000000000000000000000000000000
+
+# Claim on L1
+aggsandbox bridge claim \
+  --network-id 0 \
+  --tx-hash <l2_to_l1_tx_hash> \
+  --source-network-id 2
+```
+
+**Step 2: Bridge from L1 to L2-1**
+
+```bash
+# Bridge 1 ETH from L1 to L2-1 (1 ETH = 1000000000000000000 wei)
+aggsandbox bridge asset \
+  --network-id 0 \
+  --destination-network-id 1 \
+  --amount 1000000000000000000 \
+  --token-address 0x0000000000000000000000000000000000000000
+
+# Claim on L2-1
+aggsandbox bridge claim \
+  --network-id 1 \
+  --tx-hash <l1_to_l2_tx_hash> \
+  --source-network-id 0
+```
+
+#### Cross-L2 ERC20 Token Bridging
+
+For ERC20 tokens, the process is similar but requires attention to wrapped token addresses:
+
+**L2-1 → L1 → L2-2:**
+
+```bash
+# Step 1: Bridge wrapped token from L2-1 to L1 (unwraps to original)
+aggsandbox bridge asset \
+  --network-id 1 \
+  --destination-network-id 0 \
+  --amount 100000000000000000000 \
+  --token-address <wrapped_token_l2_1>
+
+# Step 2: Bridge original token from L1 to L2-2 (wraps to new wrapped token)
+aggsandbox bridge asset \
+  --network-id 0 \
+  --destination-network-id 2 \
+  --amount 100000000000000000000 \
+  --token-address <original_token_l1>
 ```
 
 ### Multi-L2 Network Mapping

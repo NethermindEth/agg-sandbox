@@ -63,7 +63,7 @@ class BridgeAsset:
                 
                 # Look for our specific bridge transaction
                 for bridge in bridge_data['bridges']:
-                    if bridge.get('tx_hash') == tx_hash:
+                    if bridge.get('bridge_tx_hash') == tx_hash:
                         BridgeLogger.success(f"✅ Found our bridge on network {source_network} (attempt {attempt + 1})!")
                         return bridge
                 

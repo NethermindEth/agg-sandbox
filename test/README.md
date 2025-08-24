@@ -246,7 +246,7 @@ The scripts provide comprehensive output including:
 
 This modular design makes it easy to:
 
-1. **Add new test scenarios** (L2↔L2, multi-hop bridges, etc.)
+1. **Add new test scenarios** (L2<->L2, multi-hop bridges, etc.)
 2. **Create specialized tests** (stress testing, error scenarios)
 3. **Integrate with CI/CD** using the standardized exit codes
 4. **Build complex workflows** by combining individual functions

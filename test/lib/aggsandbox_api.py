@@ -840,7 +840,7 @@ class AggsandboxAPI:
             bridge_data = AggsandboxAPI.get_bridges(network)  # Source network
             if bridge_data and bridge_data.get('bridges'):
                 for bridge in bridge_data['bridges']:
-                    if bridge.get('tx_hash') == tx_hash:
+                    if bridge.get('bridge_tx_hash') == tx_hash:
                         BridgeLogger.success(f"Found bridge in events (attempt {attempt + 1})")
                         return bridge
         

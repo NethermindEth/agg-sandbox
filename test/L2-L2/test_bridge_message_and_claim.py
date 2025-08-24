@@ -203,9 +203,9 @@ def run_l2_to_l2_message_bridge_test(message: str = "L2-1 to L2-2 Message"):
         
         # Wait for AggKit to sync bridge data from L2-1 to L2-2 (longer wait for L2→L2)
         BridgeLogger.step("Waiting for AggKit to sync bridge data from L2-1 to L2-2")
-        BridgeLogger.info("L2→L2 bridging requires longer sync time than L1↔L2")
+        BridgeLogger.info("L2→L2 bridging requires longer sync time than L1<->L2")
         BridgeLogger.info("AggKit needs ~45 seconds to sync bridge transactions between L2 networks")
-        BridgeLogger.info("This is normal behavior - L2→L2 sync takes much longer than L1↔L2")
+        BridgeLogger.info("This is normal behavior - L2→L2 sync takes much longer than L1<->L2")
         time.sleep(45)  # Even longer wait for L2→L2 message bridging
         print()
         
@@ -268,7 +268,7 @@ def run_l2_to_l2_message_bridge_test(message: str = "L2-1 to L2-2 Message"):
                              claim.get('amount') == '0')):
                             
                             claim_status = claim.get('status', 'unknown')
-                            BridgeLogger.debug(f"Found matching claim: status={claim_status}, tx_hash={claim.get('tx_hash')}")
+                            BridgeLogger.debug(f"Found matching claim: status={claim_status}, tx_hash={claim.get('claim_tx_hash')}")
                             
                             if claim_status == "completed":
                                 BridgeLogger.success(f"✅ Claim completed after {(attempt + 1) * 5} seconds!")
@@ -394,7 +394,7 @@ def run_l2_to_l2_message_bridge_test(message: str = "L2-1 to L2-2 Message"):
                     if claims:
                         BridgeLogger.info("Recent claims for reference:")
                         for i, claim in enumerate(claims[:3]):
-                            BridgeLogger.info(f"  {i+1}. Type: {claim.get('type')}, Status: {claim.get('status')}, TX: {claim.get('tx_hash', 'N/A')[:10]}...")
+                            BridgeLogger.info(f"  {i+1}. Type: {claim.get('type')}, Status: {claim.get('status')}, TX: {claim.get('claim_tx_hash', 'N/A')[:10]}...")
                     return False
                     
             except json.JSONDecodeError as e:

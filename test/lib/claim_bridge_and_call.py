@@ -68,7 +68,7 @@ class ClaimBridgeAndCall:
         bridges = bridge_data.get('bridges', [])
         
         # Find bridges with our transaction hash
-        matching_bridges = [b for b in bridges if b.get('tx_hash') == tx_hash]
+        matching_bridges = [b for b in bridges if b.get('bridge_tx_hash') == tx_hash]
         
         if not matching_bridges:
             BridgeLogger.warning(f"No bridges found for transaction {tx_hash}")

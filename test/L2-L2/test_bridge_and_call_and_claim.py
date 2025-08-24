@@ -231,9 +231,9 @@ def run_l2_to_l2_bridge_and_call_test(bridge_amount: int = 12):
         
         # Wait for AggKit to sync bridge data from L2-1 to L2-2 (longer wait for L2→L2)
         BridgeLogger.step("Waiting for AggKit to sync bridge data from L2-1 to L2-2")
-        BridgeLogger.info("L2→L2 bridging requires longer sync time than L1↔L2")
+        BridgeLogger.info("L2→L2 bridging requires longer sync time than L1<->L2")
         BridgeLogger.info("AggKit needs ~45 seconds to sync bridge transactions between L2 networks")
-        BridgeLogger.info("This is normal behavior - L2→L2 sync takes much longer than L1↔L2")
+        BridgeLogger.info("This is normal behavior - L2→L2 sync takes much longer than L1<->L2")
         time.sleep(45)  # Extended wait for L2→L2 bridge-and-call
         print()
         
@@ -455,8 +455,8 @@ def run_l2_to_l2_bridge_and_call_test(bridge_amount: int = 12):
                 
                 if our_asset_claim and our_message_claim:
                     BridgeLogger.success("✅ Found both completed claims in L2-2:")
-                    asset_claim_tx = our_asset_claim.get('claim_tx_hash') or our_asset_claim.get('tx_hash')
-                    message_claim_tx = our_message_claim.get('claim_tx_hash') or our_message_claim.get('tx_hash')
+                    asset_claim_tx = our_asset_claim.get('claim_tx_hash') or our_asset_claim.get('claim_tx_hash')
+                    message_claim_tx = our_message_claim.get('claim_tx_hash') or our_message_claim.get('claim_tx_hash')
                     BridgeLogger.info(f"  • Asset Claim - Amount: {our_asset_claim.get('amount')}, TX: {asset_claim_tx}")
                     BridgeLogger.info(f"  • Message Claim - Contract: {our_message_claim.get('destination_address')[:10]}..., TX: {message_claim_tx}")
                     

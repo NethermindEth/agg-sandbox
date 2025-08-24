@@ -343,14 +343,13 @@ class BridgeUtils:
     @staticmethod
     def get_bridge_tx_hash(bridge: dict) -> str:
         """Get transaction hash from bridge object, handling both old and new field names"""
-        return bridge.get('bridge_tx_hash') or bridge.get('tx_hash')
+        return bridge.get('bridge_tx_hash') or bridge.get('bridge_tx_hash')
     
     @staticmethod
     def find_bridge_by_tx_hash(bridges: list, tx_hash: str) -> dict:
         """Find bridge in list by transaction hash, handling both old and new field names"""
         for bridge in bridges:
-            if (bridge.get('tx_hash') == tx_hash or 
-                bridge.get('bridge_tx_hash') == tx_hash):
+            if bridge.get('bridge_tx_hash') == tx_hash:
                 return bridge
         return None
 

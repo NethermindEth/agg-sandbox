@@ -312,7 +312,7 @@ def run_l2_to_l1_message_bridge_test(message: str = "L2 to L1 Message"):
                     BridgeLogger.info(f"  • Block: {display_claim.get('block_num')}")
                     BridgeLogger.info(f"  • Status: {claim_status.upper()}")
                     BridgeLogger.info(f"  • Global Index: {display_claim.get('global_index')}")
-                    BridgeLogger.info(f"  • TX Hash: {display_claim.get('tx_hash')}")
+                    BridgeLogger.info(f"  • TX Hash: {display_claim.get('claim_tx_hash')}")
                     
                     if claim_status == "completed":
                         BridgeLogger.success("🎉 Claim is COMPLETE!")
@@ -330,7 +330,7 @@ def run_l2_to_l1_message_bridge_test(message: str = "L2 to L1 Message"):
                     if claims:
                         BridgeLogger.info("Recent claims for reference:")
                         for i, claim in enumerate(claims[:3]):
-                            BridgeLogger.info(f"  {i+1}. Type: {claim.get('type')}, Status: {claim.get('status')}, TX: {claim.get('tx_hash', 'N/A')[:10]}...")
+                            BridgeLogger.info(f"  {i+1}. Type: {claim.get('type')}, Status: {claim.get('status')}, TX: {claim.get('claim_tx_hash', 'N/A')[:10]}...")
                     
             except json.JSONDecodeError as e:
                 BridgeLogger.warning(f"Could not parse claims response: {e}")

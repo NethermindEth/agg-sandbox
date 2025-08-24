@@ -294,7 +294,7 @@ def run_l2_to_l1_asset_bridge_test(bridge_amount: int = 50):
                              claim.get('destination_network') == BRIDGE_CONFIG.network_id_mainnet)):
                             
                             claim_status = claim.get('status', 'unknown')
-                            BridgeLogger.debug(f"Found matching claim: status={claim_status}, tx_hash={claim.get('tx_hash')}")
+                            BridgeLogger.debug(f"Found matching claim: status={claim_status}, tx_hash={claim.get('claim_tx_hash')}")
                             
                             if claim_status == "completed":
                                 BridgeLogger.success(f"✅ Claim completed after {(attempt + 1) * 5} seconds!")
@@ -398,7 +398,7 @@ def run_l2_to_l1_asset_bridge_test(bridge_amount: int = 50):
                     BridgeLogger.info(f"  • Block: {display_claim.get('block_num')}")
                     BridgeLogger.info(f"  • Status: {claim_status.upper()}")
                     BridgeLogger.info(f"  • Global Index: {display_claim.get('global_index')}")
-                    BridgeLogger.info(f"  • TX Hash: {display_claim.get('tx_hash')}")
+                    BridgeLogger.info(f"  • TX Hash: {display_claim.get('claim_tx_hash')}")
                     
                     if claim_status == "completed":
                         BridgeLogger.success("🎉 Claim is COMPLETE!")

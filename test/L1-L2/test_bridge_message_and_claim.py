@@ -278,7 +278,7 @@ def run_l1_to_l2_message_bridge_test(message: str = "Hello World"):
                             claim.get('type') == 'message'):
                             
                             claim_status = claim.get('status', 'unknown')
-                            BridgeLogger.debug(f"Found matching claim: status={claim_status}, tx_hash={claim.get('tx_hash')}")
+                            BridgeLogger.debug(f"Found matching claim: status={claim_status}, tx_hash={claim.get('claim_tx_hash')}")
                             
                             if claim_status == "completed":
                                 BridgeLogger.success(f"✅ Claim completed after {(attempt + 1) * 5} seconds!")
@@ -378,7 +378,7 @@ def run_l1_to_l2_message_bridge_test(message: str = "Hello World"):
                     BridgeLogger.info(f"  • Block: {display_claim.get('block_num')}")
                     BridgeLogger.info(f"  • Status: {claim_status.upper()}")
                     BridgeLogger.info(f"  • Global Index: {display_claim.get('global_index')}")
-                    BridgeLogger.info(f"  • TX Hash: {display_claim.get('tx_hash')}")
+                    BridgeLogger.info(f"  • TX Hash: {display_claim.get('claim_tx_hash')}")
                     
                     if claim_status == "completed":
                         BridgeLogger.success("🎉 Claim is COMPLETE!")
@@ -395,7 +395,7 @@ def run_l1_to_l2_message_bridge_test(message: str = "Hello World"):
                     if claims:
                         BridgeLogger.info("Recent claims for reference:")
                         for i, claim in enumerate(claims[:3]):
-                            BridgeLogger.info(f"  {i+1}. Type: {claim.get('type')}, Status: {claim.get('status')}, TX: {claim.get('tx_hash', 'N/A')[:10]}...")
+                            BridgeLogger.info(f"  {i+1}. Type: {claim.get('type')}, Status: {claim.get('status')}, TX: {claim.get('claim_tx_hash', 'N/A')[:10]}...")
                     return False
                     
             except json.JSONDecodeError as e:
@@ -416,7 +416,7 @@ def run_l1_to_l2_message_bridge_test(message: str = "Hello World"):
         BridgeLogger.info("✅ 5. aggsandbox show claims --json (verification)")
         
         print(f"\n📊 Transaction Summary:")
-        BridgeLogger.info(f"Bridge TX (L1): {our_bridge['tx_hash']}")
+        BridgeLogger.info(f"Bridge TX (L1): {our_bridge['bridge_tx_hash']}")
         BridgeLogger.info(f"Claim TX (L2):  {claim_tx_hash}")
         BridgeLogger.info(f"Message Data:   {message_data}")
         BridgeLogger.info(f"Deposit Count:  {our_bridge['deposit_count']}")

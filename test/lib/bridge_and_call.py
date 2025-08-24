@@ -25,26 +25,16 @@ class BridgeAndCall:
         BridgeLogger.info(f"Call data: {call_data[:66]}...")
         BridgeLogger.info(f"Fallback address: {fallback_address or 'auto-detected'}")
         
-        cmd = [
-            "aggsandbox", "bridge", "call",
-            "--network-id", str(source_network),
-            "--destination-network", str(dest_network),
-            "--amount", str(amount),
-            "--token-address", token_address,
-            "--call-address", call_address,
-            "--call-data", call_data,
-            "--private-key", private_key
-        ]
-        
-        if fallback_address:
-            cmd.extend(["--fallback-address", fallback_address])
-        
-        if os.environ.get('DEBUG') == '1':
-            cmd.append("--verbose")
-        
-        BridgeLogger.debug(f"Executing: {' '.join(cmd)}")
-        
-        success, output = AggsandboxAPI.run_command(cmd)
+        success, output = AggsandboxAPI.bridge_and_call(
+            network=source_network,
+            destination_network=dest_network,
+            token=token_address,
+            amount=str(amount),
+            target=call_address,
+            data=call_data,
+            fallback=fallback_address or call_address,  # Use call_address as fallback if not provided
+            private_key=private_key
+        )
         if not success:
             BridgeLogger.error(f"Bridge and call transaction failed: {output}")
             return None
@@ -67,9 +57,9 @@ class BridgeAndCall:
         BridgeLogger.info(f"Function: {function_signature}")
         BridgeLogger.info(f"Parameters: {args}")
         
-        # Encode the function call
+        # Encode the function call using cast calldata
         try:
-            cmd = ["cast", "abi-encode", function_signature] + list(args)
+            cmd = ["cast", "calldata", function_signature] + list(args)
             result = subprocess.run(cmd, capture_output=True, text=True, check=True)
             call_data = result.stdout.strip()
             

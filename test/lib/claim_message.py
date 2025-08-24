@@ -22,22 +22,6 @@ class ClaimMessage:
         BridgeLogger.info(f"Source transaction: {tx_hash}")
         BridgeLogger.info(f"Source network: {source_network}")
         
-        cmd = [
-            "aggsandbox", "bridge", "claim",
-            "--network-id", str(dest_network),
-            "--tx-hash", tx_hash,
-            "--source-network", str(source_network),
-            "--private-key", private_key
-        ]
-        
-        if deposit_count is not None:
-            cmd.extend(["--deposit-count", str(deposit_count)])
-        
-        if os.environ.get('DEBUG') == '1':
-            cmd.append("--verbose")
-        
-        BridgeLogger.debug(f"Executing: {' '.join(cmd)}")
-        
         # Create claim args
         claim_args = BridgeClaimArgs(
             network=dest_network,

@@ -9,7 +9,8 @@ import json
 import subprocess
 import os
 from typing import Optional, Dict, Any
-from bridge_lib import BridgeLogger, AggsandboxAPI, BridgeUtils, BRIDGE_CONFIG
+from bridge_lib import BridgeLogger, BridgeUtils, BRIDGE_CONFIG
+from aggsandbox_api import AggsandboxAPI
 
 class ClaimBridgeAndCall:
     """Bridge and call claiming operations"""

@@ -8,13 +8,14 @@ This directory contains the Python implementation of the modular bridge test lib
 test/lib/
 ├── __init__.py                 # Package initialization and exports
 ├── bridge_lib.py               # Core utilities and configuration
+├── aggsandbox_api.py           # Complete AggsandboxAPI wrapper
 ├── bridge_asset.py             # Asset bridging operations
 ├── bridge_message.py           # Message bridging operations
 ├── claim_asset.py              # Asset claiming operations
 ├── claim_message.py            # Message claiming operations
 ├── bridge_and_call.py          # Bridge and call operations
 ├── claim_bridge_and_call.py    # Bridge and call claiming operations
-└── README_python.md            # This file
+└── README.md                   # This file
 ```
 
 ## Key Advantages Over Bash
@@ -33,31 +34,65 @@ test/lib/
 import sys
 sys.path.append('test/lib')
 
-from bridge_lib import init_bridge_environment, BridgeLogger, BRIDGE_CONFIG
+import time
+from bridge_lib import BridgeLogger, BRIDGE_CONFIG
+from aggsandbox_api import AggsandboxAPI
 from bridge_asset import BridgeAsset
 from claim_asset import ClaimAsset
 
-# Initialize environment
-if not init_bridge_environment():
+# Validate environment
+if not BRIDGE_CONFIG:
+    BridgeLogger.error("Bridge configuration not loaded")
     exit(1)
 
 # Bridge 100 tokens from L1 to L2
-bridge_tx, claim_tx = BridgeAsset.execute_l1_to_l2_bridge(
+bridge_tx = BridgeAsset.bridge_asset(
+    source_network=0,  # L1
+    dest_network=1,    # L2
     amount=100,
     token_address=BRIDGE_CONFIG.agg_erc20_l1,
-    source_account=BRIDGE_CONFIG.account_address_1,
-    dest_account=BRIDGE_CONFIG.account_address_2,
-    source_private_key=BRIDGE_CONFIG.private_key_1,
-    dest_private_key=BRIDGE_CONFIG.private_key_2
+    to_address=BRIDGE_CONFIG.account_address_2,
+    private_key=BRIDGE_CONFIG.private_key_1
 )
 
-BridgeLogger.success(f"Bridge TX: {bridge_tx}")
-BridgeLogger.success(f"Claim TX: {claim_tx}")
+if bridge_tx:
+    # Wait for AggKit sync
+    time.sleep(25)
+    
+    # Claim the asset
+    claim_tx = ClaimAsset.claim_asset(
+        dest_network=1,
+        tx_hash=bridge_tx,
+        source_network=0
+    )
+    
+    BridgeLogger.success(f"Bridge TX: {bridge_tx}")
+    BridgeLogger.success(f"Claim TX: {claim_tx}")
+else:
+    BridgeLogger.error("Bridge failed")
 ```
 
 ## Module Breakdown
 
 ### 1. Core Library (`bridge_lib.py`)
+
+The foundation of the testing framework providing:
+- **BridgeEnvironment**: Environment configuration from `aggsandbox info`
+- **BridgeConfig**: Dataclass for network and account configuration
+- **BridgeLogger**: Colored logging for test operations
+- **BridgeUtils**: Utility functions for transaction handling
+
+### 2. AggsandboxAPI (`aggsandbox_api.py`)
+
+Complete Python wrapper for all `aggsandbox` CLI commands:
+- **Core Commands**: `start`, `stop`, `restart`, `status`, `info`, `logs`
+- **Bridge Operations**: `bridge_asset`, `bridge_message`, `bridge_and_call`
+- **Claim Operations**: `bridge_claim` with structured arguments
+- **Information**: `show_bridges`, `show_claims`, `show_claim_proof`
+- **Utilities**: `bridge_utils_get_mapped`, `bridge_utils_is_claimed`, etc.
+- **Convenience Methods**: JSON parsing and high-level operations
+
+### 3. Bridge Operations
 
 **Key Classes:**
 - `BridgeConfig` - Environment configuration dataclass

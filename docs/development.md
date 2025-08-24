@@ -23,8 +23,8 @@ jq --version      # For JSON processing
 
 ```bash
 # Clone repository
-git clone https://github.com/NethermindEth/agg-sandbox.git
-cd agg-sandbox
+git clone https://github.com/agglayer/aggsandbox
+cd aggsandbox
 
 # Install development dependencies
 make install-dev
@@ -58,7 +58,7 @@ make install-dev
 ### Repository Structure
 
 ```
-agg-sandbox/
+aggsandbox/
 ├── cli/                    # Rust CLI implementation
 │   ├── src/
 │   │   ├── commands/       # CLI command implementations

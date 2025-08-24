@@ -136,7 +136,7 @@ FORK_BLOCK_AGGLAYER_2=45000000
 
 ```bash
 # Docker project name
-COMPOSE_PROJECT_NAME=agg-sandbox
+COMPOSE_PROJECT_NAME=aggsandbox
 
 # Docker build settings
 DOCKER_BUILDKIT=1
@@ -246,7 +246,7 @@ log_to_file = false
 file_path = "./logs/aggsandbox.log"
 
 [docker]
-compose_project = "agg-sandbox"
+compose_project = "aggsandbox"
 build_context = "."
 enable_buildkit = true
 
@@ -321,7 +321,7 @@ logging:
   file_path: "./logs/aggsandbox.log"
 
 docker:
-  compose_project: "agg-sandbox"
+  compose_project: "aggsandbox"
   build_context: "."
   enable_buildkit: true
 

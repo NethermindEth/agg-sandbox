@@ -40,8 +40,8 @@ git --version && echo "✅ Git installed"
 ### 1. Clone Repository
 
 ```bash
-git clone https://github.com/NethermindEth/agg-sandbox.git
-cd agg-sandbox
+git clone https://github.com/agglayer/aggsandbox
+cd aggsandbox
 ```
 
 ### 2. Install CLI Tool

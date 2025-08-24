@@ -5,6 +5,7 @@ use ethers::prelude::*;
 use ethers::signers::LocalWallet;
 use std::str::FromStr;
 use std::sync::Arc;
+use tracing::debug;
 
 use super::{
     common::validation_error, get_bridge_contract_address, get_wallet_with_provider,
@@ -268,10 +269,7 @@ pub async fn claim_asset(args: ClaimAssetArgs<'_>) -> Result<()> {
     let bridge = BridgeContract::new(bridge_address, Arc::new(client.clone()));
     let api_client = OptimizedApiClient::global();
 
-    println!(
-        "🔍 Looking for bridge transaction with hash: {}",
-        args.tx_hash
-    );
+    tracing::debug!("Looking for bridge transaction with hash: {}", args.tx_hash);
 
     // For bridge-back scenarios (L2→L1), we need special logic:
     // - The bridge transaction is on the intermediate network (L2)
@@ -288,7 +286,7 @@ pub async fn claim_asset(args: ClaimAssetArgs<'_>) -> Result<()> {
                     .iter()
                     .any(|bridge| bridge["bridge_tx_hash"].as_str() == Some(args.tx_hash))
                 {
-                    println!("🔍 Detected bridge-back scenario: transaction found on L2, using L2 for proof data");
+                    tracing::debug!("Detected bridge-back scenario: transaction found on L2, using L2 for proof data");
                     (1u64, 1u64) // Bridge tx is on L2, proof data from L2
                 } else {
                     (args.source_network, args.source_network) // Normal scenario
@@ -316,8 +314,8 @@ pub async fn claim_asset(args: ClaimAssetArgs<'_>) -> Result<()> {
     // Find our bridge transaction
     // For bridge-and-call operations, we need to handle multiple bridges in the same transaction
     let bridge_info = if let Some(specific_deposit_count) = args.deposit_count {
-        println!(
-            "🔍 Looking for bridge with tx_hash: {} and deposit_count: {specific_deposit_count}",
+        tracing::debug!(
+            "Looking for bridge with tx_hash: {} and deposit_count: {specific_deposit_count}",
             args.tx_hash
         );
         bridges
@@ -335,8 +333,8 @@ pub async fn claim_asset(args: ClaimAssetArgs<'_>) -> Result<()> {
                 ))
             })?
     } else {
-        println!(
-            "🔍 Looking for bridge with tx_hash: {} (deposit_count auto-detected)",
+        tracing::debug!(
+            "Looking for bridge with tx_hash: {} (deposit_count auto-detected)",
             args.tx_hash
         );
 
@@ -346,14 +344,14 @@ pub async fn claim_asset(args: ClaimAssetArgs<'_>) -> Result<()> {
             .filter(|bridge| bridge["bridge_tx_hash"].as_str() == Some(args.tx_hash))
             .collect();
 
-        println!(
-            "🔍 Found {} bridges with tx_hash {}",
+        tracing::debug!(
+            "Found {} bridges with tx_hash {}",
             matching_bridges.len(),
             args.tx_hash
         );
         for (i, bridge) in matching_bridges.iter().enumerate() {
-            println!(
-                "   Bridge {i}: deposit_count={}, leaf_type={}",
+            tracing::debug!(
+                "Bridge {i}: deposit_count={}, leaf_type={}",
                 bridge["deposit_count"].as_u64().unwrap_or(999),
                 bridge["leaf_type"].as_u64().unwrap_or(999)
             );
@@ -370,13 +368,13 @@ pub async fn claim_asset(args: ClaimAssetArgs<'_>) -> Result<()> {
 
         // If multiple bridges found (bridge-and-call), default to the asset bridge
         if matching_bridges.len() > 1 {
-            println!(
-                "🔍 Multiple bridges found for tx_hash {} (bridge-and-call operation)",
+            tracing::debug!(
+                "Multiple bridges found for tx_hash {} (bridge-and-call operation)",
                 args.tx_hash
             );
             for bridge in &matching_bridges {
-                println!(
-                    "   - deposit_count={}, leaf_type={} ({})",
+                tracing::debug!(
+                    "Bridge: deposit_count={}, leaf_type={} ({})",
                     bridge["deposit_count"].as_u64().unwrap_or(999),
                     bridge["leaf_type"].as_u64().unwrap_or(999),
                     if bridge["leaf_type"].as_u64() == Some(0) {
@@ -386,8 +384,8 @@ pub async fn claim_asset(args: ClaimAssetArgs<'_>) -> Result<()> {
                     }
                 );
             }
-            println!(
-                "   Defaulting to asset bridge (leaf_type=0). Use --deposit-count to specify."
+            tracing::debug!(
+                "Defaulting to asset bridge (leaf_type=0). Use --deposit-count to specify."
             );
 
             // Default to asset bridge (leaf_type = 0)
@@ -413,11 +411,11 @@ pub async fn claim_asset(args: ClaimAssetArgs<'_>) -> Result<()> {
         ))
     })?;
 
-    println!("📋 Found bridge with deposit count: {deposit_count}");
+    tracing::debug!("Found bridge with deposit count: {deposit_count}");
 
     // Determine bridge type from bridge info
     let leaf_type = bridge_info["leaf_type"].as_u64().unwrap_or(0) as u8;
-    println!("🔍 Bridge leaf type: {leaf_type} (0=Asset, 1=Message)");
+    tracing::debug!("Bridge leaf type: {leaf_type} (0=Asset, 1=Message)");
 
     // Get L1 info tree index from the proof source network
     // For bridge-back scenarios, this uses L2 (where the bridge tx occurred)
@@ -434,7 +432,7 @@ pub async fn claim_asset(args: ClaimAssetArgs<'_>) -> Result<()> {
         .as_u64()
         .unwrap_or(tree_index_response.as_u64().unwrap_or(0));
 
-    println!("🌳 L1 info tree index: {leaf_index}");
+    tracing::debug!("L1 info tree index: {leaf_index}");
 
     // Get claim proof from the proof source network
     // For bridge-back scenarios, this uses L2 (where the bridge tx occurred)
@@ -464,7 +462,7 @@ pub async fn claim_asset(args: ClaimAssetArgs<'_>) -> Result<()> {
             ))
         })?;
 
-    println!("🔐 Got claim proof data");
+    tracing::debug!("Got claim proof data");
 
     // Extract bridge parameters
     let origin_network = bridge_info["origin_network"]
@@ -489,9 +487,9 @@ pub async fn claim_asset(args: ClaimAssetArgs<'_>) -> Result<()> {
     })?;
 
     let bridge_type = if leaf_type == 1 { "message" } else { "asset" };
-    println!("🔗 Using bridge addresses for {bridge_type} bridge:");
-    println!("   Origin: {origin_addr} (network {})", args.source_network);
-    println!("   Destination: {dest_addr} (network {})", args.network);
+    tracing::debug!("Using bridge addresses for {bridge_type} bridge:");
+    tracing::debug!("Origin: {origin_addr} (network {})", args.source_network);
+    tracing::debug!("Destination: {dest_addr} (network {})", args.network);
 
     let (origin_address, destination_address) = (origin_addr.to_string(), dest_addr.to_string());
     let amount = bridge_info["amount"].as_str().ok_or_else(|| {
@@ -500,7 +498,7 @@ pub async fn claim_asset(args: ClaimAssetArgs<'_>) -> Result<()> {
         ))
     })?;
     let metadata = if let Some(custom) = args.custom_data {
-        println!("🔧 Using custom metadata: {custom}");
+        tracing::debug!("Using custom metadata: {custom}");
         custom
     } else {
         bridge_info["metadata"].as_str().unwrap_or("0x")
@@ -594,7 +592,7 @@ pub async fn claim_asset(args: ClaimAssetArgs<'_>) -> Result<()> {
         execute_claim_asset(&bridge, asset_params, &args.gas_options).await?
     } else {
         // Message bridge - call claimMessage
-        println!("📨 Claiming message bridge to trigger contract execution");
+        debug!("Claiming message bridge to trigger contract execution");
 
         // Convert msg_value from string to U256 if provided
         let msg_value_wei = if let Some(value_str) = args.msg_value {

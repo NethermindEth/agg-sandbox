@@ -62,22 +62,6 @@ aggsandbox bridge asset \
 aggsandbox show bridges --network-id 0
 ```
 
-Example response:
-
-```json
-{
-  "bridges": [
-    {
-      "tx_hash": "0x4a0e66947eceb49c887cf56f1a92872b2b7e16177a02c3cf79ea4846fab30fe0",
-      "deposit_count": 0,
-      "amount": "100000000000000000",
-      "destination_network": 1,
-      "destination_address": "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266"
-    }
-  ]
-}
-```
-
 #### 3. Claim Assets on L2
 
 ```bash
@@ -219,7 +203,7 @@ aggsandbox show bridges --network-id 0
 
 ```bash
 # Note the transaction hash from the output of the previous command
-aggsandbox bridge claim   --network-id 1   --tx-hash <tx_hash>  --source-network-id 0 --deposit-count <deposit_count>
+aggsandbox bridge claim   --network-id 1   --tx-hash <tx_hash>  --source-network-id 0
 ```
 
 ```bash
@@ -237,17 +221,7 @@ Bridge-and-Call combines asset bridging with contract execution in a single atom
 
 ### Setup Bridge-and-Call
 
-#### 1. Prepare Call Data
-
-```bash
-# Encode the processTransferAndCall function call with amount parameter
-# The amount parameter should match the bridged ETH amount in wei (0.01 ETH = 10000000000000000 wei)
-TRANSFER_DATA=$(cast calldata "processTransferAndCall(uint256)" 10000000000000000)
-```
-
-#### 2. Execute Bridge-and-Call
-
-Deploy the Counter contract to L2 using the pre-compiled bytecode:
+#### 1. Deploy the Counter contract to L2 using the pre-compiled bytecode:
 
 ```bash
 # Source environment variables

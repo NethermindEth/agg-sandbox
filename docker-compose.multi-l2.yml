@@ -108,7 +108,7 @@ services:
     volumes:
       - ./.env:/app/output/deployed-contracts.env:ro
 
-  # AggKit for L2 (L1 ↔ L2 bridge)
+  # AggKit for L2 (L1 <-> L2 bridge)
   aggkit-l2:
     image: ametelnethermind/aggkit:latest
     pull_policy: always
@@ -153,7 +153,7 @@ services:
       - AGGKIT_ENV_FILE=/app/.env
     container_name: aggkit-l2
 
-  # AggKit for L3 (L1 ↔ L3 bridge)
+  # AggKit for L3 (L1 <-> L3 bridge)
   aggkit-l3:
     image: ametelnethermind/aggkit:latest
     pull_policy: always

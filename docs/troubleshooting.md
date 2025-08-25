@@ -189,7 +189,7 @@ sudo ufw status  # Linux
 
 # Verify network configuration
 docker network ls
-docker network inspect agg-sandbox_default
+docker network inspect aggsandbox_default
 ```
 
 #### Bridge Service Not Responding
@@ -516,7 +516,7 @@ aggsandbox logs bridge-db
 
 # Reset database
 docker compose down
-docker volume rm agg-sandbox_db-data
+docker volume rm aggsandbox_db-data
 aggsandbox start --detach
 ```
 
@@ -566,7 +566,7 @@ ANVIL_BLOCK_TIME=1
 ```bash
 # Monitor memory usage over time
 while true; do
-  docker stats --no-stream | grep agg-sandbox
+  docker stats --no-stream | grep aggsandbox
   sleep 10
 done
 
@@ -656,7 +656,7 @@ echo "=== Service Status ==="
 aggsandbox status
 
 echo "=== Container Status ==="
-docker ps --filter name=agg-sandbox
+docker ps --filter name=aggsandbox
 
 echo "=== Recent Logs ==="
 aggsandbox logs --tail 20

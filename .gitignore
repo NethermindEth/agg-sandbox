@@ -1,4 +1,4 @@
-
+.DS_Store
 .vscode/
 .env
 
@@ -11,8 +11,8 @@ CLAUDE.md
 .claude/
 RUST_CONTEXT.md
 
+cache/
+out/
 agglayer-contracts/deployment_output.json
 
-out
-
-cache/
+test/lib/__pycache__/

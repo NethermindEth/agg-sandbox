@@ -222,12 +222,12 @@ def run_l2_to_l2_asset_bridge_test(bridge_amount: int = 50):
         BridgeLogger.info(f"  • Destination Network: {our_bridge['destination_network']}")
         print()
         
-        # Wait for AggKit to sync bridge data from L2-1 to L2-2 (longer wait for L2→L2)
+        # Wait for AggKit to sync bridge data from L2-1 to L2-2 (optimized based on testing)
         BridgeLogger.step("Waiting for AggKit to sync bridge data from L2-1 to L2-2")
-        BridgeLogger.info("L2→L2 bridging requires longer sync time than L1<->L2")
-        BridgeLogger.info("AggKit needs ~45 seconds to sync bridge transactions between L2 networks")
-        BridgeLogger.info("This is normal behavior - L2→L2 sync takes twice as long as L1<->L2")
-        time.sleep(45)  # Double the normal wait time for L2→L2
+        BridgeLogger.info("L2→L2 bridging requires sync time for bridge data")
+        BridgeLogger.info("AggKit needs ~30 seconds to sync bridge transactions between L2 networks")
+        BridgeLogger.info("This is based on successful manual testing results")
+        time.sleep(30)  # Optimized wait time based on manual success
         print()
         
         # Step 4: Claim the bridged assets on L2-2
@@ -388,7 +388,7 @@ def run_l2_to_l2_asset_bridge_test(bridge_amount: int = 50):
         BridgeLogger.info("Using: aggsandbox show claims --network-id 2 --json")
         BridgeLogger.info("Waiting for claim to be fully processed and indexed...")
         
-        time.sleep(15)  # Give claim time to be fully processed and indexed
+        time.sleep(5)  # Optimized wait time based on testing
         
         success, output = AggsandboxAPI.show_claims(
             network_id=2,  # L2-2 claims
@@ -465,7 +465,7 @@ def run_l2_to_l2_asset_bridge_test(bridge_amount: int = 50):
         BridgeLogger.info("✅ 1. aggsandbox bridge utils precalculate (L2-2 wrapped token)")
         BridgeLogger.info("✅ 2. aggsandbox bridge asset (L2-1→L2-2 bridging)")
         BridgeLogger.info("✅ 3. aggsandbox show bridges --json (monitoring)")
-        BridgeLogger.info("✅ 4. AggKit sync wait (60 seconds - L2→L2 requires longer)")
+        BridgeLogger.info("✅ 4. AggKit sync wait (30 seconds - optimized based on manual testing)")
         BridgeLogger.info("✅ 5. aggsandbox bridge claim (claiming on L2-2)")
         BridgeLogger.info("✅ 6. aggsandbox show claims --json (verification)")
         

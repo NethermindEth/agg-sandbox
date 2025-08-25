@@ -229,12 +229,12 @@ def run_l2_to_l2_bridge_and_call_test(bridge_amount: int = 12):
         BridgeLogger.info(f"  • Has Calldata: {len(message_bridge.get('calldata', '')) > 2}")
         print()
         
-        # Wait for AggKit to sync bridge data from L2-1 to L2-2 (longer wait for L2→L2)
+        # Wait for AggKit to sync bridge data from L2-1 to L2-2 (optimized based on testing)
         BridgeLogger.step("Waiting for AggKit to sync bridge data from L2-1 to L2-2")
-        BridgeLogger.info("L2→L2 bridging requires longer sync time than L1<->L2")
-        BridgeLogger.info("AggKit needs ~45 seconds to sync bridge transactions between L2 networks")
-        BridgeLogger.info("This is normal behavior - L2→L2 sync takes much longer than L1<->L2")
-        time.sleep(45)  # Extended wait for L2→L2 bridge-and-call
+        BridgeLogger.info("L2→L2 bridging requires sync time for bridge data")
+        BridgeLogger.info("AggKit needs ~30 seconds to sync bridge transactions between L2 networks")
+        BridgeLogger.info("This is based on successful manual testing results")
+        time.sleep(30)  # Optimized wait time based on manual success
         print()
         
         # Step 4: Claim asset bridge FIRST (deposit_count = X)
@@ -267,8 +267,8 @@ def run_l2_to_l2_bridge_and_call_test(bridge_amount: int = 12):
             asset_claim_tx_hash = "completed"
         
         # Wait a bit between asset and message claims
-        BridgeLogger.info("Waiting 15 seconds before claiming message bridge...")
-        time.sleep(15)
+        BridgeLogger.info("Waiting 5 seconds before claiming message bridge...")
+        time.sleep(5)
         
         print()
         
@@ -413,7 +413,7 @@ def run_l2_to_l2_bridge_and_call_test(bridge_amount: int = 12):
         BridgeLogger.info("Using: aggsandbox show claims --network-id 2 --json")
         BridgeLogger.info("Waiting for claims to be fully processed and indexed...")
         
-        time.sleep(15)  # Give claims time to be fully processed and indexed
+        time.sleep(5)  # Optimized wait time based on testing
         
         success, output = AggsandboxAPI.show_claims(
             network_id=2,  # L2-2 claims
@@ -494,7 +494,7 @@ def run_l2_to_l2_bridge_and_call_test(bridge_amount: int = 12):
         BridgeLogger.info("✅ 1. Call data preparation (receiveTokensWithMessage)")
         BridgeLogger.info("✅ 2. aggsandbox bridge bridge-and-call (L2-1→L2-2 bridging)")
         BridgeLogger.info("✅ 3. aggsandbox show bridges --json (monitoring)")
-        BridgeLogger.info("✅ 4. AggKit sync wait (45 seconds - L2→L2 extended time)")
+        BridgeLogger.info("✅ 4. AggKit sync wait (30 seconds - optimized based on manual testing)")
         BridgeLogger.info("✅ 5. aggsandbox bridge claim (asset bridge on L2-2)")
         BridgeLogger.info("✅ 6. aggsandbox bridge claim (message bridge on L2-2)")
         BridgeLogger.info("✅ 7. Contract verification (tokens and execution)")

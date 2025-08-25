@@ -355,7 +355,7 @@ def run_l2_to_l1_asset_bridge_test(bridge_amount: int = 50):
         BridgeLogger.info("Using: aggsandbox show claims --network-id 0 --json")
         BridgeLogger.info("Waiting for claim to be fully processed and indexed...")
         
-        time.sleep(15)  # Give claim time to be fully processed and indexed
+        time.sleep(5)  # Optimized wait time based on testing
         
         success, output = AggsandboxAPI.show_claims(
             network_id=BRIDGE_CONFIG.network_id_mainnet,  # L1 claims
@@ -432,10 +432,10 @@ def run_l2_to_l1_asset_bridge_test(bridge_amount: int = 50):
         BridgeLogger.success("🎉 Complete L2→L1 asset bridge flow successful!")
         
         print(f"\n📋 Operations Completed:")
-        BridgeLogger.info("✅ 1. aggsandbox bridge utils get-mapped (wrapped token discovery)")
+        BridgeLogger.info("✅ 1. aggsandbox bridge utils precalculate (wrapped token discovery)")
         BridgeLogger.info("✅ 2. aggsandbox bridge asset (L2→L1 bridging)")
         BridgeLogger.info("✅ 3. aggsandbox show bridges --json (monitoring)")
-        BridgeLogger.info("✅ 4. AggKit sync wait (30 seconds)")
+        BridgeLogger.info("✅ 4. AggKit sync wait (30 seconds - optimized)")
         BridgeLogger.info("✅ 5. aggsandbox bridge claim (claiming on L1)")
         BridgeLogger.info("✅ 6. aggsandbox show claims --json (verification)")
         

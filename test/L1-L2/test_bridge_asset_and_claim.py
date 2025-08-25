@@ -23,7 +23,7 @@ def run_l1_to_l2_asset_bridge_test(bridge_amount: int = 50):
     This test follows the documented bridge process:
     1. Bridge ERC20 tokens from L1 to L2 using aggsandbox bridge asset
     2. Monitor the bridge transaction using aggsandbox show bridges
-    3. Get the wrapped token address using aggsandbox bridge utils get-mapped  
+    3. Get the wrapped token address using aggsandbox bridge utils precalculate  
     4. Claim the assets on L2 using aggsandbox bridge claim
     5. Verify the claim using aggsandbox show claims
     """
@@ -139,9 +139,9 @@ def run_l1_to_l2_asset_bridge_test(bridge_amount: int = 50):
         
         # Step 3: Get wrapped token address on L2
         BridgeLogger.step("[3/5] Getting wrapped token address on L2")
-        BridgeLogger.info("Using: aggsandbox bridge utils get-mapped")
+        BridgeLogger.info("Using: aggsandbox bridge utils precalculate")
         
-        success, output = AggsandboxAPI.bridge_utils_get_mapped(
+        success, output = AggsandboxAPI.bridge_utils_precalculate(
             network=BRIDGE_CONFIG.network_id_agglayer_1,
             origin_network=BRIDGE_CONFIG.network_id_mainnet,
             origin_token=BRIDGE_CONFIG.agg_erc20_l1,
@@ -320,7 +320,7 @@ def run_l1_to_l2_asset_bridge_test(bridge_amount: int = 50):
         BridgeLogger.info("Using: aggsandbox show claims --network-id 1 --json")
         BridgeLogger.info("Waiting for claim to be fully processed and indexed...")
         
-        time.sleep(15)  # Give claim time to be fully processed and indexed
+        time.sleep(5)  # Give claim time to be fully processed and indexed
         
         success, output = AggsandboxAPI.show_claims(
             network_id=BRIDGE_CONFIG.network_id_agglayer_1,
@@ -397,7 +397,7 @@ def run_l1_to_l2_asset_bridge_test(bridge_amount: int = 50):
         print(f"\n📋 Operations Completed:")
         BridgeLogger.info("✅ 1. aggsandbox bridge asset (L1→L2 bridging)")
         BridgeLogger.info("✅ 2. aggsandbox show bridges --json (monitoring)")
-        BridgeLogger.info("✅ 3. aggsandbox bridge utils get-mapped (wrapped token)")
+        BridgeLogger.info("✅ 3. aggsandbox bridge utils precalculate (wrapped token)")
         BridgeLogger.info("✅ 4. aggsandbox bridge claim (claiming on L2)")
         BridgeLogger.info("✅ 5. aggsandbox show claims --json (verification)")
         

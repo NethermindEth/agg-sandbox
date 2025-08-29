@@ -165,6 +165,11 @@ mod integration_tests {
         };
         let _claims_cmd = ShowCommands::Claims {
             network_id: 1,
+            bridge_tx_hash: None,
+            claim_tx_hash: None,
+            status: None,
+            claim_type: None,
+            address: None,
             json: false,
         };
         let _proof_cmd = ShowCommands::ClaimProof {

@@ -24,17 +24,35 @@ pub enum ShowCommands {
     },
     /// 📋 Show pending claims for a network
     #[command(
-        long_about = "Display pending claims that can be executed on the specified network.\\n\\nClaims represent cross-chain transfers waiting to be processed.\\nEach claim contains transfer details and required proof data.\\n\\nTypically:\\n  • L1 claims (network 0): Deposits to be claimed on L2\\n  • L2 claims (network 1): Withdrawals to be claimed on L1\\n\\nExamples:\\n  `aggsandbox show claims`                     # Show L1 claims\\n  `aggsandbox show claims --network-id 1`     # Show first L2 claims\\n  `aggsandbox show claims --json`              # Raw JSON output for scripting"
+        long_about = "Display claims that can be executed on the specified network.\\n\\nClaims represent cross-chain transfers waiting to be processed.\\nEach claim contains transfer details and required proof data.\\n\\nTypically:\\n  • L1 claims (network 0): Deposits to be claimed on L2\\n  • L2 claims (network 1): Withdrawals to be claimed on L1\\n\\nFiltering:\\n  Use filters to narrow down results when many claims are present.\\n\\nExamples:\\n  `aggsandbox show claims`                                    # Show all L2 claims\\n  `aggsandbox show claims --network-id 0`                     # Show L1 claims\\n  `aggsandbox show claims --bridge-tx-hash 0x123...`          # Filter by bridge transaction\\n  `aggsandbox show claims --claim-tx-hash 0xabc...`           # Filter by claim transaction\\n  `aggsandbox show claims --status pending`                   # Show only pending claims\\n  `aggsandbox show claims --claim-type asset`                 # Show only asset claims\\n  `aggsandbox show claims --address 0xdef...`                 # Filter by destination address\\n  `aggsandbox show claims --json`                             # Raw JSON output for scripting"
     )]
     Claims {
-        /// Network ID to query for pending claims
+        /// Network ID to query for claims
         #[arg(
             short,
             long,
             default_value = "1",
-            help = "Network ID to query for pending claims"
+            help = "Network ID to query for claims"
         )]
         network_id: u64,
+        /// Filter by bridge transaction hash
+        #[arg(long, help = "Filter claims by bridge transaction hash")]
+        bridge_tx_hash: Option<String>,
+        /// Filter by claim transaction hash
+        #[arg(
+            long,
+            help = "Filter claims by claim transaction hash (empty for pending claims)"
+        )]
+        claim_tx_hash: Option<String>,
+        /// Filter by claim status (pending, completed)
+        #[arg(long, help = "Filter claims by status (pending, completed)")]
+        status: Option<String>,
+        /// Filter by claim type (asset, message)
+        #[arg(long, help = "Filter claims by type (asset, message)")]
+        claim_type: Option<String>,
+        /// Filter by destination address
+        #[arg(long, help = "Filter claims by destination address")]
+        address: Option<String>,
         /// Output raw JSON without formatting (for scripting)
         #[arg(long, help = "Output raw JSON without decorative formatting")]
         json: bool,
@@ -107,9 +125,24 @@ pub async fn handle_show(subcommand: ShowCommands) -> Result<()> {
                 api::print_json_response("Bridge Information", &response.data);
             }
         }
-        ShowCommands::Claims { network_id, json } => {
+        ShowCommands::Claims {
+            network_id,
+            bridge_tx_hash,
+            claim_tx_hash,
+            status,
+            claim_type,
+            address,
+            json,
+        } => {
             let response = api::get_claims(&config, network_id, json).await?;
-            let filtered_data = filter_duplicate_claims(&response.data);
+            let filtered_data = filter_claims(
+                &response.data,
+                bridge_tx_hash.as_deref(),
+                claim_tx_hash.as_deref(),
+                status.as_deref(),
+                claim_type.as_deref(),
+                address.as_deref(),
+            );
             if json {
                 api::print_raw_json(&filtered_data);
             } else {
@@ -147,55 +180,103 @@ pub async fn handle_show(subcommand: ShowCommands) -> Result<()> {
     Ok(())
 }
 
-/// Filter out duplicate pending claims that have already been completed
+/// Filter claims based on provided criteria
 ///
-/// Groups claims by bridge_tx_hash AND type, removing "pending" claims if there are
-/// corresponding "completed" claims for the same bridge transaction and type.
-/// This handles bridge-and-call operations where the same bridge_tx_hash can have
-/// both "asset" and "message" type claims that need separate processing.
-fn filter_duplicate_claims(data: &serde_json::Value) -> serde_json::Value {
+/// Filters claims array based on bridge_tx_hash, claim_tx_hash, status, type, and destination address.
+/// If no filters are provided, returns the original data unchanged.
+fn filter_claims(
+    data: &serde_json::Value,
+    bridge_tx_hash_filter: Option<&str>,
+    claim_tx_hash_filter: Option<&str>,
+    status_filter: Option<&str>,
+    type_filter: Option<&str>,
+    address_filter: Option<&str>,
+) -> serde_json::Value {
     use serde_json::Value;
-    use std::collections::HashMap;
+
+    // If no filters are provided, return original data
+    if bridge_tx_hash_filter.is_none()
+        && claim_tx_hash_filter.is_none()
+        && status_filter.is_none()
+        && type_filter.is_none()
+        && address_filter.is_none()
+    {
+        return data.clone();
+    }
 
     let mut result = data.clone();
 
     // Extract claims array if it exists
     if let Some(claims_array) = data.get("claims").and_then(|v| v.as_array()) {
-        // Group claims by (bridge_tx_hash, type) composite key
-        let mut grouped_claims: HashMap<(String, String), Vec<&Value>> = HashMap::new();
+        let filtered_claims: Vec<Value> = claims_array
+            .iter()
+            .filter(|claim| {
+                // Filter by bridge transaction hash
+                if let Some(bridge_hash) = bridge_tx_hash_filter {
+                    if let Some(bridge_tx_hash) =
+                        claim.get("bridge_tx_hash").and_then(|v| v.as_str())
+                    {
+                        if !bridge_tx_hash.eq_ignore_ascii_case(bridge_hash) {
+                            return false;
+                        }
+                    } else {
+                        return false;
+                    }
+                }
 
-        for claim in claims_array {
-            if let (Some(bridge_tx_hash), Some(claim_type)) = (
-                claim.get("bridge_tx_hash").and_then(|v| v.as_str()),
-                claim.get("type").and_then(|v| v.as_str()),
-            ) {
-                let composite_key = (bridge_tx_hash.to_string(), claim_type.to_string());
-                grouped_claims.entry(composite_key).or_default().push(claim);
-            }
-        }
+                // Filter by claim transaction hash
+                if let Some(claim_hash) = claim_tx_hash_filter {
+                    if let Some(claim_tx_hash) = claim.get("claim_tx_hash").and_then(|v| v.as_str())
+                    {
+                        // Handle empty claim_tx_hash for pending claims
+                        if claim_tx_hash.is_empty() {
+                            return false; // Can't match empty claim_tx_hash
+                        }
+                        if !claim_tx_hash.eq_ignore_ascii_case(claim_hash) {
+                            return false;
+                        }
+                    } else {
+                        return false;
+                    }
+                }
 
-        // Filter claims: remove pending if completed exists for same (bridge_tx_hash, type)
-        let mut filtered_claims = Vec::new();
+                // Filter by status
+                if let Some(status) = status_filter {
+                    if let Some(claim_status) = claim.get("status").and_then(|v| v.as_str()) {
+                        if !claim_status.eq_ignore_ascii_case(status) {
+                            return false;
+                        }
+                    } else {
+                        return false;
+                    }
+                }
 
-        for (_composite_key, mut claims_group) in grouped_claims {
-            // Check if we have both pending and completed claims for this specific type
-            let has_completed = claims_group
-                .iter()
-                .any(|claim| claim.get("status").and_then(|s| s.as_str()) == Some("completed"));
+                // Filter by type
+                if let Some(claim_type) = type_filter {
+                    if let Some(claim_type_value) = claim.get("type").and_then(|v| v.as_str()) {
+                        if !claim_type_value.eq_ignore_ascii_case(claim_type) {
+                            return false;
+                        }
+                    } else {
+                        return false;
+                    }
+                }
 
-            if has_completed {
-                // Keep only completed claims for this (bridge_tx_hash, type) combination
-                claims_group.retain(|claim| {
-                    claim.get("status").and_then(|s| s.as_str()) == Some("completed")
-                });
-            }
-            // If no completed claims exist, keep all (including pending ones)
+                // Filter by destination address
+                if let Some(addr) = address_filter {
+                    if let Some(dest_address) = claim.get("dest_address").and_then(|v| v.as_str()) {
+                        if !dest_address.eq_ignore_ascii_case(addr) {
+                            return false;
+                        }
+                    } else {
+                        return false;
+                    }
+                }
 
-            // Add filtered claims to result
-            for claim in claims_group {
-                filtered_claims.push(claim.clone());
-            }
-        }
+                true
+            })
+            .cloned()
+            .collect();
 
         // Update the result with filtered claims
         if let Some(result_obj) = result.as_object_mut() {

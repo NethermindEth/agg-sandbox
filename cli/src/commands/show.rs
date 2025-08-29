@@ -122,7 +122,8 @@ pub async fn handle_show(subcommand: ShowCommands) -> Result<()> {
             if json {
                 api::print_raw_json(&response.data);
             } else {
-                api::print_json_response("Bridge Information", &response.data);
+                let display_data = filter_display_metadata(&response.data);
+                api::print_json_response("Bridge Information", &display_data);
             }
         }
         ShowCommands::Claims {
@@ -146,7 +147,8 @@ pub async fn handle_show(subcommand: ShowCommands) -> Result<()> {
             if json {
                 api::print_raw_json(&filtered_data);
             } else {
-                api::print_json_response("Claims Information", &filtered_data);
+                let display_data = filter_display_metadata(&filtered_data);
+                api::print_json_response("Claims Information", &display_data);
             }
         }
         ShowCommands::ClaimProof {
@@ -160,7 +162,8 @@ pub async fn handle_show(subcommand: ShowCommands) -> Result<()> {
             if json {
                 api::print_raw_json(&response.data);
             } else {
-                api::print_json_response("Claim Proof Information", &response.data);
+                let display_data = filter_display_metadata(&response.data);
+                api::print_json_response("Claim Proof Information", &display_data);
             }
         }
         ShowCommands::L1InfoTreeIndex {
@@ -173,7 +176,8 @@ pub async fn handle_show(subcommand: ShowCommands) -> Result<()> {
             if json {
                 api::print_raw_json(&response.data);
             } else {
-                api::print_json_response("L1 Info Tree Index", &response.data);
+                let display_data = filter_display_metadata(&response.data);
+                api::print_json_response("L1 Info Tree Index", &display_data);
             }
         }
     }
@@ -292,4 +296,35 @@ fn filter_claims(
     }
 
     result
+}
+
+/// Remove sandbox_metadata from API response for cleaner display output
+///
+/// Recursively filters out sandbox_metadata at any level while preserving all other data.
+/// This is used for display output only - JSON output retains full metadata.
+fn filter_display_metadata(data: &serde_json::Value) -> serde_json::Value {
+    use serde_json::Value;
+
+    match data {
+        Value::Object(obj) => {
+            let mut filtered_obj = serde_json::Map::new();
+
+            for (key, value) in obj {
+                // Skip sandbox_metadata keys at any level
+                if key != "sandbox_metadata" {
+                    // Recursively filter nested values
+                    filtered_obj.insert(key.clone(), filter_display_metadata(value));
+                }
+            }
+
+            Value::Object(filtered_obj)
+        }
+        Value::Array(arr) => {
+            // Recursively filter array elements
+            let filtered_arr: Vec<Value> = arr.iter().map(filter_display_metadata).collect();
+            Value::Array(filtered_arr)
+        }
+        // For primitive values (String, Number, Bool, Null), return as-is
+        _ => data.clone(),
+    }
 }

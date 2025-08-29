@@ -47,6 +47,7 @@ class BridgeConfig:
     chain_id_agglayer_2: Optional[int] = None  # L3 chain ID
     agg_erc20_l2: Optional[str] = None
     agg_erc20_l3: Optional[str] = None  # L3 AggERC20 contract
+    asset_and_call_receiver_l2: Optional[str] = None  # Bridge-and-call receiver contract
 
 class BridgeLogger:
     """Colored logging for bridge operations"""
@@ -89,8 +90,11 @@ class BridgeEnvironment:
     
     @staticmethod
     def load_environment() -> BridgeConfig:
-        """Load environment configuration from aggsandbox info"""
+        """Load environment configuration from aggsandbox info and .env file"""
         BridgeLogger.step("Loading environment from aggsandbox info")
+        
+        # Load .env file if it exists
+        BridgeEnvironment._load_env_file()
         
         # Get sandbox info
         success, info_output = AggsandboxAPI.info()
@@ -115,7 +119,8 @@ class BridgeEnvironment:
             chain_id_agglayer_2=config_data.get('l3_chain_id'), # L3 chain ID
             agg_erc20_l1=config_data['agg_erc20_l1'],     # L1 AggERC20 contract
             agg_erc20_l2=config_data['agg_erc20_l2'],     # L2 AggERC20 contract
-            agg_erc20_l3=config_data.get('agg_erc20_l3')  # L3 AggERC20 contract
+            agg_erc20_l3=config_data.get('agg_erc20_l3'), # L3 AggERC20 contract
+            asset_and_call_receiver_l2=os.environ.get('ASSET_AND_CALL_RECEIVER_L2')  # Bridge-and-call receiver
         )
         
         BridgeLogger.success("Environment configuration loaded from aggsandbox")
@@ -246,6 +251,22 @@ class BridgeEnvironment:
             'agg_erc20_l2': agg_erc20_l2,
             'agg_erc20_l3': agg_erc20_l3
         }
+    
+    @staticmethod
+    def _load_env_file():
+        """Load .env file variables into environment"""
+        env_path = os.path.join(os.path.dirname(__file__), '..', '..', '.env')
+        if os.path.exists(env_path):
+            BridgeLogger.debug(f"Loading .env file from {env_path}")
+            with open(env_path, 'r') as f:
+                for line in f:
+                    line = line.strip()
+                    if line and not line.startswith('#') and '=' in line:
+                        key, value = line.split('=', 1)
+                        os.environ[key.strip()] = value.strip()
+            BridgeLogger.debug("✅ .env file loaded successfully")
+        else:
+            BridgeLogger.debug("No .env file found")
     
     @staticmethod
     def validate_sandbox_status() -> bool:

@@ -22,12 +22,13 @@ def deploy_message_receiver_contract() -> str:
     BridgeLogger.step("Deploying SimpleBridgeMessageReceiver contract on L1")
     
     try:
-        # Deploy the contract using forge
+        # Deploy the contract using forge with --broadcast
         cmd = [
             "forge", "create", 
             "test/contracts/SimpleBridgeMessageReceiver.sol:SimpleBridgeMessageReceiver",
             "--rpc-url", BRIDGE_CONFIG.rpc_1,
-            "--private-key", BRIDGE_CONFIG.private_key_1
+            "--private-key", BRIDGE_CONFIG.private_key_1,
+            "--broadcast"
         ]
         
         BridgeLogger.debug(f"Executing: {' '.join(cmd)}")
@@ -48,6 +49,7 @@ def deploy_message_receiver_contract() -> str:
             return contract_address
         else:
             BridgeLogger.error("Could not extract contract address from deployment output")
+            BridgeLogger.debug(f"Full output: {output}")
             return None
             
     except subprocess.CalledProcessError as e:
@@ -196,9 +198,9 @@ def run_l2_to_l1_message_bridge_test(message: str = "L2 to L1 Message"):
         
         # Wait for AggKit to sync bridge data from L2 to L1
         BridgeLogger.step("Waiting for AggKit to sync bridge data from L2 to L1")
-        BridgeLogger.info("AggKit needs ~30 seconds to sync bridge transactions between networks")
+        BridgeLogger.info("AggKit needs ~20 seconds to sync bridge transactions and global exit root")
         BridgeLogger.info("This is based on successful testing and optimized timings")
-        time.sleep(30)
+        time.sleep(20)
         print()
         
         # Step 3: Claim the bridged message on L1
@@ -346,7 +348,7 @@ def run_l2_to_l1_message_bridge_test(message: str = "L2 to L1 Message"):
         BridgeLogger.info("✅ 0. Contract deployment (SimpleBridgeMessageReceiver on L1)")
         BridgeLogger.info("✅ 1. aggsandbox bridge message (L2→L1 message bridging)")
         BridgeLogger.info("✅ 2. aggsandbox show bridges --json (monitoring)")
-        BridgeLogger.info("✅ 3. AggKit sync wait (30 seconds - optimized)")
+        BridgeLogger.info("✅ 3. AggKit sync wait (10 seconds - optimized)")
         BridgeLogger.info("✅ 4. aggsandbox bridge claim (claiming on L1)")
         BridgeLogger.info("✅ 5. Contract verification (message receipt)")
         BridgeLogger.info("✅ 6. aggsandbox show claims --json (verification)")

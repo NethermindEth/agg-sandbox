@@ -228,9 +228,9 @@ def run_l2_to_l1_bridge_and_call_test(bridge_amount: int = 8):
         
         # Wait for AggKit to sync bridge data from L2 to L1
         BridgeLogger.step("Waiting for AggKit to sync bridge data from L2 to L1")
-        BridgeLogger.info("AggKit needs ~30 seconds to sync bridge transactions between networks")
+        BridgeLogger.info("AggKit needs ~20 seconds to sync bridge transactions and global exit root")
         BridgeLogger.info("This is based on successful testing and optimized timings")
-        time.sleep(30)
+        time.sleep(20)
         print()
         
         # Step 4: Claim asset bridge FIRST using the specific deposit_count

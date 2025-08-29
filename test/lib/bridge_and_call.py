@@ -80,6 +80,10 @@ class BridgeAndCall:
             BridgeLogger.error("Bridge configuration not initialized")
             return None
         
+        # For bridge-and-call tests, we need our specific test contract interface
+        # The existing ASSET_AND_CALL_RECEIVER_L2 doesn't have getCallCount() function
+        # So we'll deploy our own test contract
+        
         BridgeLogger.step(f"Deploying bridge and call receiver contract on network {network_id}")
         BridgeLogger.info(f"Contract: {contract_name}")
         
@@ -89,23 +93,33 @@ class BridgeAndCall:
             "forge", "create", f"test/contracts/{contract_name}.sol:{contract_name}",
             "--rpc-url", rpc_url,
             "--private-key", private_key,
-            "--json"
+            "--broadcast"
         ]
         
         try:
             result = subprocess.run(cmd, capture_output=True, text=True, check=True)
-            deploy_data = json.loads(result.stdout)
             
-            contract_address = deploy_data.get('deployedTo')
+            # Extract contract address from output
+            output = result.stdout.strip()
+            lines = output.split('\n')
+            contract_address = None
+            
+            for line in lines:
+                if 'Deployed to:' in line:
+                    contract_address = line.split('Deployed to:')[1].strip()
+                    break
+            
             if contract_address:
                 BridgeLogger.success(f"Contract deployed at: {contract_address}")
                 return contract_address
             else:
                 BridgeLogger.error("Could not extract contract address from deployment output")
+                BridgeLogger.debug(f"Full output: {output}")
                 return None
                 
-        except (subprocess.CalledProcessError, json.JSONDecodeError) as e:
+        except subprocess.CalledProcessError as e:
             BridgeLogger.error(f"Contract deployment failed: {e}")
+            BridgeLogger.error(f"Error output: {e.stderr}")
             return None
     
     @staticmethod
@@ -145,6 +159,10 @@ class BridgeAndCall:
                         cmd = ["cast", "abi-decode", "f()(string)", last_message_hex]
                         result = subprocess.run(cmd, capture_output=True, text=True, check=True)
                         decoded_message = result.stdout.strip()
+                        
+                        # Remove surrounding quotes if present (cast abi-decode sometimes adds them)
+                        if decoded_message.startswith('"') and decoded_message.endswith('"'):
+                            decoded_message = decoded_message[1:-1]
                         
                         BridgeLogger.info(f"Last message received: '{decoded_message}'")
                         

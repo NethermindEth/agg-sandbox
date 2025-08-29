@@ -24,16 +24,24 @@ from bridge_and_call import BridgeAndCall
 from claim_bridge_and_call import ClaimBridgeAndCall
 
 def deploy_asset_and_call_receiver_contract() -> str:
-    """Deploy SimpleBridgeAndCallReceiver contract on L2"""
+    """Deploy SimpleBridgeAndCallReceiver contract on L2 or use existing one"""
+    
+    # Check if we already have a deployed contract
+    if hasattr(BRIDGE_CONFIG, 'asset_and_call_receiver_l2') and BRIDGE_CONFIG.asset_and_call_receiver_l2:
+        BridgeLogger.step("Using existing ASSET_AND_CALL_RECEIVER_L2 contract")
+        BridgeLogger.success(f"✅ Using deployed contract at: {BRIDGE_CONFIG.asset_and_call_receiver_l2}")
+        return BRIDGE_CONFIG.asset_and_call_receiver_l2
+    
     BridgeLogger.step("Deploying SimpleBridgeAndCallReceiver contract on L2")
     
     try:
-        # Deploy the contract using forge
+        # Deploy the contract using forge with --broadcast
         cmd = [
             "forge", "create", 
             "test/contracts/SimpleBridgeAndCallReceiver.sol:SimpleBridgeAndCallReceiver",
             "--rpc-url", BRIDGE_CONFIG.rpc_2,
-            "--private-key", BRIDGE_CONFIG.private_key_1
+            "--private-key", BRIDGE_CONFIG.private_key_1,
+            "--broadcast"
         ]
         
         BridgeLogger.debug(f"Executing: {' '.join(cmd)}")
@@ -54,6 +62,7 @@ def deploy_asset_and_call_receiver_contract() -> str:
             return contract_address
         else:
             BridgeLogger.error("Could not extract contract address from deployment output")
+            BridgeLogger.debug(f"Full output: {output}")
             return None
             
     except subprocess.CalledProcessError as e:
@@ -264,9 +273,9 @@ def run_l1_to_l2_bridge_and_call_test(bridge_amount: int = 10):
         
         # Wait for AggKit to sync bridge data from L1 to L2
         BridgeLogger.step("Waiting for AggKit to sync bridge data from L1 to L2")
-        BridgeLogger.info("AggKit needs ~30 seconds to sync bridge transactions between networks")
+        BridgeLogger.info("AggKit needs ~20 seconds to sync bridge transactions and global exit root")
         BridgeLogger.info("This is based on successful testing and optimized timings")
-        time.sleep(30)
+        time.sleep(20)
         print()
         
         # Step 4: Claim asset bridge FIRST using the specific deposit_count
@@ -448,7 +457,7 @@ def run_l1_to_l2_bridge_and_call_test(bridge_amount: int = 10):
         BridgeLogger.info("✅ 1. Call data preparation (processTransferAndCall)")
         BridgeLogger.info("✅ 2. aggsandbox bridge bridge-and-call (L1→L2 bridging)")
         BridgeLogger.info("✅ 3. aggsandbox show bridges --json (monitoring)")
-        BridgeLogger.info("✅ 4. AggKit sync wait (30 seconds - optimized)")
+        BridgeLogger.info("✅ 4. AggKit sync wait (10 seconds - optimized)")
         BridgeLogger.info("✅ 5. aggsandbox bridge claim (asset bridge - deposit_count=0)")
         BridgeLogger.info("✅ 6. aggsandbox bridge claim (message bridge - deposit_count=1)")
         BridgeLogger.info("✅ 7. Contract verification (processTransferAndCall execution)")

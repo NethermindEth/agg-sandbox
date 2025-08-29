@@ -1,18 +1,19 @@
 # Agglayer Sandbox Project Makefile
-.PHONY: install uninstall cli-check cli-build cli-clean clean-docker help
+.PHONY: install uninstall cli-check cli-build cli-clean clean-docker integration-test help
 
 # Default target
 help:
 	@echo "🦀 Agglayer Sandbox Project"
 	@echo ""
 	@echo "Available targets:"
-	@echo "  install      - Build and install the CLI to ~/.local/bin"
-	@echo "  uninstall    - Remove the CLI from ~/.local/bin"
-	@echo "  cli-build    - Build the CLI (development)"
-	@echo "  cli-check    - Run all CLI checks (format, clippy, test)"
-	@echo "  cli-clean    - Clean CLI build artifacts"
-	@echo "  clean-docker - Clean Docker images and force fresh image pulls"
-	@echo "  help         - Show this help message"
+	@echo "  install          - Build and install the CLI to ~/.local/bin"
+	@echo "  uninstall        - Remove the CLI from ~/.local/bin"
+	@echo "  cli-build        - Build the CLI (development)"
+	@echo "  cli-check        - Run all CLI checks (format, clippy, test)"
+	@echo "  cli-clean        - Clean CLI build artifacts"
+	@echo "  clean-docker     - Clean Docker images and force fresh image pulls"
+	@echo "  integration-test - Run comprehensive bridge integration tests"
+	@echo "  help             - Show this help message"
 
 # Install the CLI binary to user's local bin directory
 install:
@@ -54,4 +55,20 @@ cli-clean:
 # Clean Docker images used by compose files
 clean-docker:
 	@echo "🧹 Cleaning Docker images..."
-	@./scripts/clean-docker-images.sh 
+	@./scripts/clean-docker-images.sh
+
+# Run comprehensive bridge integration tests
+integration-test:
+	@echo "🧪 Running Agglayer Bridge Integration Tests..."
+	@echo "📋 This will test all bridge operations: L1↔L2, L2↔L1, L2↔L2"
+	@echo ""
+	@if ! aggsandbox status >/dev/null 2>&1; then \
+		echo "❌ Sandbox is not running. Please start it first:"; \
+		echo "   aggsandbox start --multi-l2 --detach"; \
+		exit 1; \
+	fi
+	@echo "✅ Sandbox is running, starting tests..."
+	@echo ""
+	@./test/run_bridge_tests.sh
+	@echo ""
+	@echo "🎉 Integration tests completed!"

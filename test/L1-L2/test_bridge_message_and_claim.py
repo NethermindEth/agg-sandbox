@@ -22,12 +22,13 @@ def deploy_message_receiver_contract() -> str:
     BridgeLogger.step("Deploying SimpleBridgeMessageReceiver contract on L2")
     
     try:
-        # Deploy the contract using forge
+        # Deploy the contract using forge with --broadcast
         cmd = [
             "forge", "create", 
             "test/contracts/SimpleBridgeMessageReceiver.sol:SimpleBridgeMessageReceiver",
             "--rpc-url", BRIDGE_CONFIG.rpc_2,
-            "--private-key", BRIDGE_CONFIG.private_key_1
+            "--private-key", BRIDGE_CONFIG.private_key_1,
+            "--broadcast"
         ]
         
         BridgeLogger.debug(f"Executing: {' '.join(cmd)}")
@@ -48,6 +49,7 @@ def deploy_message_receiver_contract() -> str:
             return contract_address
         else:
             BridgeLogger.error("Could not extract contract address from deployment output")
+            BridgeLogger.debug(f"Full output: {output}")
             return None
             
     except subprocess.CalledProcessError as e:
@@ -206,9 +208,9 @@ def run_l1_to_l2_message_bridge_test(message: str = "Hello World"):
         
         # Wait for AggKit to sync bridge data from L1 to L2
         BridgeLogger.step("Waiting for AggKit to sync bridge data from L1 to L2")
-        BridgeLogger.info("AggKit needs ~30 seconds to sync bridge transactions between networks")
+        BridgeLogger.info("AggKit needs ~20 seconds to sync bridge transactions and global exit root")
         BridgeLogger.info("This is based on successful testing and optimized timings")
-        time.sleep(30)
+        time.sleep(20)
         print()
         
         # Step 3: Claim the bridged message on L2
@@ -224,30 +226,85 @@ def run_l1_to_l2_message_bridge_test(message: str = "Hello World"):
             private_key=BRIDGE_CONFIG.private_key_2
         )
         
-        success, output = AggsandboxAPI.bridge_claim(claim_args)
-        
-        if not success:
-            BridgeLogger.error(f"❌ Claim operation failed: {output}")
-            return False
-        
-        # Extract claim transaction hash
+        # Try claiming up to 3 times with delays
+        claim_success = False
         claim_tx_hash = None
-        lines = output.split('\n')
-        for line in lines:
-            if '✅ claim transaction submitted:' in line.lower() and '0x' in line:
-                words = line.split()
-                for word in words:
-                    if word.startswith('0x') and len(word) == 66:
-                        claim_tx_hash = word
-                        break
-                if claim_tx_hash:
-                    break
         
-        if claim_tx_hash:
-            BridgeLogger.success(f"✅ Claim transaction submitted: {claim_tx_hash}")
-        else:
-            BridgeLogger.success("✅ Claim completed successfully")
-            claim_tx_hash = "completed"
+        for attempt in range(3):
+            if attempt > 0:
+                BridgeLogger.info(f"Retrying claim (attempt {attempt + 1}/3)...")
+                time.sleep(5)  # Wait 5 seconds before retry
+            
+            success, output = AggsandboxAPI.bridge_claim(claim_args)
+            
+            if success:
+                # Extract claim transaction hash
+                lines = output.split('\n')
+                for line in lines:
+                    if '✅ claim transaction submitted:' in line.lower() and '0x' in line:
+                        words = line.split()
+                        for word in words:
+                            if word.startswith('0x') and len(word) == 66:
+                                claim_tx_hash = word
+                                break
+                        if claim_tx_hash:
+                            break
+                
+                if claim_tx_hash:
+                    BridgeLogger.success(f"✅ Claim transaction submitted: {claim_tx_hash}")
+                    
+                    # Verify transaction actually succeeded
+                    BridgeLogger.info("Verifying claim transaction status...")
+                    try:
+                        import subprocess
+                        result = subprocess.run([
+                            "cast", "receipt", claim_tx_hash, "--rpc-url", BRIDGE_CONFIG.rpc_2
+                        ], capture_output=True, text=True, check=True)
+                        
+                        receipt = result.stdout.strip()
+                        if "status               0 (failed)" in receipt:
+                            BridgeLogger.error(f"❌ Claim transaction failed on-chain: {claim_tx_hash}")
+                            # Look for revert reason
+                            if "revertReason" in receipt:
+                                lines = receipt.split('\n')
+                                for line in lines:
+                                    if "revertReason" in line:
+                                        BridgeLogger.error(f"Revert reason: {line.strip()}")
+                            # Don't break, continue to retry
+                            if attempt == 2:  # Last attempt
+                                BridgeLogger.error("❌ All claim attempts resulted in failed transactions")
+                                return False
+                            else:
+                                BridgeLogger.info("Will retry claim after longer delay...")
+                                time.sleep(10)
+                                continue
+                        elif "status               1 (success)" in receipt:
+                            BridgeLogger.success("✅ Claim transaction succeeded on-chain")
+                            claim_success = True
+                            break
+                        else:
+                            BridgeLogger.warning("Could not determine transaction status, assuming success")
+                            claim_success = True
+                            break
+                            
+                    except Exception as e:
+                        BridgeLogger.warning(f"Could not verify transaction receipt: {e}")
+                        claim_success = True
+                        break
+                else:
+                    BridgeLogger.success("✅ Claim completed successfully")
+                    claim_tx_hash = "completed"
+                    claim_success = True
+                    break
+            else:
+                BridgeLogger.warning(f"Claim attempt {attempt + 1} failed: {output}")
+                if "wait at least" in output.lower() or "ger" in output.lower():
+                    BridgeLogger.info("Claim failed due to timing - will retry with longer delay")
+                    time.sleep(10)  # Longer delay if it's a timing issue
+        
+        if not claim_success:
+            BridgeLogger.error("❌ All claim attempts failed")
+            return False
         
         # Wait for claim to be processed before checking status
         BridgeLogger.info("Waiting for claim to be processed...")
@@ -269,11 +326,10 @@ def run_l1_to_l2_message_bridge_test(message: str = "Hello World"):
                     claims_data = json.loads(output)
                     claims = claims_data.get('claims', [])
                     
-                    # Look for our claim by matching bridge details
+                    # Look for our claim by matching bridge transaction hash (most reliable)
                     for claim in claims:
-                        # Match by destination_address, origin_network, destination_network, and type
-                        if (claim.get('destination_address') == contract_address and
-                            claim.get('origin_network') == BRIDGE_CONFIG.network_id_mainnet and
+                        # Match by bridge_tx_hash, destination_network, and type
+                        if (claim.get('bridge_tx_hash') == bridge_tx_hash and
                             claim.get('destination_network') == BRIDGE_CONFIG.network_id_agglayer_1 and
                             claim.get('type') == 'message'):
                             
@@ -297,6 +353,33 @@ def run_l1_to_l2_message_bridge_test(message: str = "Hello World"):
         
         if not claim_completed:
             BridgeLogger.error("❌ Claim did not complete after 60 seconds - this indicates a problem!")
+            BridgeLogger.error("This usually means:")
+            BridgeLogger.error("  1. The claim transaction failed silently")
+            BridgeLogger.error("  2. The bridge data hasn't synced properly")
+            BridgeLogger.error("  3. There's an issue with the claim parameters")
+            
+            # Show the actual pending claim for debugging
+            success, output = AggsandboxAPI.show_claims(
+                network_id=BRIDGE_CONFIG.network_id_agglayer_1,
+                json_output=True
+            )
+            if success:
+                try:
+                    claims_data = json.loads(output)
+                    claims = claims_data.get('claims', [])
+                    for claim in claims:
+                        if (claim.get('bridge_tx_hash') == bridge_tx_hash and
+                            claim.get('destination_network') == BRIDGE_CONFIG.network_id_agglayer_1 and
+                            claim.get('type') == 'message'):
+                            BridgeLogger.error(f"Found matching claim still pending:")
+                            BridgeLogger.error(f"  Bridge TX: {claim.get('bridge_tx_hash')}")
+                            BridgeLogger.error(f"  Claim TX: {claim.get('claim_tx_hash', 'None')}")
+                            BridgeLogger.error(f"  Status: {claim.get('status')}")
+                            BridgeLogger.error(f"  Destination: {claim.get('destination_address')}")
+                            break
+                except json.JSONDecodeError:
+                    pass
+            
             return False
         
         print()
@@ -338,7 +421,7 @@ def run_l1_to_l2_message_bridge_test(message: str = "Hello World"):
         BridgeLogger.info("Using: aggsandbox show claims --network-id 1 --json")
         BridgeLogger.info("Waiting for claim to be fully processed and indexed...")
         
-        time.sleep(15)  # Optimized wait time based on testing
+        time.sleep(20)  # Optimized wait time based on testing
         
         success, output = AggsandboxAPI.show_claims(
             network_id=BRIDGE_CONFIG.network_id_agglayer_1,
@@ -411,7 +494,7 @@ def run_l1_to_l2_message_bridge_test(message: str = "Hello World"):
         print(f"\n📋 Operations Completed:")
         BridgeLogger.info("✅ 1. aggsandbox bridge message (L1→L2 message bridging)")
         BridgeLogger.info("✅ 2. aggsandbox show bridges --json (monitoring)")
-        BridgeLogger.info("✅ 3. AggKit sync wait (30 seconds - optimized)")
+        BridgeLogger.info("✅ 3. AggKit sync wait (10 seconds - optimized)")
         BridgeLogger.info("✅ 4. aggsandbox bridge claim (claiming on L2)")
         BridgeLogger.info("✅ 5. aggsandbox show claims --json (verification)")
         

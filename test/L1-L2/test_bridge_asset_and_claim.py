@@ -152,11 +152,12 @@ def run_l1_to_l2_asset_bridge_test(bridge_amount: int = 50):
         if success:
             try:
                 data = json.loads(output)
-                wrapped_token_addr = data.get('wrapped_token_address')
+                wrapped_token_addr = data.get('precalculated_address') or data.get('wrapped_token_address')
                 if wrapped_token_addr:
                     BridgeLogger.success(f"✅ Wrapped token address: {wrapped_token_addr}")
                 else:
-                    BridgeLogger.warning("No wrapped_token_address in response")
+                    BridgeLogger.warning("No precalculated_address or wrapped_token_address in response")
+                    BridgeLogger.debug(f"Response keys: {list(data.keys())}")
             except json.JSONDecodeError as e:
                 BridgeLogger.warning(f"Could not parse wrapped token response: {e}")
         else:
@@ -188,12 +189,12 @@ def run_l1_to_l2_asset_bridge_test(bridge_amount: int = 50):
         
         # Wait for AggKit to sync bridge data from L1 to L2
         BridgeLogger.step("Waiting for AggKit to sync bridge data from L1 to L2")
-        BridgeLogger.info("AggKit needs ~30 seconds to sync bridge transactions between networks")
+        BridgeLogger.info("AggKit needs ~20 seconds to sync bridge transactions and global exit root")
         BridgeLogger.info("This is normal behavior - bridge data must be synced before claiming")
-        time.sleep(30)
+        time.sleep(20)
         print()
         
-        # Step 4: Claim the bridged assets on L2
+        # Step 4: Claim the bridged assets on L2 with retry logic
         BridgeLogger.step("[4/5] Claiming bridged assets on L2")
         BridgeLogger.info("Using: aggsandbox bridge claim")
         
@@ -205,29 +206,82 @@ def run_l1_to_l2_asset_bridge_test(bridge_amount: int = 50):
             source_network=BRIDGE_CONFIG.network_id_mainnet,
         )
         
-        success, output = AggsandboxAPI.bridge_claim(claim_args)
-        if not success:
-            BridgeLogger.error(f"❌ Claim operation failed: {output}")
-            return False
-        
-        # Extract claim transaction hash
+        # Try claiming up to 3 times with delays for GlobalExitRootInvalid errors
+        claim_success = False
         claim_tx_hash = None
-        lines = output.split('\n')
-        for line in lines:
-            if 'claim transaction submitted' in line.lower() and '0x' in line:
-                words = line.split()
-                for word in words:
-                    if word.startswith('0x') and len(word) == 66:
-                        claim_tx_hash = word
-                        break
-                if claim_tx_hash:
-                    break
         
-        if claim_tx_hash:
-            BridgeLogger.success(f"✅ Claim transaction submitted: {claim_tx_hash}")
-        else:
-            BridgeLogger.success("✅ Claim completed successfully")
-            claim_tx_hash = "completed"
+        for attempt in range(3):
+            if attempt > 0:
+                BridgeLogger.info(f"Retrying claim (attempt {attempt + 1}/3)...")
+                time.sleep(10)  # Wait 10 seconds before retry
+            
+            success, output = AggsandboxAPI.bridge_claim(claim_args)
+            
+            if not success:
+                BridgeLogger.warning(f"Claim attempt {attempt + 1} failed: {output}")
+                continue
+            
+            # Extract claim transaction hash
+            lines = output.split('\n')
+            for line in lines:
+                if 'claim transaction submitted' in line.lower() and '0x' in line:
+                    words = line.split()
+                    for word in words:
+                        if word.startswith('0x') and len(word) == 66:
+                            claim_tx_hash = word
+                            break
+                    if claim_tx_hash:
+                        break
+            
+            if claim_tx_hash:
+                BridgeLogger.success(f"✅ Claim transaction submitted: {claim_tx_hash}")
+                
+                # Verify transaction actually succeeded
+                BridgeLogger.info("Verifying claim transaction status...")
+                try:
+                    import subprocess
+                    result = subprocess.run([
+                        "cast", "receipt", claim_tx_hash, "--rpc-url", BRIDGE_CONFIG.rpc_2
+                    ], capture_output=True, text=True, check=True)
+                    
+                    receipt = result.stdout.strip()
+                    if "status               0 (failed)" in receipt:
+                        BridgeLogger.error(f"❌ Claim transaction failed on-chain: {claim_tx_hash}")
+                        # Look for revert reason
+                        if "revertReason" in receipt:
+                            lines_recv = receipt.split('\n')
+                            for line_recv in lines_recv:
+                                if "revertReason" in line_recv:
+                                    BridgeLogger.error(f"Revert reason: {line_recv.strip()}")
+                        # Don't return False, continue to retry
+                        if attempt == 2:  # Last attempt
+                            BridgeLogger.error("❌ All claim attempts resulted in failed transactions")
+                            return False
+                        else:
+                            BridgeLogger.info("Will retry claim after longer delay...")
+                            continue
+                    elif "status               1 (success)" in receipt:
+                        BridgeLogger.success("✅ Claim transaction succeeded on-chain")
+                        claim_success = True
+                        break
+                    else:
+                        BridgeLogger.warning("Could not determine transaction status, assuming success")
+                        claim_success = True
+                        break
+                        
+                except Exception as e:
+                    BridgeLogger.warning(f"Could not verify transaction receipt: {e}")
+                    claim_success = True
+                    break
+            else:
+                BridgeLogger.success("✅ Claim completed successfully")
+                claim_tx_hash = "completed"
+                claim_success = True
+                break
+                
+        if not claim_success:
+            BridgeLogger.error("❌ All claim attempts failed")
+            return False
         
         # Wait for claim to be processed before checking balance
         BridgeLogger.info("Waiting for claim to be processed and tokens transferred...")

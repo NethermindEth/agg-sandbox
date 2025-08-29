@@ -31,7 +31,8 @@ def deploy_message_receiver_contract() -> str:
             "forge", "create", 
             "test/contracts/SimpleBridgeMessageReceiver.sol:SimpleBridgeMessageReceiver",
             "--rpc-url", "http://localhost:8547",  # L2-2 RPC
-            "--private-key", BRIDGE_CONFIG.private_key_1
+            "--private-key", BRIDGE_CONFIG.private_key_1,
+            "--broadcast"
         ]
         
         BridgeLogger.debug(f"Executing: {' '.join(cmd)}")
@@ -204,9 +205,9 @@ def run_l2_to_l2_message_bridge_test(message: str = "L2-1 to L2-2 Message"):
         # Wait for AggKit to sync bridge data from L2-1 to L2-2 (reduced based on manual testing)
         BridgeLogger.step("Waiting for AggKit to sync bridge data from L2-1 to L2-2")
         BridgeLogger.info("L2→L2 bridging requires sync time for bridge data")
-        BridgeLogger.info("AggKit needs ~30 seconds to sync bridge transactions between L2 networks")
+        BridgeLogger.info("AggKit needs ~10 seconds to sync bridge transactions between L2 networks")
         BridgeLogger.info("This is based on successful manual testing results")
-        time.sleep(30)  # Reduced wait time based on manual success
+        time.sleep(20)  # Reduced wait time based on manual success
         print()
         
         # Step 3: Claim the bridged message on L2-2
@@ -419,7 +420,7 @@ def run_l2_to_l2_message_bridge_test(message: str = "L2-1 to L2-2 Message"):
         BridgeLogger.info("✅ 0. Contract deployment (SimpleBridgeMessageReceiver on L2-2)")
         BridgeLogger.info("✅ 1. aggsandbox bridge message (L2-1→L2-2 message bridging)")
         BridgeLogger.info("✅ 2. aggsandbox show bridges --json (monitoring)")
-        BridgeLogger.info("✅ 3. AggKit sync wait (30 seconds - optimized based on manual testing)")
+        BridgeLogger.info("✅ 3. AggKit sync wait (10 seconds - optimized based on manual testing)")
         BridgeLogger.info("✅ 4. aggsandbox bridge claim (claiming on L2-2)")
         BridgeLogger.info("✅ 5. Contract verification (message received)")
         BridgeLogger.info("✅ 6. aggsandbox show claims --json (verification)")

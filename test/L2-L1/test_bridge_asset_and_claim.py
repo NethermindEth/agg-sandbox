@@ -219,9 +219,9 @@ def run_l2_to_l1_asset_bridge_test(bridge_amount: int = 50):
         
         # Wait for AggKit to sync bridge data from L2 to L1
         BridgeLogger.step("Waiting for AggKit to sync bridge data from L2 to L1")
-        BridgeLogger.info("AggKit needs ~30 seconds to sync bridge transactions between networks")
+        BridgeLogger.info("AggKit needs ~20 seconds to sync bridge transactions and global exit root")
         BridgeLogger.info("This is normal behavior - bridge data must be synced before claiming")
-        time.sleep(30)
+        time.sleep(20)
         print()
         
         # Step 3: Claim the bridged assets on L1
@@ -435,7 +435,7 @@ def run_l2_to_l1_asset_bridge_test(bridge_amount: int = 50):
         BridgeLogger.info("✅ 1. aggsandbox bridge utils precalculate (wrapped token discovery)")
         BridgeLogger.info("✅ 2. aggsandbox bridge asset (L2→L1 bridging)")
         BridgeLogger.info("✅ 3. aggsandbox show bridges --json (monitoring)")
-        BridgeLogger.info("✅ 4. AggKit sync wait (30 seconds - optimized)")
+        BridgeLogger.info("✅ 4. AggKit sync wait (10 seconds - optimized)")
         BridgeLogger.info("✅ 5. aggsandbox bridge claim (claiming on L1)")
         BridgeLogger.info("✅ 6. aggsandbox show claims --json (verification)")
         

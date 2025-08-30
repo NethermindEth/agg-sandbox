@@ -1,5 +1,6 @@
 use crate::config::Config;
 use crate::error::Result;
+use crate::ui;
 use ethers::prelude::*;
 use std::str::FromStr;
 use std::sync::Arc;
@@ -438,12 +439,12 @@ pub async fn bridge_message(
         ))
     })?;
 
-    println!(
-        "✅ Bridge message transaction submitted: {:#x}",
+    ui::ui().success(&format!(
+        "Bridge message transaction submitted: {:#x}",
         tx.tx_hash()
-    );
-    println!("💡 Use `aggsandbox bridge claim --network-id {destination_network} --tx-hash {:#x} --source-network-id {source_network}` to claim message", tx.tx_hash());
-    println!("⏰ Wait at least 5 seconds after bridging before claiming to allow AggKit to update the Global Exit Root (GER)");
+    ));
+    ui::ui().tip(&format!("Use `aggsandbox bridge claim --network-id {} --tx-hash {:#x} --source-network-id {}` to claim message", destination_network, tx.tx_hash(), source_network));
+    ui::ui().warning("Wait at least 5 seconds after bridging before claiming to allow AggKit to update the Global Exit Root (GER)");
 
     Ok(())
 }
@@ -592,7 +593,10 @@ pub async fn bridge_and_call_with_approval(args: BridgeAndCallArgs<'_>) -> Resul
                     &format!("Failed to approve tokens: {e}"),
                 ))
             })?;
-            println!("✅ Token approval transaction: {:#x}", approve_tx.tx_hash());
+            ui::ui().success(&format!(
+                "Token approval transaction: {:#x}",
+                approve_tx.tx_hash()
+            ));
 
             // Wait for approval to be mined
             approve_tx.await.map_err(|e| {
@@ -635,25 +639,31 @@ pub async fn bridge_and_call_with_approval(args: BridgeAndCallArgs<'_>) -> Resul
         ))
     })?;
 
-    println!(
-        "✅ Bridge and call transaction submitted: {:#x}",
+    ui::ui().success(&format!(
+        "Bridge and call transaction submitted: {:#x}",
         tx.tx_hash()
-    );
-    println!("🔧 This creates TWO bridge transactions:");
-    println!("   1. Asset bridge (leaf_type: 0) - bridges tokens to PolygonBridge");
-    println!("   2. Message bridge (leaf_type: 1) - execute calldata from JumpPoint");
-    println!();
-    println!("💡 To complete the process, you need to claim both bridges:");
-    println!(
+    ));
+
+    ui::ui().info("🔧 This creates TWO bridge transactions:");
+    ui::ui().info("   1. Asset bridge (leaf_type: 0) - bridges tokens to PolygonBridge");
+    ui::ui().info("   2. Message bridge (leaf_type: 1) - execute calldata from JumpPoint");
+
+    ui::ui().blank_line();
+    ui::ui().tip("To complete the process, you need to claim both bridges:");
+    ui::ui().info(&format!(
         "   1. First check bridges: `aggsandbox show bridges --network-id {}`",
         args.source_network
-    );
-    println!("   2. Find entries with tx_hash: {:#x}", tx.tx_hash());
-    println!("   3. Note the deposit_count for asset bridge (leaf_type: 0)");
-    println!("   4. Note the deposit_count for message bridge (leaf_type: 1, has calldata)");
-    println!("   5. Claim asset: `aggsandbox bridge claim --network-id {} --tx-hash {:#x} --source-network-id {} --deposit-count <asset_deposit_count>`", args.destination_network, tx.tx_hash(), args.source_network);
-    println!("   6. Claim message: `aggsandbox bridge claim --network-id {} --tx-hash {:#x} --source-network-id {} --deposit-count <message_deposit_count>`", args.destination_network, tx.tx_hash(), args.source_network);
-    println!("⏰ Wait at least 5 seconds after bridging before claiming to allow AggKit to update the Global Exit Root (GER)");
+    ));
+    ui::ui().info(&format!(
+        "   2. Find entries with tx_hash: {:#x}",
+        tx.tx_hash()
+    ));
+    ui::ui().info("   3. Note the deposit_count for asset bridge (leaf_type: 0)");
+    ui::ui().info("   4. Note the deposit_count for message bridge (leaf_type: 1, has calldata)");
+    ui::ui().info(&format!("   5. Claim asset: `aggsandbox bridge claim --network-id {} --tx-hash {:#x} --source-network-id {} --deposit-count <asset_deposit_count>`", args.destination_network, tx.tx_hash(), args.source_network));
+    ui::ui().info(&format!("   6. Claim message: `aggsandbox bridge claim --network-id {} --tx-hash {:#x} --source-network-id {} --deposit-count <message_deposit_count>`", args.destination_network, tx.tx_hash(), args.source_network));
+
+    ui::ui().warning("Wait at least 5 seconds after bridging before claiming to allow AggKit to update the Global Exit Root (GER)");
 
     Ok(())
 }

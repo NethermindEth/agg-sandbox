@@ -1,6 +1,7 @@
 use crate::api_client::OptimizedApiClient;
 use crate::config::Config;
 use crate::error::Result;
+use crate::ui;
 use ethers::prelude::*;
 use ethers::signers::LocalWallet;
 use std::str::FromStr;
@@ -575,7 +576,10 @@ pub async fn claim_asset(args: ClaimAssetArgs<'_>) -> Result<()> {
     // Call the appropriate claim function based on leaf type
     let tx_hash = if leaf_type == 0 {
         // Asset bridge - call claimAsset
-        println!("💰 Claiming asset: {amount} tokens to {destination_address}");
+        ui::ui().info(&format!(
+            "💰 Claiming asset: {} tokens to {}",
+            amount, destination_address
+        ));
 
         let asset_params = AssetClaimParams {
             deposit_count,
@@ -623,13 +627,13 @@ pub async fn claim_asset(args: ClaimAssetArgs<'_>) -> Result<()> {
         super::claim_message::execute_claim_message(claim_message_args).await?
     };
 
-    println!("✅ Claim transaction submitted: {tx_hash:#x}");
+    ui::ui().success(&format!("Claim transaction submitted: {tx_hash:#x}"));
     if leaf_type == 0 {
-        println!("🎉 Assets should be available once the transaction is mined!");
+        ui::ui().success("🎉 Assets should be available once the transaction is mined!");
     } else {
-        println!("🎉 Message bridge claimed! Contract call should execute automatically.");
+        ui::ui().success("🎉 Message bridge claimed! Contract call should execute automatically.");
     }
-    println!("💡 For future claims, ensure you wait at least 5 seconds after bridging to allow AggKit to update the Global Exit Root (GER)");
+    ui::ui().tip("For future claims, ensure you wait at least 5 seconds after bridging to allow AggKit to update the Global Exit Root (GER)");
 
     Ok(())
 }

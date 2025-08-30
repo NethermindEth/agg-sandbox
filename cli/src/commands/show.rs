@@ -1,6 +1,7 @@
 use crate::api;
 use crate::config::Config;
 use crate::error::Result;
+use crate::ui::{OutputFormat, UI};
 
 /// Bridge and blockchain data subcommands
 #[derive(Debug, clap::Subcommand)]
@@ -175,12 +176,18 @@ pub async fn handle_show(subcommand: ShowCommands) -> Result<()> {
 
     match subcommand {
         ShowCommands::Bridges { network_id, json } => {
+            let ui = UI::new(if json {
+                OutputFormat::Json
+            } else {
+                OutputFormat::Human
+            });
             let response = api::get_bridges(&config, network_id, json).await?;
+
             if json {
-                api::print_raw_json(&response.data);
+                ui.json(&response.data);
             } else {
                 let display_data = filter_display_metadata(&response.data);
-                api::print_json_response("Bridge Information", &display_data);
+                ui.data("🌉 Bridge Information", &display_data);
             }
         }
         ShowCommands::Claims {
@@ -192,6 +199,11 @@ pub async fn handle_show(subcommand: ShowCommands) -> Result<()> {
             address,
             json,
         } => {
+            let ui = UI::new(if json {
+                OutputFormat::Json
+            } else {
+                OutputFormat::Human
+            });
             let response = api::get_claims(&config, network_id, json).await?;
             let filtered_data = filter_claims(
                 &response.data,
@@ -201,11 +213,12 @@ pub async fn handle_show(subcommand: ShowCommands) -> Result<()> {
                 claim_type.as_deref(),
                 address.as_deref(),
             );
+
             if json {
-                api::print_raw_json(&filtered_data);
+                ui.json(&filtered_data);
             } else {
                 let display_data = filter_display_metadata(&filtered_data);
-                api::print_json_response("Claims Information", &display_data);
+                ui.data("📋 Claims Information", &display_data);
             }
         }
         ShowCommands::ClaimProof {
@@ -214,13 +227,19 @@ pub async fn handle_show(subcommand: ShowCommands) -> Result<()> {
             deposit_count,
             json,
         } => {
+            let ui = UI::new(if json {
+                OutputFormat::Json
+            } else {
+                OutputFormat::Human
+            });
             let response =
                 api::get_claim_proof(&config, network_id, leaf_index, deposit_count, json).await?;
+
             if json {
-                api::print_raw_json(&response.data);
+                ui.json(&response.data);
             } else {
                 let display_data = filter_display_metadata(&response.data);
-                api::print_json_response("Claim Proof Information", &display_data);
+                ui.data("🔐 Claim Proof Information", &display_data);
             }
         }
         ShowCommands::L1InfoTreeIndex {
@@ -228,13 +247,19 @@ pub async fn handle_show(subcommand: ShowCommands) -> Result<()> {
             deposit_count,
             json,
         } => {
+            let ui = UI::new(if json {
+                OutputFormat::Json
+            } else {
+                OutputFormat::Human
+            });
             let response =
                 api::get_l1_info_tree_index(&config, network_id, deposit_count, json).await?;
+
             if json {
-                api::print_raw_json(&response.data);
+                ui.json(&response.data);
             } else {
                 let display_data = filter_display_metadata(&response.data);
-                api::print_json_response("L1 Info Tree Index", &display_data);
+                ui.data("🌳 L1 Info Tree Index", &display_data);
             }
         }
     }

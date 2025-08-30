@@ -13,12 +13,14 @@ mod logging;
 mod logs;
 mod progress;
 mod types;
+mod ui;
 mod validation;
 
 use commands::{BridgeCommands, ShowCommands};
 use error::Result;
 use logging::LogConfig;
 use tracing::{error, info, warn};
+use ui::{init_ui, OutputFormat};
 
 #[derive(Parser)]
 #[command(name = "aggsandbox")]
@@ -176,6 +178,9 @@ async fn main() {
         eprintln!("Failed to initialize logging: {e}");
         std::process::exit(1);
     }
+
+    // Initialize UI system (commands will set JSON format as needed)
+    init_ui(OutputFormat::Human, cli.quiet);
 
     if let Err(e) = run(cli).await {
         print_error(&e);

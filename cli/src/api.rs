@@ -3,7 +3,6 @@ use crate::error::Result;
 // Removed unused imports: ChainId, EthereumAddress, RpcUrl
 use crate::validation::Validator;
 use colored::*;
-use regex::Regex;
 use serde::Deserialize;
 use tracing::{debug, info, instrument};
 
@@ -145,85 +144,6 @@ pub async fn get_l1_info_tree_index(
         .await?;
 
     Ok(L1InfoTreeIndexResponse { data: info_data })
-}
-
-fn colorize_json(json_str: &str) -> String {
-    // Define regex patterns for different JSON elements
-    let key_regex = match Regex::new(r#""([^"]+)"\s*:"#) {
-        Ok(regex) => regex,
-        Err(_) => return json_str.to_string(), // Fallback to uncolored
-    };
-    let string_regex = match Regex::new(r#":\s*"([^"]*)""#) {
-        Ok(regex) => regex,
-        Err(_) => return json_str.to_string(),
-    };
-    let number_regex = match Regex::new(r#":\s*(-?\d+(?:\.\d+)?(?:[eE][+-]?\d+)?)"#) {
-        Ok(regex) => regex,
-        Err(_) => return json_str.to_string(),
-    };
-    let boolean_regex = match Regex::new(r#":\s*(true|false)"#) {
-        Ok(regex) => regex,
-        Err(_) => return json_str.to_string(),
-    };
-    let null_regex = match Regex::new(r#":\s*(null)"#) {
-        Ok(regex) => regex,
-        Err(_) => return json_str.to_string(),
-    };
-
-    let mut result = json_str.to_string();
-
-    // Color keys in blue
-    result = key_regex
-        .replace_all(&result, |caps: &regex::Captures| {
-            format!(r#""{}":"#, caps[1].blue().bold())
-        })
-        .to_string();
-
-    // Color string values in green
-    result = string_regex
-        .replace_all(&result, |caps: &regex::Captures| {
-            format!(r#": "{}""#, caps[1].green())
-        })
-        .to_string();
-
-    // Color numbers in yellow
-    result = number_regex
-        .replace_all(&result, |caps: &regex::Captures| {
-            format!(": {}", caps[1].yellow())
-        })
-        .to_string();
-
-    // Color booleans in cyan
-    result = boolean_regex
-        .replace_all(&result, |caps: &regex::Captures| {
-            format!(": {}", caps[1].cyan())
-        })
-        .to_string();
-
-    // Color null in cyan
-    result = null_regex
-        .replace_all(&result, |caps: &regex::Captures| {
-            format!(": {}", caps[1].cyan())
-        })
-        .to_string();
-
-    result
-}
-
-pub fn print_json_response(title: &str, data: &serde_json::Value) {
-    println!("\n{}", format!("📋 {title}").green().bold());
-    println!("{}", "═".repeat(60).dimmed());
-
-    let pretty_json = serde_json::to_string_pretty(data).unwrap_or_else(|_| format!("{data:?}"));
-    let colored_json = colorize_json(&pretty_json);
-
-    println!("{colored_json}");
-    println!("{}", "═".repeat(60).dimmed());
-}
-
-pub fn print_raw_json(data: &serde_json::Value) {
-    let json_string = serde_json::to_string(data).unwrap_or_else(|_| format!("{data:?}"));
-    println!("{json_string}");
 }
 
 #[cfg(test)]

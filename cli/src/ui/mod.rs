@@ -9,7 +9,6 @@ use serde::Serialize;
 pub mod components;
 pub mod formatting;
 pub mod message;
-pub mod output;
 
 pub use components::*;
 pub use formatting::*;
@@ -52,12 +51,6 @@ impl UI {
             output_format,
             quiet: true,
         }
-    }
-
-    /// Check if the UI is in quiet mode
-    #[must_use]
-    pub fn is_quiet(&self) -> bool {
-        self.quiet
     }
 
     /// Check if the output format is JSON
@@ -126,19 +119,23 @@ impl UI {
 
     /// Print a table with title and rows
     pub fn table(&self, title: &str, rows: &[(&str, &str)]) {
-        if self.is_json() {
-            let table_data = TableMessage::new(title, rows);
-            self.println(&table_data);
-        } else {
-            let table_output = TableFormatter::new().title(title).rows(rows).build();
-            self.println(&table_output);
-        }
+        let table_output = TableFormatter::new().title(title).rows(rows).build();
+        self.println(&table_output);
     }
 
     /// Print structured data as JSON or formatted output
-    pub fn data<T: Serialize>(&self, title: &str, data: &T) {
-        let data_message = DataMessage::new(title, data);
-        self.println(&data_message);
+    pub fn data<T: Serialize>(&self, _title: &str, data: &T) {
+        if self.is_json() {
+            if let Ok(json_val) = serde_json::to_value(data) {
+                let formatted = JsonFormatter::new(&json_val).build();
+                self.println(&formatted);
+            }
+        } else {
+            if let Ok(json_val) = serde_json::to_value(data) {
+                let formatted = JsonFormatter::new(&json_val).build();
+                self.println(&formatted);
+            }
+        }
     }
 
     /// Print raw JSON (only for JSON mode, otherwise formats nicely)

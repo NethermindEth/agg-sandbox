@@ -38,23 +38,11 @@ impl TableFormatter {
     }
 
     #[must_use]
-    pub fn emoji(mut self, emoji: impl Into<String>) -> Self {
-        self.emoji = Some(emoji.into());
-        self
-    }
-
-    #[must_use]
     pub fn rows(mut self, rows: &[(&str, &str)]) -> Self {
         self.rows = rows
             .iter()
             .map(|(k, v)| (k.to_string(), v.to_string()))
             .collect();
-        self
-    }
-
-    #[must_use]
-    pub fn row(mut self, key: impl Into<String>, value: impl Into<String>) -> Self {
-        self.rows.push((key.into(), value.into()));
         self
     }
 
@@ -141,12 +129,6 @@ impl<'a> JsonFormatter<'a> {
     }
 
     #[must_use]
-    pub fn title(mut self, title: impl Into<String>) -> Self {
-        self.title = Some(title.into());
-        self
-    }
-
-    #[must_use]
     pub fn build(self) -> FormattedJson<'a> {
         FormattedJson {
             data: self.data,
@@ -196,99 +178,5 @@ impl<'a> Serialize for FormattedJson<'a> {
     {
         // For serialization, we just serialize the underlying data
         self.data.serialize(serializer)
-    }
-}
-
-/// List formatter for creating formatted lists
-pub struct ListFormatter {
-    title: Option<String>,
-    items: Vec<String>,
-    bullet: String,
-}
-
-impl Default for ListFormatter {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
-impl ListFormatter {
-    #[must_use]
-    pub fn new() -> Self {
-        Self {
-            title: None,
-            items: Vec::new(),
-            bullet: "•".to_string(),
-        }
-    }
-
-    #[must_use]
-    pub fn title(mut self, title: impl Into<String>) -> Self {
-        self.title = Some(title.into());
-        self
-    }
-
-    #[must_use]
-    pub fn bullet(mut self, bullet: impl Into<String>) -> Self {
-        self.bullet = bullet.into();
-        self
-    }
-
-    #[must_use]
-    pub fn item(mut self, item: impl Into<String>) -> Self {
-        self.items.push(item.into());
-        self
-    }
-
-    #[must_use]
-    pub fn items<I, S>(mut self, items: I) -> Self
-    where
-        I: IntoIterator<Item = S>,
-        S: Into<String>,
-    {
-        self.items.extend(items.into_iter().map(Into::into));
-        self
-    }
-
-    #[must_use]
-    pub fn build(self) -> FormattedList {
-        FormattedList {
-            title: self.title,
-            items: self.items,
-            bullet: self.bullet,
-        }
-    }
-}
-
-/// A formatted list ready for display
-#[derive(Debug, Serialize)]
-pub struct FormattedList {
-    title: Option<String>,
-    items: Vec<String>,
-    bullet: String,
-}
-
-impl Message for FormattedList {
-    fn text(&self) -> String {
-        let mut output = String::new();
-
-        if let Some(title) = &self.title {
-            output.push_str(&format!("{}\n", title.bold()));
-        }
-
-        for item in &self.items {
-            output.push_str(&format!("  {} {}\n", self.bullet.cyan(), item));
-        }
-
-        output.trim_end().to_string()
-    }
-
-    fn json(&self) -> Value {
-        serde_json::json!({
-            "message_type": "list",
-            "title": self.title,
-            "items": self.items,
-            "bullet": self.bullet
-        })
     }
 }

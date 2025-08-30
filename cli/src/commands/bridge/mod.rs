@@ -64,9 +64,22 @@ abigen!(
 #[derive(Debug, clap::Subcommand)]
 pub enum BridgeCommands {
     /// 🔄 Bridge assets between networks
-    #[command(
-        long_about = "Transfer assets between L1 and L2 networks.\n\nBridge ETH or ERC20 tokens from source network to destination network.\nThe command handles token approvals automatically when needed.\n\nIMPORTANT: Wait at least 5 seconds after bridging before claiming to allow\nAggKit to update the Global Exit Root (GER).\n\nNetwork IDs:\n  • 0 = Ethereum L1 (Chain ID 1)\n  • 1 = L2 AggLayer 1 (Chain ID 1101)\n  • 2 = L2 AggLayer 2 (Chain ID 137, if multi-L2 enabled)\n\nExamples:\n  `aggsandbox bridge asset --network-id 0 --destination-network-id 1 --amount 100000000000000000 --token-address 0x0000000000000000000000000000000000000000`\n  `aggsandbox bridge asset -n 0 -d 1 -a 1500000000000000000 -t 0xA0b86a33E6776e39e6b37ddEC4F25B04Dd9Fc4DC --to-address 0x123...`"
-    )]
+    #[command(long_about = "Transfer assets between L1 and L2 networks.
+
+Bridge ETH or ERC20 tokens from source network to destination network.
+The command handles token approvals automatically when needed.
+
+IMPORTANT: Wait at least 5 seconds after bridging before claiming to allow
+AggKit to update the Global Exit Root (GER).
+
+Network IDs:
+  • 0 = Ethereum L1 (Chain ID 1)
+  • 1 = L2 AggLayer 1 (Chain ID 1101)
+  • 2 = L2 AggLayer 2 (Chain ID 137, if multi-L2 enabled)
+
+Examples:
+  aggsandbox bridge asset --network-id 0 --destination-network-id 1 --amount 100000000000000000 --token-address 0x0000000000000000000000000000000000000000
+  aggsandbox bridge asset -n 0 -d 1 -a 1500000000000000000 -t 0xA0b86a33E6776e39e6b37ddEC4F25B04Dd9Fc4DC --to-address 0x123...")]
     Asset {
         /// Source network ID (0=L1, 1=L2, etc.)
         #[arg(short = 'n', long, help = "Source network ID")]
@@ -94,9 +107,34 @@ pub enum BridgeCommands {
         private_key: Option<String>,
     },
     /// 📥 Claim bridged assets on destination network
-    #[command(
-        long_about = "Claim assets that were bridged from another network.\n\nUse the transaction hash from the original bridge operation to claim\nthe corresponding assets on the destination network.\n\nIMPORTANT: Wait at least 5 seconds after the original bridge transaction before\nattempting to claim, to allow AggKit to update the Global Exit Root (GER).\n\nThe --deposit-count parameter identifies which specific bridge to claim using a\nglobal sequential counter that increments for EVERY bridge operation system-wide:\n  • deposit-count=0: First bridge ever created\n  • deposit-count=1: Second bridge ever created  \n  • deposit-count=N: The Nth bridge created\n\nBridge operations and their deposit counts:\n  • Single bridge (asset/message): Creates one bridge with current counter\n  • bridgeAndCall: Creates TWO consecutive bridges:\n    - First: Asset bridge (deposit-count=N)\n    - Second: Message bridge (deposit-count=N+1)\n\nUse `aggsandbox show bridges --network-id X` to see all bridges and their deposit counts.\n\nFor BridgeExtension message claims, use --data to provide custom metadata.\n\nExamples:\n  `aggsandbox bridge claim --network-id 1 --tx-hash 0xabc123... --source-network-id 0`\n  `aggsandbox bridge claim -n 1 -t 0xdef456... -s 0 --deposit-count 5`   # Claim bridge #5 globally\n  `aggsandbox bridge claim -n 1 -t 0xdef456... -s 0 --deposit-count 6 --data 0x123...`  # Claim bridge #6 with data"
-    )]
+    #[command(long_about = "Claim assets that were bridged from another network.
+
+Use the transaction hash from the original bridge operation to claim
+the corresponding assets on the destination network.
+
+IMPORTANT: Wait at least 5 seconds after the original bridge transaction before
+attempting to claim, to allow AggKit to update the Global Exit Root (GER).
+
+The --deposit-count parameter identifies which specific bridge to claim using a
+global sequential counter that increments for EVERY bridge operation system-wide:
+  • deposit-count=0: First bridge ever created
+  • deposit-count=1: Second bridge ever created
+  • deposit-count=N: The Nth bridge created
+
+Bridge operations and their deposit counts:
+  • Single bridge (asset/message): Creates one bridge with current counter
+  • bridgeAndCall: Creates TWO consecutive bridges:
+    - First: Asset bridge (deposit-count=N)
+    - Second: Message bridge (deposit-count=N+1)
+
+Use aggsandbox show bridges --network-id X to see all bridges and their deposit counts.
+
+For BridgeExtension message claims, use --data to provide custom metadata.
+
+Examples:
+  aggsandbox bridge claim --network-id 1 --tx-hash 0xabc123... --source-network-id 0
+  aggsandbox bridge claim -n 1 -t 0xdef456... -s 0 --deposit-count 5   # Claim bridge #5 globally
+  aggsandbox bridge claim -n 1 -t 0xdef456... -s 0 --deposit-count 6 --data 0x123...  # Claim bridge #6 with data")]
     Claim {
         /// Network to claim assets on
         #[arg(short = 'n', long, help = "Network ID to claim assets on")]
@@ -148,7 +186,20 @@ pub enum BridgeCommands {
     },
     /// 📬 Bridge message to destination network
     #[command(
-        long_about = "Send a message to the destination network that can be claimed and executed.\n\nThis creates a pure message bridge using the bridgeMessage function,\nwhich must be manually claimed on the destination network.\n\nIMPORTANT: Wait at least 5 seconds after bridging before claiming to allow\nAggKit to update the Global Exit Root (GER).\n\nThe call data should be hex-encoded data that will be passed to the target address.\nThis is useful for sending data or triggering specific actions on the destination chain.\n\nExamples:\n  `aggsandbox bridge message --network-id 0 --destination-network-id 1 --target 0x123... --data 0xabc...`\n  `aggsandbox bridge message -n 0 -d 1 -t 0x456... --data 0xdef... --amount 100000000000000000`"
+        long_about = "Send a message to the destination network that can be claimed and executed.
+
+This creates a pure message bridge using the bridgeMessage function,
+which must be manually claimed on the destination network.
+
+IMPORTANT: Wait at least 5 seconds after bridging before claiming to allow
+AggKit to update the Global Exit Root (GER).
+
+The call data should be hex-encoded data that will be passed to the target address.
+This is useful for sending data or triggering specific actions on the destination chain.
+
+Examples:
+  aggsandbox bridge message --network-id 0 --destination-network-id 1 --target 0x123... --data 0xabc...
+  aggsandbox bridge message -n 0 -d 1 -t 0x456... --data 0xdef... --amount 100000000000000000"
     )]
     Message {
         /// Source network ID
@@ -181,7 +232,23 @@ pub enum BridgeCommands {
     },
     /// 🔗 Bridge tokens and execute contract call (bridgeAndCall with token approval)
     #[command(
-        long_about = "Bridge ERC20 tokens and execute a contract call on the destination network.\n\nThis command handles the complete bridgeAndCall workflow:\n1. Approves the bridge extension contract to spend tokens\n2. Executes bridgeAndCall to bridge tokens and create a call message\n3. Provides instructions for claiming the asset and message bridges\n\nIMPORTANT: Wait at least 5 seconds after bridging before claiming to allow\nAggKit to update the Global Exit Root (GER).\n\nNote: This creates TWO bridge transactions:\n- Asset bridge (deposit_count = 0) - must be claimed first\n- Message bridge (deposit_count = 1) - contains call instructions\n\nExamples:\n  `aggsandbox bridge bridge-and-call --network-id 0 --destination-network-id 1 --token 0x123... --amount 10 --target 0x456... --data 0xabc... --fallback 0x789...`\n  `aggsandbox bridge bridge-and-call -n 0 -d 1 -t 0x123... -a 10 --target 0x456... --data 0xdef... --fallback 0x789...`"
+        long_about = "Bridge ERC20 tokens and execute a contract call on the destination network.
+
+This command handles the complete bridgeAndCall workflow:
+1. Approves the bridge extension contract to spend tokens
+2. Executes bridgeAndCall to bridge tokens and create a call message
+3. Provides instructions for claiming the asset and message bridges
+
+IMPORTANT: Wait at least 5 seconds after bridging before claiming to allow
+AggKit to update the Global Exit Root (GER).
+
+Note: This creates TWO bridge transactions:
+- Asset bridge (deposit_count = 0) - must be claimed first
+- Message bridge (deposit_count = 1) - contains call instructions
+
+Examples:
+  aggsandbox bridge bridge-and-call --network-id 0 --destination-network-id 1 --token 0x123... --amount 10 --target 0x456... --data 0xabc... --fallback 0x789...
+  aggsandbox bridge bridge-and-call -n 0 -d 1 -t 0x123... -a 10 --target 0x456... --data 0xdef... --fallback 0x789..."
     )]
     BridgeAndCall {
         /// Source network ID (0=L1, 1=L2, etc.)

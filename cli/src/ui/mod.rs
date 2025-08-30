@@ -125,16 +125,9 @@ impl UI {
 
     /// Print structured data as JSON or formatted output
     pub fn data<T: Serialize>(&self, _title: &str, data: &T) {
-        if self.is_json() {
-            if let Ok(json_val) = serde_json::to_value(data) {
-                let formatted = JsonFormatter::new(&json_val).build();
-                self.println(&formatted);
-            }
-        } else {
-            if let Ok(json_val) = serde_json::to_value(data) {
-                let formatted = JsonFormatter::new(&json_val).build();
-                self.println(&formatted);
-            }
+        if let Ok(json_val) = serde_json::to_value(data) {
+            let formatted = JsonFormatter::new(&json_val).build();
+            self.println(&formatted);
         }
     }
 
@@ -169,6 +162,7 @@ pub fn init_ui(output_format: OutputFormat, quiet: bool) {
 /// # Panics
 /// Panics if UI has not been initialized with `init_ui()`
 #[must_use]
+#[allow(static_mut_refs)]
 pub fn ui() -> &'static UI {
     unsafe {
         GLOBAL_UI

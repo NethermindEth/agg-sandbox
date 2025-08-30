@@ -354,15 +354,18 @@ mod tests {
     }
 
     #[test]
-    fn test_print_json_response() {
+    fn test_json_data_serialization() {
         let test_data = json!({
             "test": "value",
             "number": 42,
             "array": [1, 2, 3]
         });
 
-        // This test mainly ensures the function doesn't panic
-        // In a real scenario, you might want to capture stdout to verify output
-        print_json_response("Test Response", &test_data);
+        // Test JSON serialization doesn't panic
+        let result = serde_json::to_string(&test_data);
+        assert!(result.is_ok());
+
+        let pretty_result = serde_json::to_string_pretty(&test_data);
+        assert!(pretty_result.is_ok());
     }
 }

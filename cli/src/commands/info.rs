@@ -2,7 +2,7 @@ use crate::config::Config;
 use crate::docker::{create_auto_docker_builder, execute_docker_command_with_output};
 use crate::error::Result;
 use crate::logs;
-use colored::*;
+use crate::ui;
 
 /// Detect the actual running mode by checking which services are running
 fn detect_running_mode() -> (bool, bool, bool) {
@@ -31,31 +31,22 @@ fn detect_running_mode() -> (bool, bool, bool) {
 pub async fn handle_info() -> Result<()> {
     let config = Config::load()?;
 
-    println!("{}", "📋 Agglayer Sandbox Information".blue().bold());
+    ui::ui().info("📋 Agglayer Sandbox Information");
 
     // Detect the actual running mode by checking which services are running
     let (is_multi_l2_running, _, is_sandbox_running) = detect_running_mode();
 
     // Check if sandbox is actually running
     if !is_sandbox_running {
-        println!();
-        println!(
-            "{}",
-            "❌ No Agglayer sandbox is currently running".red().bold()
-        );
-        println!();
-        println!("{}", "🚀 To start the sandbox:".yellow().bold());
-        println!("• Standard mode: {}", "aggsandbox start --detach".green());
-        println!(
-            "• Fork mode: {}",
-            "aggsandbox start --fork --detach".green()
-        );
-        println!(
-            "• Multi-L2 mode: {}",
-            "aggsandbox start --multi-l2 --detach".green()
-        );
-        println!();
-        println!("{}", "📊 Check running services: aggsandbox status".cyan());
+        ui::ui().blank_line();
+        ui::ui().error("❌ No Agglayer sandbox is currently running");
+        ui::ui().blank_line();
+        ui::ui().warning("🚀 To start the sandbox:");
+        ui::ui().info("• Standard mode: aggsandbox start --detach");
+        ui::ui().info("• Fork mode: aggsandbox start --fork --detach");
+        ui::ui().info("• Multi-L2 mode: aggsandbox start --multi-l2 --detach");
+        ui::ui().blank_line();
+        ui::ui().info("📊 Check running services: aggsandbox status");
         return Ok(());
     }
 

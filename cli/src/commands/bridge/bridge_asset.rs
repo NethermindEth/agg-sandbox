@@ -1,5 +1,6 @@
 use crate::config::Config;
 use crate::error::Result;
+use crate::ui;
 use ethers::prelude::*;
 use std::str::FromStr;
 use std::sync::Arc;
@@ -309,7 +310,7 @@ pub async fn bridge_asset(args: BridgeAssetArgs<'_>) -> Result<()> {
         })?;
 
         let tx_hash = tx.tx_hash();
-        println!("✅ Bridge transaction submitted: {tx_hash:#x}");
+        ui::ui().success(&format!("Bridge transaction submitted: {tx_hash:#x}"));
         tx_hash
     } else {
         info!(
@@ -353,7 +354,10 @@ pub async fn bridge_asset(args: BridgeAssetArgs<'_>) -> Result<()> {
                     &format!("Failed to approve tokens: {e}"),
                 ))
             })?;
-            println!("✅ Token approval transaction: {:#x}", approve_tx.tx_hash());
+            ui::ui().success(&format!(
+                "Token approval transaction: {:#x}",
+                approve_tx.tx_hash()
+            ));
 
             // Wait for approval to be mined
             approve_tx.await.map_err(|e| {
@@ -389,7 +393,7 @@ pub async fn bridge_asset(args: BridgeAssetArgs<'_>) -> Result<()> {
         })?;
 
         let tx_hash = tx.tx_hash();
-        println!("✅ Bridge transaction submitted: {tx_hash:#x}");
+        ui::ui().success(&format!("Bridge transaction submitted: {tx_hash:#x}"));
         tx_hash
     };
 
@@ -408,8 +412,8 @@ pub async fn bridge_asset(args: BridgeAssetArgs<'_>) -> Result<()> {
         args.source_network // ETH bridging, use actual source network
     };
 
-    println!("💡 Use `aggsandbox bridge claim --network-id {} --tx-hash {tx_hash_for_claim:#x} --source-network-id {claim_source_network}` to claim assets", args.destination_network);
-    println!("⏰ Wait at least 5 seconds after bridging before claiming to allow AggKit to update the Global Exit Root (GER)");
+    ui::ui().tip(&format!("Use `aggsandbox bridge claim --network-id {} --tx-hash {tx_hash_for_claim:#x} --source-network-id {claim_source_network}` to claim assets", args.destination_network));
+    ui::ui().warning("Wait at least 5 seconds after bridging before claiming to allow AggKit to update the Global Exit Root (GER)");
 
     Ok(())
 }

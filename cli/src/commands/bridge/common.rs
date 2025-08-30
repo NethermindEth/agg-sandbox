@@ -73,34 +73,6 @@ pub fn serialize_json<T: Serialize>(data: &T) -> Result<String> {
         .map_err(|e| validation_error(&format!("Failed to serialize output to JSON: {e}")))
 }
 
-/// Table formatting utilities
-pub mod table {
-    /// Print table header
-    pub fn print_header(title: &str) {
-        println!("{title}");
-        println!("┌────────────────────────┬─────────────────────────────────────────────┐");
-    }
-
-    /// Print table row
-    pub fn print_row(key: &str, value: &str) {
-        println!("│ {key:<22} │ {value:<43} │");
-    }
-
-    /// Print table footer
-    pub fn print_footer() {
-        println!("└────────────────────────┴─────────────────────────────────────────────┘");
-    }
-
-    /// Print complete table with data
-    pub fn print_table(title: &str, rows: &[(&str, &str)]) {
-        print_header(title);
-        for (key, value) in rows {
-            print_row(key, value);
-        }
-        print_footer();
-    }
-}
-
 /// Contract interaction utilities
 pub mod contract {
     use super::*;

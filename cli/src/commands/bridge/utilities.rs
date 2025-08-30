@@ -4,13 +4,14 @@
 //! programmatically and via CLI commands for bridge operations.
 
 use super::common::{
-    contract, get_network_name, serialize_json, table, validate_address, validate_network_id,
+    contract, get_network_name, serialize_json, validate_address, validate_network_id,
     validation_error,
 };
 use super::{get_wallet_with_provider, ERC20Contract};
 use crate::api_client::{CacheConfig, OptimizedApiClient};
 use crate::config::Config;
 use crate::error::Result;
+use crate::ui::{OutputFormat, UI};
 use ethers::prelude::*;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
@@ -611,9 +612,15 @@ pub async fn handle_utility_command(config: &Config, command: UtilityCommands) -
 
             let payload = build_payload_for_claim(args).await?;
 
+            let ui = UI::new(if json {
+                OutputFormat::Json
+            } else {
+                OutputFormat::Human
+            });
+
             if json {
                 let json_str = serialize_json(&payload)?;
-                println!("{json_str}");
+                ui.json(&serde_json::from_str::<serde_json::Value>(&json_str).unwrap_or_default());
             } else {
                 let origin_network_str = format!(
                     "{} ({})",
@@ -642,7 +649,7 @@ pub async fn handle_utility_command(config: &Config, command: UtilityCommands) -
                     rollup_proof_len_str = rollup_proof.len().to_string();
                     rows.push(("SMT Rollup Proof Len", rollup_proof_len_str.as_str()));
                 }
-                table::print_table("🔍 Bridge Claim Payload", &rows);
+                ui.table("🔍 Bridge Claim Payload", &rows);
             }
 
             Ok(())
@@ -666,6 +673,11 @@ pub async fn handle_utility_command(config: &Config, command: UtilityCommands) -
             };
 
             let global_index = compute_global_index(args);
+            let ui = UI::new(if json {
+                OutputFormat::Json
+            } else {
+                OutputFormat::Human
+            });
 
             if json {
                 let output = ComputeIndexOutput {
@@ -674,7 +686,7 @@ pub async fn handle_utility_command(config: &Config, command: UtilityCommands) -
                     global_index: global_index.to_string(),
                 };
                 let json_str = serialize_json(&output)?;
-                println!("{json_str}");
+                ui.json(&serde_json::from_str::<serde_json::Value>(&json_str).unwrap_or_default());
             } else {
                 let local_index_str = local_index.to_string();
                 let source_network_str = format!(
@@ -687,7 +699,7 @@ pub async fn handle_utility_command(config: &Config, command: UtilityCommands) -
                     ("Source Network", source_network_str.as_str()),
                     ("Global Index", global_index_str.as_str()),
                 ];
-                table::print_table("🧮 Global Index Calculation", &rows);
+                ui.table("🧮 Global Index Calculation", &rows);
             }
 
             Ok(())
@@ -715,6 +727,11 @@ pub async fn handle_utility_command(config: &Config, command: UtilityCommands) -
             };
 
             let mapped_address = get_mapped_token_info(args).await?;
+            let ui = UI::new(if json {
+                OutputFormat::Json
+            } else {
+                OutputFormat::Human
+            });
 
             if json {
                 let output = MappedTokenOutput {
@@ -724,7 +741,7 @@ pub async fn handle_utility_command(config: &Config, command: UtilityCommands) -
                     wrapped_token_address: format!("{mapped_address:?}"),
                 };
                 let json_str = serialize_json(&output)?;
-                println!("{json_str}");
+                ui.json(&serde_json::from_str::<serde_json::Value>(&json_str).unwrap_or_default());
             } else {
                 let origin_network_str = format!(
                     "{origin_network} ({})",
@@ -738,7 +755,7 @@ pub async fn handle_utility_command(config: &Config, command: UtilityCommands) -
                     ("Target Network", target_network_str.as_str()),
                     ("Wrapped Token Address", wrapped_address_str.as_str()),
                 ];
-                table::print_table("🔗 Mapped Token Information", &rows);
+                ui.table("🔗 Mapped Token Information", &rows);
             }
 
             Ok(())
@@ -766,6 +783,11 @@ pub async fn handle_utility_command(config: &Config, command: UtilityCommands) -
             };
 
             let precalculated_address = precalculated_mapped_token_info(args).await?;
+            let ui = UI::new(if json {
+                OutputFormat::Json
+            } else {
+                OutputFormat::Human
+            });
 
             if json {
                 let output = PrecalculatedTokenOutput {
@@ -775,7 +797,7 @@ pub async fn handle_utility_command(config: &Config, command: UtilityCommands) -
                     precalculated_address: format!("{precalculated_address:?}"),
                 };
                 let json_str = serialize_json(&output)?;
-                println!("{json_str}");
+                ui.json(&serde_json::from_str::<serde_json::Value>(&json_str).unwrap_or_default());
             } else {
                 let origin_network_str = format!(
                     "{origin_network} ({})",
@@ -789,7 +811,7 @@ pub async fn handle_utility_command(config: &Config, command: UtilityCommands) -
                     ("Target Network", target_network_str.as_str()),
                     ("Precalculated Address", precalculated_address_str.as_str()),
                 ];
-                table::print_table("🧮 Precalculated Token Address", &rows);
+                ui.table("🧮 Precalculated Token Address", &rows);
             }
 
             Ok(())
@@ -814,10 +836,15 @@ pub async fn handle_utility_command(config: &Config, command: UtilityCommands) -
             };
 
             let origin_info = get_origin_token_info(args).await?;
+            let ui = UI::new(if json {
+                OutputFormat::Json
+            } else {
+                OutputFormat::Human
+            });
 
             if json {
                 let json_str = serialize_json(&origin_info)?;
-                println!("{json_str}");
+                ui.json(&serde_json::from_str::<serde_json::Value>(&json_str).unwrap_or_default());
             } else {
                 let network_str = format!("{network_id} ({})", get_network_name(network_id));
                 let origin_network_str = format!(
@@ -832,7 +859,7 @@ pub async fn handle_utility_command(config: &Config, command: UtilityCommands) -
                     ("Origin Network", origin_network_str.as_str()),
                     ("Origin Token Address", origin_token_address_str.as_str()),
                 ];
-                table::print_table("🔍 Origin Token Information", &rows);
+                ui.table("🔍 Origin Token Information", &rows);
             }
 
             Ok(())
@@ -858,6 +885,11 @@ pub async fn handle_utility_command(config: &Config, command: UtilityCommands) -
             };
 
             let claimed = is_claimed(args).await?;
+            let ui = UI::new(if json {
+                OutputFormat::Json
+            } else {
+                OutputFormat::Human
+            });
 
             if json {
                 let output = ClaimStatusOutput {
@@ -867,7 +899,7 @@ pub async fn handle_utility_command(config: &Config, command: UtilityCommands) -
                     is_claimed: claimed,
                 };
                 let json_str = serialize_json(&output)?;
-                println!("{json_str}");
+                ui.json(&serde_json::from_str::<serde_json::Value>(&json_str).unwrap_or_default());
             } else {
                 let network_str = format!("{network_id} ({})", get_network_name(network_id));
                 let index_str = index.to_string();
@@ -886,7 +918,7 @@ pub async fn handle_utility_command(config: &Config, command: UtilityCommands) -
                     ("Source Network", source_network_str.as_str()),
                     ("Claimed Status", claimed_status),
                 ];
-                table::print_table("🔍 Bridge Claim Status", &rows);
+                ui.table("🔍 Bridge Claim Status", &rows);
             }
 
             Ok(())
@@ -905,6 +937,11 @@ pub async fn handle_utility_command(config: &Config, command: UtilityCommands) -
             };
 
             let contract_network_id = get_network_id(args).await?;
+            let ui = UI::new(if json {
+                OutputFormat::Json
+            } else {
+                OutputFormat::Human
+            });
 
             if json {
                 let output = NetworkIdOutput {
@@ -912,7 +949,7 @@ pub async fn handle_utility_command(config: &Config, command: UtilityCommands) -
                     contract_network_id,
                 };
                 let json_str = serialize_json(&output)?;
-                println!("{json_str}");
+                ui.json(&serde_json::from_str::<serde_json::Value>(&json_str).unwrap_or_default());
             } else {
                 let network_str = format!("{network_id} ({})", get_network_name(network_id));
                 let contract_network_id_str = contract_network_id.to_string();
@@ -920,7 +957,7 @@ pub async fn handle_utility_command(config: &Config, command: UtilityCommands) -
                     ("Network", network_str.as_str()),
                     ("Contract Network ID", contract_network_id_str.as_str()),
                 ];
-                table::print_table("🆔 Bridge Contract Network ID", &rows);
+                ui.table("🆔 Bridge Contract Network ID", &rows);
             }
 
             Ok(())

@@ -1,14 +1,26 @@
 use crate::api;
 use crate::config::Config;
 use crate::error::Result;
+use crate::ui::{OutputFormat, UI};
 
 /// Bridge and blockchain data subcommands
 #[derive(Debug, clap::Subcommand)]
 pub enum ShowCommands {
     /// 🌉 Show bridge information for a specific network
-    #[command(
-        long_about = "Display bridge information for the specified network.\\n\\nBridges enable cross-chain transfers between L1 and L2 networks.\\nThis command shows active bridges, their configurations, and status.\\n\\nNetwork IDs:\\n  • 0 = Ethereum L1\\n  • 1 = First L2 connected to Agglayer\\n  • 2 = Second L2 (if multi-L2 enabled)\\n\\nExamples:\\n  `aggsandbox show bridges`                    # Show L1 bridges\\n  `aggsandbox show bridges --network-id 1`    # Show first L2 bridges\\n  `aggsandbox show bridges --json`             # Raw JSON output for scripting"
-    )]
+    #[command(long_about = "Display bridge information for the specified network.
+
+Bridges enable cross-chain transfers between L1 and L2 networks.
+This command shows active bridges, their configurations, and status.
+
+Network IDs:
+  • 0 = Ethereum L1
+  • 1 = First L2 connected to Agglayer
+  • 2 = Second L2 (if multi-L2 enabled)
+
+Examples:
+  aggsandbox show bridges                    # Show L1 bridges
+  aggsandbox show bridges --network-id 1    # Show first L2 bridges
+  aggsandbox show bridges --json             # Raw JSON output for scripting")]
     Bridges {
         /// Network ID to query (0=L1, 1=first L2, etc.)
         #[arg(
@@ -24,7 +36,27 @@ pub enum ShowCommands {
     },
     /// 📋 Show pending claims for a network
     #[command(
-        long_about = "Display claims that can be executed on the specified network.\\n\\nClaims represent cross-chain transfers waiting to be processed.\\nEach claim contains transfer details and required proof data.\\n\\nTypically:\\n  • L1 claims (network 0): Deposits to be claimed on L2\\n  • L2 claims (network 1): Withdrawals to be claimed on L1\\n\\nFiltering:\\n  Use filters to narrow down results when many claims are present.\\n\\nExamples:\\n  `aggsandbox show claims`                                    # Show all L2 claims\\n  `aggsandbox show claims --network-id 0`                     # Show L1 claims\\n  `aggsandbox show claims --bridge-tx-hash 0x123...`          # Filter by bridge transaction\\n  `aggsandbox show claims --claim-tx-hash 0xabc...`           # Filter by claim transaction\\n  `aggsandbox show claims --status pending`                   # Show only pending claims\\n  `aggsandbox show claims --claim-type asset`                 # Show only asset claims\\n  `aggsandbox show claims --address 0xdef...`                 # Filter by destination address\\n  `aggsandbox show claims --json`                             # Raw JSON output for scripting"
+        long_about = "Display claims that can be executed on the specified network.
+
+Claims represent cross-chain transfers waiting to be processed.
+Each claim contains transfer details and required proof data.
+
+Typically:
+  • L1 claims (network 0): Deposits to be claimed on L2
+  • L2 claims (network 1): Withdrawals to be claimed on L1
+
+Filtering:
+  Use filters to narrow down results when many claims are present.
+
+Examples:
+  aggsandbox show claims                                    # Show all L2 claims
+  aggsandbox show claims --network-id 0                     # Show L1 claims
+  aggsandbox show claims --bridge-tx-hash 0x123...          # Filter by bridge transaction
+  aggsandbox show claims --claim-tx-hash 0xabc...           # Filter by claim transaction
+  aggsandbox show claims --status pending                   # Show only pending claims
+  aggsandbox show claims --claim-type asset                 # Show only asset claims
+  aggsandbox show claims --address 0xdef...                 # Filter by destination address
+  aggsandbox show claims --json                             # Raw JSON output for scripting"
     )]
     Claims {
         /// Network ID to query for claims
@@ -59,7 +91,20 @@ pub enum ShowCommands {
     },
     /// 🔐 Generate and show claim proof for a specific transaction
     #[command(
-        long_about = "Generate a cryptographic proof required to claim a cross-chain transfer.\\n\\nClaim proofs are Merkle proofs that verify a deposit exists in the\\nglobal exit tree, enabling secure cross-chain claims.\\n\\nParameters:\\n  • network_id: The target network for claiming\\n  • leaf_index: Position in the global exit tree\\n  • deposit_count: Number of deposits when the exit was created\\n\\nExamples:\\n  `aggsandbox show claim-proof --network-id 0 --leaf-index 0 --deposit-count 1`\\n  `aggsandbox show claim-proof -n 1 -l 5 -d 10`\\n  `aggsandbox show claim-proof --json`         # Raw JSON output for scripting"
+        long_about = "Generate a cryptographic proof required to claim a cross-chain transfer.
+
+Claim proofs are Merkle proofs that verify a deposit exists in the
+global exit tree, enabling secure cross-chain claims.
+
+Parameters:
+  • network_id: The target network for claiming
+  • leaf_index: Position in the global exit tree
+  • deposit_count: Number of deposits when the exit was created
+
+Examples:
+  aggsandbox show claim-proof --network-id 0 --leaf-index 0 --deposit-count 1
+  aggsandbox show claim-proof -n 1 -l 5 -d 10
+  aggsandbox show claim-proof --json         # Raw JSON output for scripting"
     )]
     ClaimProof {
         /// Target network ID for the claim
@@ -92,7 +137,20 @@ pub enum ShowCommands {
     },
     /// 🌳 Show L1 info tree index for deposit verification
     #[command(
-        long_about = "Retrieve the L1 information tree index for a specific deposit count.\\n\\nThe L1 info tree contains snapshots of L1 state that are used\\nby L2 for deposit verification and cross-chain communication.\\n\\nThis is primarily used for:\\n  • Verifying L1 state on L2\\n  • Resolving deposit transactions\\n  • Cross-chain message verification\\n\\nExamples:\\n  `aggsandbox show l1-info-tree-index --network-id 0 --deposit-count 0`\\n  `aggsandbox show l1-info-tree-index -n 1 -d 5`\\n  `aggsandbox show l1-info-tree-index --json`  # Raw JSON output for scripting"
+        long_about = "Retrieve the L1 information tree index for a specific deposit count.
+
+The L1 info tree contains snapshots of L1 state that are used
+by L2 for deposit verification and cross-chain communication.
+
+This is primarily used for:
+  • Verifying L1 state on L2
+  • Resolving deposit transactions
+  • Cross-chain message verification
+
+Examples:
+  aggsandbox show l1-info-tree-index --network-id 0 --deposit-count 0
+  aggsandbox show l1-info-tree-index -n 1 -d 5
+  aggsandbox show l1-info-tree-index --json  # Raw JSON output for scripting"
     )]
     L1InfoTreeIndex {
         /// Network ID to query
@@ -118,12 +176,18 @@ pub async fn handle_show(subcommand: ShowCommands) -> Result<()> {
 
     match subcommand {
         ShowCommands::Bridges { network_id, json } => {
+            let ui = UI::new(if json {
+                OutputFormat::Json
+            } else {
+                OutputFormat::Human
+            });
             let response = api::get_bridges(&config, network_id, json).await?;
+
             if json {
-                api::print_raw_json(&response.data);
+                ui.json(&response.data);
             } else {
                 let display_data = filter_display_metadata(&response.data);
-                api::print_json_response("Bridge Information", &display_data);
+                ui.data("🌉 Bridge Information", &display_data);
             }
         }
         ShowCommands::Claims {
@@ -135,6 +199,11 @@ pub async fn handle_show(subcommand: ShowCommands) -> Result<()> {
             address,
             json,
         } => {
+            let ui = UI::new(if json {
+                OutputFormat::Json
+            } else {
+                OutputFormat::Human
+            });
             let response = api::get_claims(&config, network_id, json).await?;
             let filtered_data = filter_claims(
                 &response.data,
@@ -144,11 +213,12 @@ pub async fn handle_show(subcommand: ShowCommands) -> Result<()> {
                 claim_type.as_deref(),
                 address.as_deref(),
             );
+
             if json {
-                api::print_raw_json(&filtered_data);
+                ui.json(&filtered_data);
             } else {
                 let display_data = filter_display_metadata(&filtered_data);
-                api::print_json_response("Claims Information", &display_data);
+                ui.data("📋 Claims Information", &display_data);
             }
         }
         ShowCommands::ClaimProof {
@@ -157,13 +227,19 @@ pub async fn handle_show(subcommand: ShowCommands) -> Result<()> {
             deposit_count,
             json,
         } => {
+            let ui = UI::new(if json {
+                OutputFormat::Json
+            } else {
+                OutputFormat::Human
+            });
             let response =
                 api::get_claim_proof(&config, network_id, leaf_index, deposit_count, json).await?;
+
             if json {
-                api::print_raw_json(&response.data);
+                ui.json(&response.data);
             } else {
                 let display_data = filter_display_metadata(&response.data);
-                api::print_json_response("Claim Proof Information", &display_data);
+                ui.data("🔐 Claim Proof Information", &display_data);
             }
         }
         ShowCommands::L1InfoTreeIndex {
@@ -171,13 +247,19 @@ pub async fn handle_show(subcommand: ShowCommands) -> Result<()> {
             deposit_count,
             json,
         } => {
+            let ui = UI::new(if json {
+                OutputFormat::Json
+            } else {
+                OutputFormat::Human
+            });
             let response =
                 api::get_l1_info_tree_index(&config, network_id, deposit_count, json).await?;
+
             if json {
-                api::print_raw_json(&response.data);
+                ui.json(&response.data);
             } else {
                 let display_data = filter_display_metadata(&response.data);
-                api::print_json_response("L1 Info Tree Index", &display_data);
+                ui.data("🌳 L1 Info Tree Index", &display_data);
             }
         }
     }

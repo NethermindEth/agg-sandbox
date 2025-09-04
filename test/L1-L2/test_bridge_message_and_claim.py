@@ -256,7 +256,6 @@ def run_l1_to_l2_message_bridge_test(message: str = "Hello World"):
                     # Verify transaction actually succeeded
                     BridgeLogger.info("Verifying claim transaction status...")
                     try:
-                        import subprocess
                         result = subprocess.run([
                             "cast", "receipt", claim_tx_hash, "--rpc-url", BRIDGE_CONFIG.rpc_2
                         ], capture_output=True, text=True, check=True)
